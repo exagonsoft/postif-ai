@@ -1,0 +1,20 @@
+{
+  "en": {
+    "nav.product": "Product", "nav.workflow": "Workflow", "nav.pricing": "Pricing", "nav.signIn": "Sign in", "nav.start": "Start free",
+    "hero.eyebrow": "One calm place for every channel", "hero.title": "Social publishing, with a clearer point of view.", "hero.description": "Plan content, adapt it for every platform, and see what earns attention without losing your voice.", "hero.primary": "Build your workspace", "hero.secondary": "Explore the workflow", "hero.note": "No credit card required",
+    "proof.label": "Made for independent teams and growing brands", "proof.first": "Plan with purpose", "proof.second": "Publish with confidence", "proof.third": "Learn from every post",
+    "workflow.eyebrow": "A focused workflow", "workflow.title": "From an idea to every channel.", "workflow.one.title": "Shape the story", "workflow.one.description": "Write, refine, and generate a visual direction in one composer.", "workflow.two.title": "Choose the right places", "workflow.two.description": "Adapt a single post for the accounts, pages, and channels you manage.", "workflow.three.title": "See what carries", "workflow.three.description": "Bring publishing and performance into the same weekly rhythm.",
+    "platforms.eyebrow": "Connected by design", "platforms.title": "One editorial home. Many destinations.", "platforms.description": "Keep every brand account and publication plan visible from a single workspace.",
+    "pricing.eyebrow": "Simple to start", "pricing.title": "Start with the work, not a contract.", "pricing.description": "Create your first workspace free. Add the publishing tools your team needs as you grow.", "pricing.cta": "Create your workspace",
+    "footer.statement": "Postify helps thoughtful teams publish with more intention.", "footer.dashboard": "Open dashboard", "footer.login": "Sign in", "theme.light": "Use light theme", "theme.dark": "Use dark theme"
+  },
+  "es": {
+    "nav.product": "Producto", "nav.workflow": "Flujo", "nav.pricing": "Planes", "nav.signIn": "Iniciar sesión", "nav.start": "Empezar gratis",
+    "hero.eyebrow": "Un espacio claro para cada canal", "hero.title": "Publica en redes con una visión más clara.", "hero.description": "Planifica contenido, adáptalo para cada plataforma y descubre qué conecta sin perder tu voz.", "hero.primary": "Crear mi espacio", "hero.secondary": "Ver el flujo", "hero.note": "No requiere tarjeta",
+    "proof.label": "Pensado para equipos independientes y marcas en crecimiento", "proof.first": "Planifica con intención", "proof.second": "Publica con confianza", "proof.third": "Aprende de cada post",
+    "workflow.eyebrow": "Un flujo enfocado", "workflow.title": "De una idea a todos tus canales.", "workflow.one.title": "Da forma a la historia", "workflow.one.description": "Escribe, refina y genera una dirección visual desde un solo editor.", "workflow.two.title": "Elige los mejores lugares", "workflow.two.description": "Adapta una publicación para las cuentas, páginas y canales que administras.", "workflow.three.title": "Mide lo que funciona", "workflow.three.description": "Integra publicación y resultados dentro del mismo ritmo semanal.",
+    "platforms.eyebrow": "Conectado por diseño", "platforms.title": "Un hogar editorial. Varios destinos.", "platforms.description": "Mantén visibles todas las cuentas de tu marca y el plan de publicación desde un mismo espacio.",
+    "pricing.eyebrow": "Simple para empezar", "pricing.title": "Empieza por el trabajo, no por un contrato.", "pricing.description": "Crea tu primer espacio gratis. Añade las herramientas de publicación que necesita tu equipo al crecer.", "pricing.cta": "Crear mi espacio",
+    "footer.statement": "Postify ayuda a equipos con criterio a publicar con más intención.", "footer.dashboard": "Abrir dashboard", "footer.login": "Iniciar sesión", "theme.light": "Usar tema claro", "theme.dark": "Usar tema oscuro"
+  }
+}

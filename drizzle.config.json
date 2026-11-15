@@ -1,0 +1,7 @@
+{
+  "dialect": "postgresql",
+  "schema": "./src/db/schema.ts",
+  "dbCredentials": {
+    "url": "postgresql://postif_ai:postgres@localhost:5432/postif_ai_db"
+  }
+}

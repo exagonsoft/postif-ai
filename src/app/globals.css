@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="dark"] {
+  --bg-canvas: #060913;
+  --bg-surface: #0c1222;
+  --bg-elevated: #121a30;
+  --bg-glass: rgba(15, 23, 42, 0.72);
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-strong: rgba(139, 92, 246, 0.35);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-violet: #7c3aed;
+  --accent-cyan: #06b6d4;
+}
+
+[data-theme="light"] {
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --border-subtle: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(124, 58, 237, 0.35);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent-violet: #6d28d9;
+  --accent-cyan: #0891b2;
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.surface-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.elevated-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-subtle);
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}

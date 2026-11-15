@@ -1,0 +1,6 @@
+ENCRYPTION_SECRET=some_ultra_secret_key
+OPENAI_API_KEY=
+LINKEDIN_CLIENT_ID=
+STRIPE_SECRET_KEY=
+X_CLIENT_ID=
+DATABASE_URL=postgresql://postif_ai:postgres@localhost:5432/postif_ai_db

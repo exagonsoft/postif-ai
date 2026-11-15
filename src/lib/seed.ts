@@ -1,0 +1,875 @@
+import { db } from "@/db";
+import {
+  users,
+  workspaces,
+  workspaceMembers,
+  brands,
+  socialAccounts,
+  aiConfigurations,
+  aiUsageRecords,
+  posts,
+  publishingJobs,
+  campaigns,
+  mediaAssets,
+  agentConfigurations,
+  agentActions,
+  analyticsSnapshots,
+  notifications,
+  auditLogs,
+  featureFlags,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { hashPassword } from "./crypto";
+
+let seedPromise: Promise<void> | null = null;
+
+export async function ensureSeeded(): Promise<void> {
+  if (seedPromise) {
+    return seedPromise;
+  }
+
+  seedPromise = (async () => {
+    try {
+      const existingUsers = await db.select().from(users).limit(1);
+      if (existingUsers.length > 0) {
+        return;
+      }
+
+      const [demoUser] = await db
+        .insert(users)
+        .values({
+          email: "alex.mercer@nebulacloud.io",
+          name: "Alex Mercer",
+          passwordHash: hashPassword("DemoUser123!"),
+          systemRole: "operator",
+          emailVerified: true,
+        })
+        .returning();
+
+      const [mainWorkspace] = await db
+        .insert(workspaces)
+        .values({
+          name: "NebulaCloud AI",
+          slug: "nebula-cloud",
+          ownerId: demoUser.id,
+          planSlug: "pro_ai",
+          billingCycle: "monthly",
+          aiBillingMode: "managed",
+          aiCreditsBalance: 842,
+          aiCreditsMonthlyAllowance: 1000,
+          postsPublishedThisMonth: 19,
+          stripeCustomerId: "cus_demo_nebula_01",
+          stripeSubscriptionId: "sub_demo_proai_01",
+          subscriptionStatus: "active",
+        })
+        .returning();
+
+      const [agencyWorkspace] = await db
+        .insert(workspaces)
+        .values({
+          name: "Exagon Growth Partners (Agency)",
+          slug: "exagon-agency",
+          ownerId: demoUser.id,
+          planSlug: "agency",
+          billingCycle: "annual",
+          aiBillingMode: "byok",
+          aiCreditsBalance: 3500,
+          aiCreditsMonthlyAllowance: 3500,
+          postsPublishedThisMonth: 47,
+          stripeCustomerId: "cus_demo_agency_02",
+          stripeSubscriptionId: "sub_demo_agency_02",
+          subscriptionStatus: "active",
+        })
+        .returning();
+
+      await db.insert(workspaceMembers).values([
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          invitedEmail: demoUser.email,
+          memberName: demoUser.name,
+          role: "owner",
+          status: "active",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: null,
+          invitedEmail: "maya.lin@nebulacloud.io",
+          memberName: "Maya Lin",
+          role: "approver",
+          status: "active",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: null,
+          invitedEmail: "devon.brooks@nebulacloud.io",
+          memberName: "Devon Brooks",
+          role: "editor",
+          status: "active",
+        },
+        {
+          workspaceId: agencyWorkspace.id,
+          userId: demoUser.id,
+          invitedEmail: demoUser.email,
+          memberName: demoUser.name,
+          role: "owner",
+          status: "active",
+        },
+      ]);
+
+      const [primaryBrand] = await db
+        .insert(brands)
+        .values({
+          workspaceId: mainWorkspace.id,
+          name: "NebulaCloud AI",
+          websiteUrl: "https://nebulacloud.example.com",
+          industry: "AI Cloud & Developer Infrastructure",
+          description:
+            "NebulaCloud AI builds zero-latency inference clusters and autonomous deployment pipelines for modern software teams.",
+          productsServices:
+            "Serverless GPU Clusters, Edge Model Router, Autonomous CI/CD Copilot, Real-Time Token Telemetry",
+          targetAudience:
+            "CTOs, AI Platform Engineers, Technical Founders, and DevOps Leaders",
+          brandVoice: "Technical, crisp, authoritative, and developer-first",
+          tone: "Innovative & Authoritative",
+          marketingGoals: [
+            "Grow developer signups by 35%",
+            "Establish thought leadership on LinkedIn & X",
+            "Drive enterprise demo bookings",
+          ],
+          contentPillars: [
+            "AI Infrastructure Benchmarks",
+            "Developer Workflow Tutorials",
+            "Customer Architecture Spotlights",
+            "Product Releases & Engineering Notes",
+          ],
+          suggestedHashtags: [
+            "#NebulaCloud",
+            "#AIInfrastructure",
+            "#LLMDeployment",
+            "#DevOps",
+            "#CloudEngineering",
+            "#BuildInPublic",
+          ],
+          colorPrimary: "#7C3AED",
+          colorAccent: "#06B6D4",
+          isActive: true,
+        })
+        .returning();
+
+      const [secondaryBrand] = await db
+        .insert(brands)
+        .values({
+          workspaceId: mainWorkspace.id,
+          name: "AetherPulse Labs",
+          websiteUrl: "https://aetherpulse.example.com",
+          industry: "Connected Fitness & Wearable Intelligence",
+          description:
+            "Adaptive biometric coaching and recovery telemetry for endurance athletes and busy professionals.",
+          productsServices: "PulseRing Gen-3, AI Recovery Coach App, Team Wellness Portal",
+          targetAudience: "Endurance Runners, Founders, Health-Focused Professionals",
+          brandVoice: "Energizing, science-backed, encouraging",
+          tone: "Inspiring & Direct",
+          marketingGoals: ["Launch mobile app v3", "Grow Instagram & TikTok community"],
+          contentPillars: ["Recovery Science", "30-Day Athlete Challenges", "Product Spotlights"],
+          suggestedHashtags: ["#AetherPulse", "#Biohacking", "#SmartRecovery", "#FitnessTech"],
+          colorPrimary: "#06B6D4",
+          colorAccent: "#8B5CF6",
+          isActive: true,
+        })
+        .returning();
+
+      await db.insert(brands).values({
+        workspaceId: agencyWorkspace.id,
+        name: "Kinetix Robotics",
+        websiteUrl: "https://kinetixrobotics.example.com",
+        industry: "Industrial Automation & Robotics",
+        description: "Autonomous warehouse vision systems and collaborative robotic arms.",
+        productsServices: "Kinetix VisionOS, Cobot Arm S4",
+        targetAudience: "VP of Operations, Supply Chain Directors, Manufacturing Engineers",
+        brandVoice: "Precision-focused, industrial-grade, ROI-oriented",
+        tone: "Executive & Technical",
+        marketingGoals: ["Enterprise pipeline generation", "Trade show amplification"],
+        contentPillars: ["Warehouse Automation ROI", "Engineering Deep-Dives"],
+        suggestedHashtags: ["#Robotics", "#SmartFactory", "#SupplyChainAI"],
+        colorPrimary: "#6366F1",
+        colorAccent: "#22D3EE",
+        isActive: true,
+      });
+
+      await db.insert(socialAccounts).values([
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "linkedin",
+          accountName: "NebulaCloud AI Official",
+          handle: "@nebulacloud-ai",
+          accountType: "Company Page",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["w_organization_social", "r_organization_social"],
+          rateLimitRemaining: 92,
+          rateLimitMax: 100,
+          followersCount: 18420,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "x",
+          accountName: "NebulaCloud",
+          handle: "@nebulacloud_dev",
+          accountType: "Verified Organization",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["tweet.read", "tweet.write", "users.read"],
+          rateLimitRemaining: 44,
+          rateLimitMax: 50,
+          followersCount: 24910,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "instagram",
+          accountName: "NebulaCloud Engineering",
+          handle: "@nebulacloud.ai",
+          accountType: "Business Account",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["instagram_basic", "instagram_content_publish"],
+          rateLimitRemaining: 23,
+          rateLimitMax: 25,
+          followersCount: 11280,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "tiktok",
+          accountName: "NebulaCloud Tech",
+          handle: "@nebulacloud.tech",
+          accountType: "Creator / Business",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["video.publish", "user.info.basic"],
+          rateLimitRemaining: 28,
+          rateLimitMax: 30,
+          followersCount: 9430,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "youtube",
+          accountName: "NebulaCloud Developers",
+          handle: "@NebulaCloudDev",
+          accountType: "Brand Channel",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["youtube.upload", "youtube.readonly"],
+          rateLimitRemaining: 37,
+          rateLimitMax: 40,
+          followersCount: 6850,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: "threads",
+          accountName: "NebulaCloud",
+          handle: "@nebulacloud.ai",
+          accountType: "Threads Business",
+          status: "needs_review",
+          integrationMode: "simulated_sandbox",
+          permissions: ["threads_basic"],
+          rateLimitRemaining: 50,
+          rateLimitMax: 50,
+          followersCount: 3190,
+          lastError: "threads_content_publish scope requires Meta App Review approval.",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: secondaryBrand.id,
+          platform: "instagram",
+          accountName: "AetherPulse Labs",
+          handle: "@aetherpulselabs",
+          accountType: "Business Account",
+          status: "connected",
+          integrationMode: "simulated_sandbox",
+          permissions: ["instagram_basic", "instagram_content_publish"],
+          rateLimitRemaining: 21,
+          rateLimitMax: 25,
+          followersCount: 15600,
+        },
+      ]);
+
+      await db.insert(aiConfigurations).values([
+        {
+          workspaceId: mainWorkspace.id,
+          provider: "openai",
+          mode: "managed",
+          encryptedApiKey: null,
+          keyLast4: null,
+          keyValidated: false,
+          preferredModel: "gpt-4o-mini",
+          temperature: "0.7",
+        },
+        {
+          workspaceId: agencyWorkspace.id,
+          provider: "openai",
+          mode: "byok",
+          encryptedApiKey: null,
+          keyLast4: "9x4Q",
+          keyValidated: true,
+          preferredModel: "gpt-4o",
+          temperature: "0.65",
+        },
+      ]);
+
+      await db.insert(aiUsageRecords).values([
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          operation: "Multi-Platform Post Generation",
+          model: "gpt-4o-mini",
+          billingMode: "managed",
+          creditsUsed: 10,
+          tokensEstimate: 640,
+          executionSource: "simulated",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          operation: "AI Agent Weekly Plan & Strategy",
+          model: "gpt-4o-mini",
+          billingMode: "managed",
+          creditsUsed: 15,
+          tokensEstimate: 920,
+          executionSource: "simulated",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          operation: "AI Campaign Plan Generator",
+          model: "gpt-4o-mini",
+          billingMode: "managed",
+          creditsUsed: 18,
+          tokensEstimate: 1180,
+          executionSource: "simulated",
+        },
+      ]);
+
+      const [sampleCampaign] = await db
+        .insert(campaigns)
+        .values({
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          name: "Edge Inference v2.4 Launch Sprint (Sample)",
+          description:
+            "Four-week multi-channel launch campaign driving developer trials for NebulaCloud Edge Inference v2.4.",
+          objective: "Product Launch & Developer Signups",
+          audience: "AI Engineers, CTOs, Technical Founders",
+          platforms: ["linkedin", "x", "instagram", "youtube"],
+          status: "active",
+          startDate: "2026-04-01",
+          endDate: "2026-04-30",
+          strategySummary:
+            "Lead with latency benchmark proofs on LinkedIn & X, paired with visual architecture carousels on Instagram and 45-second terminal demos on YouTube Shorts.",
+          contentThemes: [
+            "Sub-18ms Global Inference Benchmarks",
+            "Zero-Config Model Routing Tutorials",
+            "Enterprise Cost Optimization Case Studies",
+          ],
+          weeklyCadence: 5,
+          isSampleData: true,
+        })
+        .returning();
+
+      const now = new Date();
+      const plusHours = (h: number) => new Date(now.getTime() + h * 3600 * 1000);
+      const minusHours = (h: number) => new Date(now.getTime() - h * 3600 * 1000);
+
+      const insertedPosts = await db
+        .insert(posts)
+        .values([
+          {
+            workspaceId: mainWorkspace.id,
+            brandId: primaryBrand.id,
+            campaignId: sampleCampaign.id,
+            title: "Sub-18ms Edge Inference Benchmark Report",
+            topic: "Edge Inference Latency Benchmarks",
+            baseContent:
+              "We benchmarked 14 global regions running Llama-3.3-70B on NebulaCloud Edge Inference v2.4: median TTFT dropped to 17.4ms while cutting GPU idle waste by 61%.",
+            contentType: "Product Announcement",
+            tone: "Authoritative",
+            status: "published",
+            scheduledAt: minusHours(28),
+            publishedAt: minusHours(28),
+            timezone: "America/New_York",
+            platforms: ["linkedin", "x"],
+            variants: {
+              linkedin: {
+                content:
+                  "We benchmarked 14 global regions running Llama-3.3-70B on NebulaCloud Edge Inference v2.4.\n\nThe results:\n• Median Time-To-First-Token: 17.4ms\n• GPU idle waste reduced by 61%\n• Zero cold-start penalties during traffic spikes\n\nRead the full reproducible benchmark suite in the comments.",
+                hashtags: ["#AIInfrastructure", "#NebulaCloud", "#LLMOptimization"],
+                cta: "Explore the live benchmark dashboard →",
+                formatLabel: "Thought Leadership Post",
+                characterCount: 332,
+              },
+              x: {
+                content:
+                  "New benchmark: 17.4ms median TTFT across 14 global regions on NebulaCloud Edge Inference v2.4 — with 61% less GPU idle waste.\n\nFull methodology + Terraform templates below 👇",
+                hashtags: ["#AIInfra", "#DevOps"],
+                cta: "Run your own test in 60 seconds",
+                formatLabel: "Single Post",
+                characterCount: 184,
+              },
+            },
+            mediaIds: [1],
+            createdByAgent: false,
+            idempotencyKey: "seed-post-01",
+          },
+          {
+            workspaceId: mainWorkspace.id,
+            brandId: primaryBrand.id,
+            campaignId: sampleCampaign.id,
+            title: "5-Step Autonomous CI/CD Checklist for AI Apps",
+            topic: "Autonomous CI/CD Pipelines",
+            baseContent:
+              "Shipping LLM features without automated eval gates is a production incident waiting to happen. Here are the 5 automated checks we run on every pull request.",
+            contentType: "Educational Post",
+            tone: "Educational",
+            status: "scheduled",
+            scheduledAt: plusHours(6),
+            timezone: "America/New_York",
+            platforms: ["linkedin", "x", "instagram"],
+            variants: {
+              linkedin: {
+                content:
+                  "Shipping AI features without automated evaluation gates is a production incident waiting to happen.\n\nHere are the 5 checks NebulaCloud runs on every PR:\n1. Prompt regression scoring\n2. Token budget guardrails\n3. Latency p95 threshold checks\n4. PII redaction verification\n5. Fallback model failover test\n\nWhich check saved your team most recently?",
+                hashtags: ["#AIEngineering", "#DevOps", "#NebulaCloud"],
+                cta: "Copy our GitHub Action template",
+                formatLabel: "Educational Post",
+                characterCount: 382,
+              },
+              x: {
+                content:
+                  "5 automated CI/CD gates every AI engineering team should run before merging to main:\n\n1. Prompt regression evals\n2. Token budget caps\n3. p95 latency checks\n4. PII redaction tests\n5. Provider failover simulation",
+                hashtags: ["#BuildInPublic", "#AIEngineering"],
+                cta: "Full YAML config in thread",
+                formatLabel: "Thread Opener",
+                characterCount: 224,
+              },
+              instagram: {
+                content:
+                  "🚀 5 Automated Checks Before Every AI Release\n\nSwipe through our engineering checklist to eliminate silent regressions and latency spikes in production.\n\n💾 Save this carousel for your next sprint review!",
+                hashtags: ["#SoftwareEngineering", "#AIInfrastructure", "#TechTips"],
+                cta: "Link in bio for the open-source template",
+                formatLabel: "Carousel Caption",
+                characterCount: 238,
+              },
+            },
+            mediaIds: [2],
+            createdByAgent: true,
+            idempotencyKey: "seed-post-02",
+          },
+          {
+            workspaceId: mainWorkspace.id,
+            brandId: primaryBrand.id,
+            campaignId: sampleCampaign.id,
+            title: "How FinTech Scaleup Cut Inference Spend by 48%",
+            topic: "Customer Architecture Spotlight",
+            baseContent:
+              "By routing lightweight classification prompts to fine-tuned small models and reserving frontier models for multi-step reasoning, PayPulse cut monthly inference costs by 48%.",
+            contentType: "Case Study",
+            tone: "Authoritative",
+            status: "pending_approval",
+            scheduledAt: plusHours(26),
+            timezone: "America/New_York",
+            platforms: ["linkedin", "x"],
+            variants: {
+              linkedin: {
+                content:
+                  "Case Study: How a Series B fintech cut monthly AI inference spend by 48% without touching model quality.\n\nInstead of sending every request to a monolithic frontier model, they used NebulaCloud Model Router to classify intent in 4ms and route 72% of traffic to specialized models.\n\nResult: $34,000/mo saved and 2.1x faster response times.",
+                hashtags: ["#FinTech", "#CloudCostOptimization", "#NebulaCloud"],
+                cta: "Book an architecture review",
+                formatLabel: "Case Study Post",
+                characterCount: 368,
+              },
+              x: {
+                content:
+                  "Stop sending simple classification prompts to massive frontier models.\n\nRouting 72% of traffic to specialized models saved one fintech team $34k/mo while doubling response speed.",
+                hashtags: ["#LLM", "#CloudOps"],
+                cta: "See the routing architecture",
+                formatLabel: "Single Post",
+                characterCount: 194,
+              },
+            },
+            mediaIds: [1],
+            createdByAgent: true,
+            approvalNote: "AI Agent drafted from Q1 customer telemetry — awaiting approver sign-off.",
+            idempotencyKey: "seed-post-03",
+          },
+          {
+            workspaceId: mainWorkspace.id,
+            brandId: primaryBrand.id,
+            campaignId: null,
+            title: "Weekend Developer Build Challenge",
+            topic: "Community Engagement",
+            baseContent:
+              "What are you building this weekend with autonomous AI agents? Drop your repo or demo link below—we're featuring our top 3 community builds on Monday.",
+            contentType: "Community Engagement",
+            tone: "Conversational",
+            status: "draft",
+            scheduledAt: plusHours(52),
+            timezone: "America/New_York",
+            platforms: ["x", "threads"],
+            variants: {
+              x: {
+                content:
+                  "Weekend builder check-in 🛠️\n\nWhat autonomous workflow or AI tool are you shipping this weekend? Drop a link or screenshot below—we're spotlighting 3 community builds on Monday.",
+                hashtags: ["#BuildInPublic", "#AIAgents"],
+                cta: "Reply with your project",
+                formatLabel: "Community Prompt",
+                characterCount: 196,
+              },
+              threads: {
+                content:
+                  "Builders on Threads: what's the coolest automation you've shipped this month? Share your stack below 👇",
+                hashtags: ["#Developers", "#AI"],
+                cta: "Join the conversation",
+                formatLabel: "Conversational Post",
+                characterCount: 112,
+              },
+            },
+            mediaIds: [],
+            createdByAgent: false,
+            idempotencyKey: "seed-post-04",
+          },
+          {
+            workspaceId: mainWorkspace.id,
+            brandId: primaryBrand.id,
+            campaignId: sampleCampaign.id,
+            title: "TikTok & Shorts: 30-Second GPU Cold Start Demo",
+            topic: "Short-Form Video Demo",
+            baseContent:
+              "Watch a 70B parameter model spin up from zero to streaming tokens in under 1.2 seconds on NebulaCloud.",
+            contentType: "Video Script",
+            tone: "Energetic",
+            status: "failed",
+            scheduledAt: minusHours(4),
+            timezone: "America/New_York",
+            platforms: ["tiktok"],
+            variants: {
+              tiktok: {
+                content:
+                  "[0:00] POV: Your GPU cluster takes 4 minutes to cold-start during a traffic spike.\n[0:05] Watch NebulaCloud spin up a 70B model in 1.18 seconds live on screen.\n[0:20] Try it free with $100 in developer credits.",
+                hashtags: ["#TechTok", "#CloudComputing", "#AI"],
+                cta: "Link in bio to deploy",
+                formatLabel: "Short Video Script",
+                characterCount: 215,
+              },
+            },
+            mediaIds: [3],
+            createdByAgent: false,
+            idempotencyKey: "seed-post-05",
+          },
+        ])
+        .returning();
+
+      await db.insert(publishingJobs).values([
+        {
+          workspaceId: mainWorkspace.id,
+          postId: insertedPosts[0].id,
+          platform: "linkedin",
+          status: "completed",
+          attempts: 1,
+          maxAttempts: 3,
+          scheduledFor: minusHours(28),
+          executedAt: minusHours(28),
+          externalPostId: "urn:li:share:sim_9981201",
+          idempotencyKey: `job-${insertedPosts[0].id}-linkedin`,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          postId: insertedPosts[1].id,
+          platform: "linkedin",
+          status: "queued",
+          attempts: 0,
+          maxAttempts: 3,
+          scheduledFor: plusHours(6),
+          idempotencyKey: `job-${insertedPosts[1].id}-linkedin`,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          postId: insertedPosts[1].id,
+          platform: "x",
+          status: "queued",
+          attempts: 0,
+          maxAttempts: 3,
+          scheduledFor: plusHours(6),
+          idempotencyKey: `job-${insertedPosts[1].id}-x`,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          postId: insertedPosts[4].id,
+          platform: "tiktok",
+          status: "failed",
+          attempts: 3,
+          maxAttempts: 3,
+          scheduledFor: minusHours(4),
+          executedAt: minusHours(4),
+          errorMessage:
+            "Simulated Sandbox: TikTok Content Posting API requires verified video asset container before publish.",
+          idempotencyKey: `job-${insertedPosts[4].id}-tiktok`,
+        },
+      ]);
+
+      await db.insert(mediaAssets).values([
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          title: "Edge Inference Latency Chart — Dark Violet",
+          prompt:
+            "Minimalist dark telemetry dashboard visualization showing 17.4ms latency across 14 global cloud nodes with electric violet and cyan light trails",
+          assetType: "image",
+          aspectRatio: "16:9",
+          url: "preset://nebula-telemetry-16x9",
+          tags: ["Benchmark", "Launch", "LinkedIn", "X"],
+          altText: "NebulaCloud v2.4 global latency benchmark chart showing 17.4ms response time",
+          brandPreset: "Nebula Violet",
+          isSampleData: true,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          title: "5-Step AI CI/CD Carousel Cover",
+          prompt:
+            "Modern glassmorphic developer checklist card with glowing cyan terminal badges on deep navy background",
+          assetType: "template",
+          aspectRatio: "4:5",
+          url: "preset://cicd-carousel-4x5",
+          tags: ["Carousel", "Instagram", "Educational"],
+          altText: "5 automated CI/CD checks for production AI applications carousel cover",
+          brandPreset: "Cyber Cyan",
+          isSampleData: true,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          title: "9:16 Vertical Cold-Start Storyboard",
+          prompt:
+            "Vertical split-screen terminal comparison showing instant GPU warm-up in 1.18 seconds",
+          assetType: "video_blueprint",
+          aspectRatio: "9:16",
+          url: "preset://vertical-demo-9x16",
+          tags: ["TikTok", "Shorts", "Video Blueprint"],
+          altText: "Vertical video storyboard comparing cold start latency",
+          brandPreset: "Midnight Command",
+          isSampleData: true,
+        },
+      ]);
+
+      await db.insert(agentConfigurations).values({
+        workspaceId: mainWorkspace.id,
+        brandId: primaryBrand.id,
+        mode: "assisted",
+        isPaused: false,
+        maxPostsPerWeek: 7,
+        allowedPlatforms: ["linkedin", "x", "instagram"],
+        requireApprovalForPromotions: true,
+        objectives: [
+          "Publish 5 high-signal technical posts weekly",
+          "Maintain 4.5%+ engagement rate on LinkedIn",
+          "Repurpose top X threads into Instagram carousels",
+        ],
+        currentStrategy:
+          "Focus 60% of weekly volume on educational engineering breakdowns and latency benchmarks, 25% on customer ROI stories, and 15% on interactive community prompts.",
+        weeklyPlan: [
+          {
+            day: "Monday",
+            platform: "linkedin",
+            pillar: "AI Infrastructure Benchmarks",
+            concept: "Weekly p95 inference latency comparison across open-weight models",
+            status: "scheduled",
+          },
+          {
+            day: "Tuesday",
+            platform: "x",
+            pillar: "Developer Workflow Tutorials",
+            concept: "4-tweet thread on zero-downtime model routing",
+            status: "approved",
+          },
+          {
+            day: "Wednesday",
+            platform: "instagram",
+            pillar: "Customer Architecture Spotlights",
+            concept: "Visual carousel: How PayPulse cut inference spend by 48%",
+            status: "drafted",
+          },
+          {
+            day: "Thursday",
+            platform: "linkedin",
+            pillar: "Product Releases & Engineering Notes",
+            concept: "Deep-dive on speculative decoding throughput gains",
+            status: "planned",
+          },
+          {
+            day: "Friday",
+            platform: "x",
+            pillar: "Community Engagement",
+            concept: "Weekend builder spotlight & open-source repo thread",
+            status: "planned",
+          },
+        ],
+      });
+
+      await db.insert(agentActions).values([
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          actionType: "schedule_proposed",
+          title: "Proposed Tuesday 10:00 AM EST slot for CI/CD Checklist",
+          description:
+            "Prepared LinkedIn, X, and Instagram variants for '5-Step Autonomous CI/CD Checklist' based on peak Tuesday developer engagement.",
+          reasoning:
+            "Historical workspace telemetry shows Tuesday 9:30–11:00 AM EST yields +38% higher click-through on technical checklists.",
+          status: "proposed",
+          targetPostId: insertedPosts[1].id,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          actionType: "draft_created",
+          title: "Drafted FinTech Case Study for Approver Review",
+          description:
+            "Generated LinkedIn and X variants highlighting 48% inference cost savings.",
+          reasoning:
+            "Aligned with Q2 Enterprise Pipeline objective; queued in Approval Inbox per Assisted Mode safety policy.",
+          status: "proposed",
+          targetPostId: insertedPosts[2].id,
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          actionType: "optimization_alert",
+          title: "Shift +15% Cadence Toward Educational Posts",
+          description:
+            "Educational posts generated 4.9% engagement vs 2.7% for pure promotional announcements over the last 14 days.",
+          reasoning:
+            "Grounded in workspace analytics snapshots across LinkedIn and X.",
+          status: "executed",
+          targetPostId: null,
+        },
+      ]);
+
+      const sampleMetrics = [
+        { day: "Apr 01", platform: "linkedin", imp: 4200, eng: 215, clicks: 84, followers: 18110, type: "Educational Post" },
+        { day: "Apr 03", platform: "x", imp: 6800, eng: 290, clicks: 112, followers: 24520, type: "Educational Post" },
+        { day: "Apr 05", platform: "instagram", imp: 3100, eng: 198, clicks: 45, followers: 11050, type: "Carousel" },
+        { day: "Apr 07", platform: "linkedin", imp: 5400, eng: 284, clicks: 129, followers: 18210, type: "Case Study" },
+        { day: "Apr 09", platform: "x", imp: 7900, eng: 342, clicks: 148, followers: 24690, type: "Product Announcement" },
+        { day: "Apr 11", platform: "tiktok", imp: 9200, eng: 610, clicks: 94, followers: 9280, type: "Video Script" },
+        { day: "Apr 13", platform: "linkedin", imp: 6150, eng: 338, clicks: 162, followers: 18340, type: "Educational Post" },
+        { day: "Apr 15", platform: "x", imp: 8450, eng: 389, clicks: 171, followers: 24910, type: "Educational Post" },
+        { day: "Apr 17", platform: "instagram", imp: 3890, eng: 245, clicks: 67, followers: 11280, type: "Carousel" },
+        { day: "Apr 19", platform: "linkedin", imp: 7120, eng: 412, clicks: 194, followers: 18420, type: "Product Announcement" },
+      ];
+
+      await db.insert(analyticsSnapshots).values(
+        sampleMetrics.map((m) => ({
+          workspaceId: mainWorkspace.id,
+          brandId: primaryBrand.id,
+          platform: m.platform,
+          dateLabel: m.day,
+          impressions: m.imp,
+          reach: Math.round(m.imp * 0.78),
+          engagements: m.eng,
+          likes: Math.round(m.eng * 0.68),
+          comments: Math.round(m.eng * 0.14),
+          shares: Math.round(m.eng * 0.18),
+          clicks: m.clicks,
+          followers: m.followers,
+          postType: m.type,
+          isSampleData: true,
+        }))
+      );
+
+      await db.insert(notifications).values([
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          type: "approval_requested",
+          title: "Post awaiting your approval",
+          message: "'How FinTech Scaleup Cut Inference Spend by 48%' was prepared by AI Marketing Agent.",
+          isRead: false,
+          actionHref: "/app/posts",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          type: "publish_failed",
+          title: "Publishing job failed on TikTok",
+          message: "'TikTok & Shorts: 30-Second GPU Cold Start Demo' failed after 3 attempts. Click to inspect & retry.",
+          isRead: false,
+          actionHref: "/app/calendar",
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          userId: demoUser.id,
+          type: "publish_success",
+          title: "Published to LinkedIn & X",
+          message: "'Sub-18ms Edge Inference Benchmark Report' went live across 2 channels.",
+          isRead: true,
+          actionHref: "/app/analytics",
+        },
+      ]);
+
+      await db.insert(auditLogs).values([
+        {
+          workspaceId: mainWorkspace.id,
+          actorEmail: demoUser.email,
+          action: "workspace.initialized",
+          resourceType: "workspace",
+          resourceId: String(mainWorkspace.id),
+          metadata: { plan: "pro_ai", aiBillingMode: "managed" },
+        },
+        {
+          workspaceId: mainWorkspace.id,
+          actorEmail: "agent@postif-ai.system",
+          action: "agent.draft_created",
+          resourceType: "post",
+          resourceId: String(insertedPosts[2].id),
+          metadata: { mode: "assisted" },
+        },
+      ]);
+
+      await db.insert(featureFlags).values([
+        {
+          key: "autonomous_agent_autopilot",
+          name: "Autonomous AI Agent Autopilot",
+          description: "Allows Pro AI & Agency workspaces to enable rule-bounded Autopilot publishing.",
+          enabled: true,
+        },
+        {
+          key: "byok_openai_encryption",
+          name: "BYOK OpenAI Vault (AES-256-GCM)",
+          description: "Enables customer-supplied OpenAI API keys encrypted at rest.",
+          enabled: true,
+        },
+        {
+          key: "live_oauth_social_adapters",
+          name: "Live OAuth 2.0 Social Connectors",
+          description: "Activates live OAuth callbacks when provider client secrets are configured.",
+          enabled: true,
+        },
+        {
+          key: "video_generation_beta",
+          name: "AI Video Generation Pipeline",
+          description: "Experimental storyboard-to-video rendering adapter.",
+          enabled: false,
+        },
+      ]);
+    } finally {
+      seedPromise = null;
+    }
+  })();
+
+  return seedPromise;
+}

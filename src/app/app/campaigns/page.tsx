@@ -1,0 +1,58 @@
+import React from "react";
+import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { campaigns, posts } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
+import { getAuthContext } from "@/lib/auth";
+import { CampaignsClient } from "@/components/CampaignsClient";
+
+export const dynamic = "force-dynamic";
+
+export default async function CampaignsPage() {
+  const ctx = await getAuthContext();
+  if (!ctx || !ctx.workspace) {
+    redirect("/login");
+  }
+
+  const [wsCampaigns, wsPosts] = await Promise.all([
+    db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.workspaceId, ctx.workspace.id))
+      .orderBy(desc(campaigns.createdAt)),
+    db.select().from(posts).where(eq(posts.workspaceId, ctx.workspace.id)),
+  ]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+          Marketing Campaigns
+        </h1>
+        <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
+          Coordinate multi-week launches and generate AI campaign blueprints with linked draft
+          posts.
+        </p>
+      </div>
+
+      <CampaignsClient
+        campaigns={wsCampaigns.map((c) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          objective: c.objective,
+          audience: c.audience,
+          platforms: c.platforms,
+          status: c.status,
+          startDate: c.startDate,
+          endDate: c.endDate,
+          strategySummary: c.strategySummary,
+          contentThemes: c.contentThemes,
+          weeklyCadence: c.weeklyCadence,
+          isSampleData: c.isSampleData,
+          linkedPostCount: wsPosts.filter((p) => p.campaignId === c.id).length,
+        }))}
+      />
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { BillingError, verifyPayPalWebhook, type PayPalEvent } from "@/lib/paypal";
+import { BillingBusyError, BillingError, verifyPayPalWebhook, type PayPalEvent } from "@/lib/paypal";
 import { processBillingEvent } from "@/lib/subscriptions";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -18,8 +18,15 @@ export async function POST(request: Request) {
     await processBillingEvent(event);
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("PayPal webhook failed", { type: error instanceof Error ? error.name : "unknown" });
-    return NextResponse.json({ error: error instanceof BillingError ? error.message : "Webhook processing failed. Retry delivery." },
-      { status: error instanceof SyntaxError ? 400 : error instanceof BillingError ? error.status : 503 });
+    const busy = error instanceof BillingBusyError;
+    const status = error instanceof SyntaxError ? 400 : busy ? 503 : error instanceof BillingError ? error.status : 503;
+    const details = { type: error instanceof Error ? error.name : "unknown", status,
+      ...(error instanceof BillingError ? { reason: error.message } : {}) };
+    if (busy) console.warn("PayPal webhook deferred", details);
+    else console.error("PayPal webhook failed", details);
+    return NextResponse.json({
+      error: error instanceof BillingError ? error.message : "Webhook processing failed. Retry delivery.",
+      ...(busy ? { code: error.code } : {}),
+    }, { status, ...(busy ? { headers: { "Retry-After": String(error.retryAfter) } } : {}) });
   }
 }

@@ -7,13 +7,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import ts from "typescript";
 import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
-import { cloneElement, createElement, isValidElement } from "react";
+import { act, cloneElement, createElement, isValidElement } from "react";
+import { createRoot } from "react-dom/client";
+import { JSDOM } from "jsdom";
 import { PassThrough, Writable } from "node:stream";
 import { createOperatorPrompts } from "./operator-prompts.mjs";
 
 const navigation = `export function redirect(destination) {const error = new Error("Redirect");error.destination=destination;throw error;}
   export function notFound(){const error=new Error("Not found");error.status=404;throw error;}
-  export function useRouter(){return {replace(){},push(){},refresh(){}};} export function usePathname(){return "/app/admin";}`;
+  export function useRouter(){return {replace(){},push(){},refresh(){globalThis.__adminRefreshes=(globalThis.__adminRefreshes||0)+1;}};} export function usePathname(){return "/app/admin";}`;
 const headers = `export async function cookies(){return {
   get(key){const value=globalThis.__adminCookies.get(key);return value ? {value} : undefined;},
   set(key,value){globalThis.__adminCookies.set(key,value);},
@@ -39,7 +41,7 @@ registerHooks({
     }
     if (url.endsWith("/src/components/BrandLogo.tsx")) return { format: "module", shortCircuit: true, source: 'export function BrandLogo(){return "POSTIF-AI";}' };
     if (url.endsWith("/src/components/ThemeProvider.tsx")) return { format: "module", shortCircuit: true, source: 'export function useTheme(){return {theme:"dark",toggleTheme(){}};}' };
-    if (url.endsWith("/src/components/ToastProvider.tsx")) return { format: "module", shortCircuit: true, source: "export function useToast(){return {toast(){}};}" };
+    if (url.endsWith("/src/components/ToastProvider.tsx")) return { format: "module", shortCircuit: true, source: "export function useToast(){return {toast(...args){globalThis.__adminToasts?.push(args);}};}" };
     if (url.endsWith("/src/lib/account-email.ts")) return { format: "module", shortCircuit: true, source: "export async function requestAccountEmail(){throw new Error('Unexpected email operation');}export async function completeAccountAction(){throw new Error('Unexpected account action');}" };
     if (url.endsWith(".tsx") && !url.includes("node_modules")) return {
       format: "module", shortCircuit: true, source: ts.transpileModule(readFileSync(fileURLToPath(url), "utf8"), {
@@ -76,6 +78,7 @@ const { CatalogBlockControls } = await import("../src/components/CatalogBlockCon
 const { BillingClient } = await import("../src/components/BillingClient.tsx");
 const { SUBSCRIPTION_PLANS } = await import("../src/lib/plans.ts");
 const { AppLanguageProvider } = await import("../src/i18n/provider.tsx");
+const { translate } = await import("../src/i18n/config.ts");
 function renderToStaticMarkup(element) {
   return renderMarkup(createElement(AppLanguageProvider, { initialLocale: "en" }, element));
 }
@@ -88,6 +91,55 @@ async function resolveServerElements(element) {
   return cloneElement(element, {}, await resolveServerElements(element.props.children));
 }
 
+for (const scenario of ["busy-then-success", "always-busy", "binding-conflict"]) {
+  test(`billing refresh handles ${scenario} with bounded retries only for lease contention`, async t => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: "https://app.example.test/app/billing" });
+    const globals = { window: dom.window, document: dom.window.document, navigator: dom.window.navigator, IS_REACT_ACT_ENVIRONMENT: true };
+    const previous = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+    for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    const timers = [], requests = [];
+    t.mock.method(dom.window, "setTimeout", callback => { timers.push(callback); return timers.length; });
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      if (scenario === "binding-conflict") return Response.json({ error: "Purchase binding mismatch" }, { status: 409 });
+      if (scenario === "busy-then-success" && requests.length > 1) return Response.json({ message: "Refreshed" });
+      return Response.json({ error: "Another billing operation is in progress.", code: "BILLING_BUSY" }, { status: 409 });
+    });
+    globalThis.__adminRefreshes = 0;
+    globalThis.__adminToasts = [];
+    const root = createRoot(dom.window.document.getElementById("root"));
+    try {
+      await act(async () => root.render(createElement(AppLanguageProvider, { initialLocale: "en" }, createElement(BillingClient, {
+        plans: [], currentPlanSlug: "free", currentPlanVersionId: null, billingCycle: "monthly", aiBillingMode: "byok",
+        creditsBalance: 0, creditsAllowance: 0, keyLast4: null, keyValidated: false, preferredModel: "gpt-4o-mini", usageRecords: [],
+        subscription: { status: "APPROVAL_PENDING", paidThrough: null, cancelAtPeriodEnd: false, hasCustomer: true,
+          canChange: false, pendingPlanSlug: "starter_ai", pendingInterval: "month", pendingEffectiveAt: null },
+        billingReady: true, billingMissing: [], isOwner: true, allowsConfigurableAiMode: false, defaultAiMode: "byok",
+      }))));
+      const button = [...dom.window.document.querySelectorAll("button")].find(button => button.textContent === translate("en", "billing.refresh"));
+      assert.ok(button);
+      await act(async () => button.click());
+      assert.equal(button.disabled, timers.length > 0);
+      for (let attempt = 0; timers.length && attempt < 4; attempt++) await act(async () => timers.shift()());
+      assert.equal(requests.length, scenario === "always-busy" ? 4 : scenario === "busy-then-success" ? 2 : 1);
+      assert.ok(requests.every(request => request.url === "/api/billing" && request.body.action === "refresh_subscription"));
+      assert.equal(timers.length, 0);
+      assert.equal(button.disabled, false);
+      assert.equal(globalThis.__adminRefreshes, scenario === "busy-then-success" ? 1 : 0);
+      assert.equal(globalThis.__adminToasts.length, 1);
+      if (scenario !== "busy-then-success") assert.equal(globalThis.__adminToasts[0][2], "error");
+    } finally {
+      await act(async () => root.unmount());
+      delete globalThis.__adminToasts;
+      delete globalThis.__adminRefreshes;
+      for (const [key, descriptor] of previous) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else delete globalThis[key];
+      }
+      dom.window.close();
+    }
+  });
+}
 test("Free exposes local checkout withdrawal to owners even when PayPal billing is disabled", () => {
   const props = {
     plans: [{ ...SUBSCRIPTION_PLANS.free, catalogVersionId: 1 }],

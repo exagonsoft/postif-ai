@@ -13,6 +13,14 @@ export interface PayPalFailure {
 export class BillingError extends Error {
   constructor(message: string, public status = 503, public providerStatus?: number, public providerFailure?: PayPalFailure) { super(message); this.name = "BillingError"; }
 }
+export class BillingBusyError extends BillingError {
+  readonly code = "BILLING_BUSY";
+  readonly retryAfter = 2;
+  constructor(message = "Another billing operation is in progress. Retry the original action.", status = 409) {
+    super(message, status);
+    this.name = "BillingBusyError";
+  }
+}
 export interface PayPalMoney { currency_code: string; value: string }
 export interface PayPalPaymentPolicy { autoBillOutstanding: boolean; paymentFailureThreshold: number }
 export const DEFAULT_PAYPAL_PAYMENT_POLICY: Readonly<PayPalPaymentPolicy> = { autoBillOutstanding: false, paymentFailureThreshold: 1 };

@@ -4,15 +4,17 @@ import { workspaces, aiConfigurations, auditLogs } from "@/db/schema";
 import { getAuthContext } from "@/lib/auth";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { getWorkspaceEntitlements } from "@/lib/entitlements";
-import { BillingError } from "@/lib/paypal";
+import { BillingBusyError, BillingError } from "@/lib/paypal";
 import { changeBillingSubscription, confirmBillingCheckout } from "@/lib/subscriptions";
 
 export async function POST(req: Request) {
+  let action = "parse_request";
   try {
     const ctx = await getAuthContext();
     if (!ctx?.workspace) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!["owner", "admin"].includes(ctx.memberRole)) return NextResponse.json({ error: "Only workspace owners and admins can manage billing and AI keys." }, { status: 403 });
     const body = await req.json();
+    action = ["refresh_subscription", "change_plan", "save_ai_config", "revoke_byok", "topup_credits"].includes(body?.action) ? body.action : "invalid";
     const workspaceId = ctx.workspace.id;
     if (body.action === "topup_credits") return NextResponse.json({ error: "Credit top-ups are disabled pending pricing." }, { status: 501 });
     if (body.action === "refresh_subscription") {
@@ -51,7 +53,15 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true, message: mode === "byok" ? "OpenAI model access verified. Your key is stored encrypted." : "Managed OpenAI model access verified. Platform credits apply." });
   } catch (error) {
-    console.error("AI configuration failed", { type: error instanceof Error ? error.name : "unknown" });
-    return NextResponse.json({ error: error instanceof BillingError ? error.message : "AI configuration failed. Check provider availability and encryption settings." }, { status: error instanceof BillingError ? error.status : 502 });
+    const busy = error instanceof BillingBusyError;
+    const status = error instanceof BillingError ? error.status : 502;
+    const details = { action, type: error instanceof Error ? error.name : "unknown", status,
+      ...(error instanceof BillingError ? { reason: error.message } : {}) };
+    if (busy) console.warn("Billing operation deferred", details);
+    else console.error("Billing operation failed", details);
+    return NextResponse.json({
+      error: error instanceof BillingError ? error.message : "Billing operation failed. Retry or contact support.",
+      ...(busy ? { code: error.code } : {}),
+    }, { status, ...(busy ? { headers: { "Retry-After": String(error.retryAfter) } } : {}) });
   }
 }

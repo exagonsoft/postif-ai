@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
+import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
 import {
   Calendar as CalendarIcon,
   RotateCcw,
@@ -64,9 +65,10 @@ export function CalendarClient({
     setEditContent(post.baseContent);
     setEditDate(
       post.scheduledAt
-        ? new Date(post.scheduledAt).toISOString().slice(0, 16)
-        : new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16)
+        ? formatScheduleInput(new Date(post.scheduledAt), post.timezone)
+        : ""
     );
+    setTimezone(post.timezone);
     setEditStatus(post.status);
   };
 
@@ -81,7 +83,7 @@ export function CalendarClient({
         title: editTitle,
         baseContent: editContent,
         status: editStatus,
-        scheduledAt: editDate ? new Date(editDate).toISOString() : null,
+        scheduledAt: editDate ? scheduleToISO(editDate, timezone) : null,
         timezone,
       }),
     });
@@ -137,7 +139,7 @@ export function CalendarClient({
       body: JSON.stringify({ action: "retry", jobId }),
     });
     if (res.ok) {
-      toast("Job retry succeeded", `Publishing job #${jobId} completed.`);
+      toast("Retry queued", `Publishing job #${jobId} will be checked by the worker.`);
       router.refresh();
     }
   };
@@ -313,7 +315,7 @@ export function CalendarClient({
               Persistent Publishing Job Queue & Failure Telemetry
             </h2>
             <p className="text-xs text-[var(--text-secondary)]">
-              Idempotent server-side jobs persisted in PostgreSQL with retry counters and audit
+              Idempotent server-side jobs persisted in MongoDB with retry counters and audit
               trails.
             </p>
           </div>
@@ -370,7 +372,7 @@ export function CalendarClient({
                   {job.status}
                 </span>
 
-                {job.status === "failed" && (
+                {["failed", "blocked"].includes(job.status) && (
                   <button
                     type="button"
                     onClick={() => handleRetryJob(job.id)}

@@ -1,8 +1,9 @@
 import React from "react";
+import { NotificationSettings } from "@/components/NotificationSettings";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
-import { ShieldCheck, KeyRound, Bell, Server, ArrowRight } from "lucide-react";
+import { ShieldCheck, KeyRound, Server, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -14,32 +15,30 @@ export default async function SettingsPage() {
 
   const envChecks = [
     {
-      name: "PostgreSQL Relational Persistence",
-      status: Boolean(process.env.DATABASE_URL) ? "Operational" : "Unconfigured",
-      active: Boolean(process.env.DATABASE_URL),
+      name: "MongoDB Persistence",
+      status: Boolean(process.env.MONGODB_URI) ? "Operational" : "Unconfigured",
+      active: Boolean(process.env.MONGODB_URI),
     },
     {
       name: "Managed OpenAI API Key (OPENAI_API_KEY)",
-      status: process.env.OPENAI_API_KEY ? "Live Configured" : "Simulated Demo Mode",
+      status: process.env.OPENAI_API_KEY ? "Configured (provider access required)" : "Not configured; use BYOK",
       active: Boolean(process.env.OPENAI_API_KEY),
     },
     {
-      name: "Stripe Billing Webhooks (STRIPE_SECRET_KEY)",
-      status: process.env.STRIPE_SECRET_KEY ? "Live Configured" : "Simulated Sandbox",
-      active: Boolean(process.env.STRIPE_SECRET_KEY),
+      name: "Paid Checkout",
+      status: "Not available",
+      active: false,
     },
     {
-      name: "Social OAuth 2.0 Provider Keys",
-      status:
-        process.env.LINKEDIN_CLIENT_ID || process.env.X_CLIENT_ID
-          ? "Partial Live"
-          : "Simulated Sandbox Adapters",
-      active: Boolean(process.env.LINKEDIN_CLIENT_ID || process.env.X_CLIENT_ID),
+      name: "Social Platform Credentials",
+      status: "Customer-owned; configure per account",
+      active: true,
     },
   ];
 
   return (
     <div className="space-y-8">
+      <NotificationSettings />
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           Account, Security & Environment Architecture
@@ -102,8 +101,7 @@ export default async function SettingsPage() {
             </h2>
           </div>
           <p className="text-xs text-[var(--text-secondary)]">
-            POSTIF-AI transparently reports which infrastructure services are connected live versus
-            running via local simulation adapters.
+            Services require real configuration. Social credentials are managed per workspace/account, not through shared server keys.
           </p>
 
           <div className="space-y-2.5">
@@ -128,28 +126,7 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* Transactional Notifications Architecture */}
-      <div className="surface-card rounded-3xl p-6">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-violet-400" />
-          <h2 className="text-base font-extrabold">Notification Events & Alert Triggers</h2>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {[
-            "Successful & Failed Publications",
-            "Approval Queue & Agent Proposals",
-            "Low AI Credit Thresholds & Token Refresh",
-          ].map((trigger) => (
-            <label
-              key={trigger}
-              className="elevated-card flex items-center gap-2.5 rounded-2xl p-4 text-xs font-semibold"
-            >
-              <input type="checkbox" defaultChecked className="accent-violet-600" />
-              <span>{trigger}</span>
-            </label>
-          ))}
-        </div>
-      </div>
+
     </div>
   );
 }

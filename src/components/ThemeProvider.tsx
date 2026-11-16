@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 
 type Theme = "dark" | "light";
 
@@ -14,26 +14,24 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
 });
 
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("postif-theme", callback);
+  return () => { window.removeEventListener("storage", callback); window.removeEventListener("postif-theme", callback); };
+}
+function snapshot(): Theme { return window.localStorage.getItem("postifai-theme") === "light" ? "light" : "dark"; }
+function serverSnapshot(): Theme { return "dark"; }
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const theme = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("postifai-theme") as Theme | null;
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-    } else {
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
-  }, []);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === "dark" ? "light" : "dark";
-      window.localStorage.setItem("postifai-theme", next);
-      document.documentElement.setAttribute("data-theme", next);
-      return next;
-    });
+    window.localStorage.setItem("postifai-theme", theme === "dark" ? "light" : "dark");
+    window.dispatchEvent(new Event("postif-theme"));
   };
 
   return (

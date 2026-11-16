@@ -3,286 +3,99 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
-import { SOCIAL_PLATFORM_SPECS, SocialPlatformSpec } from "@/lib/social-adapters";
-import {
-  Plus,
-  RefreshCw,
-  Unplug,
-  ShieldCheck,
-  AlertTriangle,
-  Info,
-} from "lucide-react";
+import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "@/lib/social-adapters";
+import { Plus, RefreshCw, Unplug, ShieldCheck } from "lucide-react";
 
 interface AccountDTO {
-  id: number;
-  platform: string;
-  accountName: string;
-  handle: string;
-  accountType: string;
-  status: string;
-  integrationMode: string;
-  permissions: string[];
-  rateLimitRemaining: number;
-  rateLimitMax: number;
-  followersCount: number;
-  lastError: string | null;
+  id: number; platform: string; accountName: string; handle: string; accountType: string;
+  status: string; integrationMode: string; lastError: string | null;
 }
-
-export function SocialAccountsClient({
-  accounts,
-  maxChannels,
-  planName,
-}: {
-  accounts: AccountDTO[];
-  maxChannels: number;
-  planName: string;
-}) {
+export function SocialAccountsClient({ accounts, maxChannels, planName, canManage }: { accounts: AccountDTO[]; maxChannels: number; planName: string; canManage: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
-
-  const [selectedPlatform, setSelectedPlatform] =
-    useState<SocialPlatformSpec["id"]>("facebook");
-  const [accountName, setAccountName] = useState("");
-  const [handle, setHandle] = useState("");
-  const [connecting, setConnecting] = useState(false);
-
-  const connectedCount = accounts.filter((a) => a.status === "connected").length;
-
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setConnecting(true);
+  const [platform, setPlatform] = useState<SocialPlatform>("facebook");
+  const [accessToken, setAccessToken] = useState("");
+  const [providerAccountId, setProviderAccountId] = useState("");
+  const [boardId, setBoardId] = useState("");
+  const [apiVersion, setApiVersion] = useState("");
+  const [privacyLevel, setPrivacyLevel] = useState("");
+  const [mediaDeclaration, setMediaDeclaration] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const spec = SOCIAL_PLATFORM_SPECS[platform];
+  const inputClass = "elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-sm";
+  async function submit(action: string, accountId?: number) {
+    setBusy(true);
     try {
-      const res = await fetch("/api/social", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "connect",
-          platform: selectedPlatform,
-          accountName,
-          handle,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast("Connection blocked", data.error || "Channel limit reached.", "error");
-        return;
-      }
-      toast(
-        "Social adapter connected",
-        `${data.account.accountName} initialized in ${data.readiness.modeLabel}.`
-      );
-      setAccountName("");
-      setHandle("");
+      const credentials = {
+        accessToken,
+        ...(providerAccountId ? { accountId: providerAccountId.trim() } : {}),
+        ...(platform === "pinterest" ? { boardId: boardId.trim() } : {}),
+        ...(apiVersion ? { apiVersion: apiVersion.trim() } : {}),
+        ...(privacyLevel ? { privacyLevel } : {}),
+        ...(platform === "youtube" && mediaDeclaration ? { madeForKids: mediaDeclaration === "yes" } : {}),
+        ...(platform === "tiktok" && mediaDeclaration ? { aiGenerated: mediaDeclaration === "yes" } : {}),
+        ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
+      };
+      const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "connect" ? { action, platform, credentials } : { action, accountId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The provider could not verify this connection.");
+      toast(action === "disconnect" ? "Connection removed" : "Account verified", action === "disconnect" ? "Stored credentials were deleted. Revoke the token with the provider if it is no longer needed." : "Your provider identity was verified. Publishing still requires the listed provider permissions.");
+      if (action === "connect") { setAccessToken(""); setProviderAccountId(""); setBoardId(""); setExpiresAt(""); }
       router.refresh();
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleRefresh = async (accountId: number) => {
-    const res = await fetch("/api/social", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "refresh", accountId }),
-    });
-    if (res.ok) {
-      toast("Token & rate limits refreshed", "Adapter heartbeat verified.");
-      router.refresh();
-    }
-  };
-
-  const handleDisconnect = async (accountId: number) => {
-    const res = await fetch("/api/social", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "disconnect", accountId }),
-    });
-    if (res.ok) {
-      toast("Channel disconnected", "Revoked local publishing adapter.");
-      router.refresh();
-    }
-  };
-
-  return (
-    <div className="space-y-8">
-      {/* Transparent Integration Architecture Banner */}
-      <div className="surface-card flex flex-wrap items-center justify-between gap-4 rounded-3xl p-5">
-        <div className="flex items-start gap-3">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
-          <div className="text-xs leading-relaxed text-[var(--text-secondary)]">
-            <strong className="text-[var(--text-primary)]">
-              Transparent OAuth 2.0 & Sandbox Architecture:
-            </strong>{" "}
-            Each platform runs through an isolated provider adapter enforcing official scopes,
-            hourly rate limits, and media rules. Where external provider OAuth secrets are not
-            configured in <code className="text-cyan-300">.env</code>, connections run transparently
-            in <strong>Simulated Sandbox Mode</strong> without fabricating live external posts.
-          </div>
-        </div>
-        <span className="rounded-full bg-violet-500/15 px-3 py-1 text-xs font-extrabold text-violet-300">
-          {connectedCount} / {maxChannels} Active Channels ({planName})
-        </span>
-      </div>
-
-      {/* Connect New Account Card */}
-      <form
-        onSubmit={handleConnect}
-        className="surface-card grid gap-4 rounded-3xl p-6 md:grid-cols-12 md:items-end"
-      >
-        <div className="md:col-span-3">
-          <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-            Social Network Adapter
-          </label>
-          <select
-            value={selectedPlatform}
-            onChange={(e) =>
-              setSelectedPlatform(e.target.value as SocialPlatformSpec["id"])
-            }
-            className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-xs font-bold"
-          >
-            {Object.values(SOCIAL_PLATFORM_SPECS).map((spec) => (
-              <option key={spec.id} value={spec.id}>
-                {spec.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="md:col-span-4">
-          <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-            Account / Page Display Name
-          </label>
-          <input
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
-            placeholder="e.g., NebulaCloud Official Page"
-            className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-xs"
-          />
-        </div>
-
-        <div className="md:col-span-3">
-          <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-            Handle / Channel ID
-          </label>
-          <input
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            placeholder="@nebulacloud"
-            className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-xs"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <button
-            type="submit"
-            disabled={connecting}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-xs font-extrabold text-white shadow-lg"
-          >
-            <Plus className="h-4 w-4" /> Connect
-          </button>
-        </div>
-      </form>
-
-      {/* Connected Accounts Grid */}
-      <div className="grid gap-5 md:grid-cols-2">
-        {accounts.map((acc) => {
-          const spec =
-            SOCIAL_PLATFORM_SPECS[acc.platform as SocialPlatformSpec["id"]] ||
-            SOCIAL_PLATFORM_SPECS.linkedin;
-
-          return (
-            <div key={acc.id} className="surface-card flex flex-col justify-between rounded-3xl p-6">
-              <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-xs font-extrabold text-slate-950"
-                      style={{ backgroundColor: spec.accentColor }}
-                    >
-                      {spec.shortLabel}
-                    </div>
-                    <div>
-                      <div className="text-base font-extrabold">{acc.accountName}</div>
-                      <div className="text-xs text-[var(--text-muted)]">
-                        {acc.handle} • {spec.name} ({acc.accountType})
-                      </div>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                      acc.status === "connected"
-                        ? "bg-emerald-500/15 text-emerald-400"
-                        : acc.status === "needs_review"
-                        ? "bg-amber-500/20 text-amber-300"
-                        : "bg-slate-600/20 text-slate-400"
-                    }`}
-                  >
-                    {acc.status.replace("_", " ")}
-                  </span>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/10 px-2.5 py-1 font-semibold text-cyan-300">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {acc.integrationMode === "oauth_live"
-                      ? "OAuth 2.0 Live"
-                      : "Simulated Sandbox Adapter"}
-                  </span>
-                  <span className="rounded-lg bg-violet-500/10 px-2.5 py-1 font-semibold text-violet-300">
-                    Rate Limit: {acc.rateLimitRemaining}/{acc.rateLimitMax}/hr
-                  </span>
-                  <span className="rounded-lg bg-slate-800 px-2.5 py-1 font-semibold text-slate-300">
-                    {acc.followersCount.toLocaleString()} followers
-                  </span>
-                </div>
-
-                <p className="mt-3 text-xs text-[var(--text-secondary)]">{spec.apiNotes}</p>
-
-                {acc.permissions.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {acc.permissions.map((perm) => (
-                      <span
-                        key={perm}
-                        className="rounded bg-slate-900 px-2 py-0.5 font-mono text-[10px] text-slate-400"
-                      >
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {acc.lastError && (
-                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-amber-300">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{acc.lastError}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-5 flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleRefresh(acc.id)}
-                  className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold hover:border-cyan-500/40"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-cyan-400" /> Refresh Token
-                </button>
-
-                {acc.status !== "disconnected" && (
-                  <button
-                    type="button"
-                    onClick={() => handleDisconnect(acc.id)}
-                    className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10"
-                  >
-                    <Unplug className="h-3.5 w-3.5" /> Disconnect
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    } catch (error) {
+      toast("Connection failed", error instanceof Error ? error.message : "The request failed.", "error");
+    } finally { setBusy(false); }
+  }
+  return <div className="space-y-6">
+    <div className="surface-card rounded-3xl p-5 text-sm">
+      <ShieldCheck className="mb-2 h-5 w-5 text-cyan-400" />
+      Connect your own platform-issued access token. Credentials are encrypted per workspace/account and are never returned to the browser.
+      No shared social-provider keys are required in the server environment. Do not enter your social account password.
+      <p className="mt-2 text-xs text-[var(--text-muted)]">Tokens must have publishing permissions and the provider&apos;s required API access or approval. Replace expired tokens here; automatic OAuth renewal is not configured.</p>
+      <p className="mt-2 font-semibold">{accounts.filter(account => account.status === "connected").length} / {maxChannels} connected channels ({planName})</p>
     </div>
-  );
+    {canManage && <form onSubmit={event => { event.preventDefault(); void submit("connect"); }} className="surface-card grid gap-4 rounded-3xl p-6 sm:grid-cols-2">
+      <label className="text-xs font-bold">Platform
+        <select className={inputClass} value={platform} onChange={event => { setPlatform(event.target.value as SocialPlatform); setAccessToken(""); setProviderAccountId(""); setPrivacyLevel(""); setMediaDeclaration(""); setApiVersion(""); }}>
+          {Object.values(SOCIAL_PLATFORM_SPECS).map(platform => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
+        </select>
+      </label>
+      <label className="text-xs font-bold">Provider account ID / LinkedIn author URN (optional; detected from token)
+        <input className={inputClass} value={providerAccountId} onChange={event => setProviderAccountId(event.target.value)} autoComplete="off" />
+      </label>
+      <label className="text-xs font-bold sm:col-span-2">Your access token {platform === "facebook" ? "(Page token, not personal user token)" : ""}
+        <input required type="password" className={inputClass} value={accessToken} onChange={event => setAccessToken(event.target.value)} autoComplete="new-password" spellCheck={false} />
+      </label>
+      {platform === "pinterest" && <label className="text-xs font-bold">Destination board ID<input required className={inputClass} value={boardId} onChange={event => setBoardId(event.target.value)} /></label>}
+      {["linkedin", "facebook", "instagram"].includes(platform) && <label className="text-xs font-bold">Provider API version {platform === "linkedin" ? "(required, YYYYMM)" : "(optional, e.g. v27.0)"}
+        <input required={platform === "linkedin"} className={inputClass} value={apiVersion} onChange={event => setApiVersion(event.target.value)} />
+      </label>}
+      {["youtube", "tiktok"].includes(platform) && <label className="text-xs font-bold">{platform === "youtube" ? "Are videos made for kids?" : "Do your uploaded videos contain AI-generated media?"}
+        <select required className={inputClass} value={mediaDeclaration} onChange={event => setMediaDeclaration(event.target.value)}>
+          <option value="">Choose a declaration</option><option value="yes">Yes</option><option value="no">No</option>
+        </select>
+        <span className="mt-1 block font-normal">Applies to this connection. Reconnect before publishing content with a different declaration. App-generated TikTok media is always labeled AI-generated.</span>
+      </label>}
+      {["youtube", "tiktok"].includes(platform) && <label className="text-xs font-bold">Publishing visibility
+        <select required className={inputClass} value={privacyLevel} onChange={event => setPrivacyLevel(event.target.value)}>
+          <option value="">Choose visibility</option>
+          {(platform === "youtube" ? ["private", "unlisted", "public"] : ["SELF_ONLY", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "PUBLIC_TO_EVERYONE"]).map(value => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
+        </select>
+      </label>}
+      <label className="text-xs font-bold">Token expiration (if provided by your platform)<input type="datetime-local" className={inputClass} value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label>
+      <div className="text-xs text-[var(--text-secondary)] sm:col-span-2"><p>{spec.apiNotes}</p><p className="mt-1">Required permissions: {spec.officialScopes.join(", ")}</p></div>
+      <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 p-3 text-sm font-bold text-white disabled:opacity-50"><Plus className="h-4 w-4" />Verify and connect</button>
+    </form>}
+    {!accounts.length && <div className="surface-card rounded-3xl p-8 text-center text-sm text-[var(--text-muted)]">No accounts connected. Add your own credentials to enable publishing.</div>}
+    <div className="grid gap-4 md:grid-cols-2">{accounts.map(account => <div key={account.id} className="surface-card space-y-3 rounded-3xl p-6">
+      <h2 className="font-bold">{account.accountName}</h2><p className="text-sm">{account.handle} · {account.platform}</p>
+      <p className="text-xs">{account.integrationMode === "customer_credentials" ? "Customer-owned credentials" : "Legacy connection: reconnect with your credentials"} · {account.status.replaceAll("_", " ")}</p>
+      {account.lastError && <p className="text-xs text-amber-400">{account.lastError}</p>}
+      {canManage && <div className="flex gap-4">
+        <button disabled={busy} onClick={() => void submit("refresh", account.id)} className="inline-flex items-center gap-1 text-xs"><RefreshCw className="h-4 w-4" />Verify token</button>
+        <button disabled={busy} onClick={() => void submit("disconnect", account.id)} className="inline-flex items-center gap-1 text-xs text-rose-400"><Unplug className="h-4 w-4" />Disconnect</button>
+      </div>}
+    </div>)}</div>
+  </div>;
 }

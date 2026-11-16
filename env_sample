@@ -1,6 +1,36 @@
-ENCRYPTION_SECRET=some_ultra_secret_key
+# Required: use deployment secrets, never commit populated environment files.
+# Generate independent values with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ENCRYPTION_SECRET=
+WORKER_SECRET=
+
+# Required: MongoDB Atlas or a replica set, plus an explicit database name.
+MONGODB_URI=
+MONGODB_DB=
+
+# Required: public HTTPS origin. Loopback HTTP is allowed for local testing only.
+APP_URL=
+# Production on Amplify: SDK default credential chain uses the SSR Compute role.
+MEDIA_STORAGE_PROVIDER=s3
+S3_MEDIA_REGION=sa-east-1
+S3_MEDIA_BUCKET=postif-ai-media-prod
+S3_MEDIA_PREFIX=media/
+# Local development: select local and optionally set an absolute directory.
+# Not required for S3; never use Amplify's ephemeral disk for permanent storage.
+MEDIA_STORAGE_DIR=
+
+# Optional Managed AI. Customers can configure encrypted OpenAI BYOK in their workspace.
 OPENAI_API_KEY=
-LINKEDIN_CLIENT_ID=
-STRIPE_SECRET_KEY=
-X_CLIENT_ID=
-DATABASE_URL=postgresql://postif_ai:postgres@localhost:5432/postif_ai_db
+OPENAI_IMAGE_MODEL=gpt-image-1.5
+RUNWAY_API_KEY=
+# FFmpeg is required for GIF generation and PNG/WebP-to-JPEG conversion for Instagram.
+FFMPEG_PATH=
+
+# Optional notifications: configure each group completely, or leave it empty.
+SMTP_URL=
+MAIL_FROM=
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
+
+# Social access tokens belong to customers and are added in Social Media Integrations.
+# No shared LinkedIn/X/Meta/TikTok/Pinterest/Google app keys are used by this credential flow.

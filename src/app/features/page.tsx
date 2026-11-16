@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "Features — AI Content Studio, Autonomous Agent & Multi-Channel Scheduling",
+  title: "Features — AI Content Studio, Planning & Multi-Channel Scheduling",
 };
 
 export default function FeaturesPage() {
@@ -35,12 +35,12 @@ export default function FeaturesPage() {
       id: "agent",
       badge: "Competitive Differentiator",
       icon: Bot,
-      title: "Autonomous AI Marketing Agent with Auditable Guardrails",
-      desc: "Hire an AI marketing strategist that analyzes your brand pillars, builds weekly publishing plans, drafts platform-specific content, and optimizes cadence from engagement telemetry.",
+      title: "AI-Assisted Weekly Content Planning",
+      desc: "Generate weekly plan suggestions from your brand brief and objectives using your configured OpenAI provider. Review the suggestions before creating posts.",
       bullets: [
-        "Three control tiers: Manual Mode, Assisted Mode, and rule-bounded Autopilot Mode",
-        "Instant Pause Autopilot kill-switch, weekly post caps, and allowed-channel lock",
-        "Human approval inbox and immutable audit logs for every autonomous action",
+        "On-demand plans use configured platforms and weekly slot limits",
+        "Recurring autonomous planning is not available",
+        "Human approval workflow and recorded publishing actions",
       ],
     },
     {
@@ -48,11 +48,11 @@ export default function FeaturesPage() {
       badge: "Durable Job Infrastructure",
       icon: CalendarClock,
       title: "Multi-View Content Calendar & Idempotent Publishing Queue",
-      desc: "Plan visually across Monthly, Weekly, Daily, and List views backed by persistent PostgreSQL publishing jobs—never fragile browser timers.",
+      desc: "Plan visually across Monthly, Weekly, Daily, and List views backed by persistent MongoDB publishing jobs—never fragile browser timers.",
       bullets: [
         "Timezone-aware scheduling, post duplication, and campaign grouping",
-        "Idempotency keys prevent duplicate social publications",
-        "Automatic retry policies and one-click retry for failed jobs",
+        "Persisted provider checkpoints; uncertain sends require verification",
+        "Retries for eligible failures, never blind retries of uncertain sends",
       ],
     },
     {
@@ -71,12 +71,12 @@ export default function FeaturesPage() {
       id: "media",
       badge: "Visual & Asset Studio",
       icon: ImageIcon,
-      title: "AI Media Library, Aspect-Ratio Presets & Alt-Text Generator",
-      desc: "Organize visual assets, generate AI image prompts, apply brand color presets, and optimize aspect ratios (1:1, 4:5, 16:9, 9:16) per platform.",
+      title: "Media Uploads and Provider-Backed Generation",
+      desc: "Upload stored images and videos or queue image/video generation with configured providers. Completed files can be attached to posts.",
       bullets: [
-        "Automated accessibility alt-text generation",
-        "Reusable brand visual templates & video storyboard blueprints",
-        "Tag-based asset search across multi-brand workspaces",
+        "OpenAI image and Runway video generation require real provider access",
+        "GIF encoding requires FFmpeg",
+        "Persistent shared media storage is required in production",
       ],
     },
     {
@@ -84,7 +84,7 @@ export default function FeaturesPage() {
       badge: "Grounded Intelligence",
       icon: BarChart3,
       title: "Performance Intelligence & Multi-Brand Governance",
-      desc: "Monitor reach, engagement rate, link clicks, and follower growth with exportable CSV/JSON reports and AI recommendations grounded in real workspace data.",
+      desc: "View recorded workspace metrics and export reports. Live social analytics ingestion is not implemented; empty workspaces show no fabricated statistics.",
       bullets: [
         "Role-based permissions: Owner, Administrator, Editor, Approver, Viewer",
         "Encrypted BYOK OpenAI Vault (AES-256-GCM) or Managed AI Credits",
@@ -99,10 +99,10 @@ export default function FeaturesPage() {
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1 text-xs font-semibold text-violet-300">
             <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
-            Built by ExagonSoft on Next.js App Router & PostgreSQL
+            Built by ExagonSoft on Next.js App Router & MongoDB
           </span>
           <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Every Workflow Engineered for Autonomous Social Growth
+            Content Creation, Review, and Scheduling
           </h1>
           <p className="mt-4 text-base text-[var(--text-secondary)] sm:text-lg">
             Explore the full suite of AI creation, scheduling, approval governance, and analytics

@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     const mode = body.mode as string;
 
     if (mode === "generate") {
+      if (!String(body.topic || "").trim() && !String(body.prompt || "").trim()) return NextResponse.json({ error: "Enter a topic or idea before generating a post." }, { status: 400 });
       const result = await generateMultiPlatformPosts({
         workspaceId: ctx.workspace.id,
         userId: ctx.user.id,

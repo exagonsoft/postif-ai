@@ -87,7 +87,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
       if (createRes.ok) {
         toast(
           "4-Week Campaign Created!",
-          `Generated strategy themes and ${bp.samplePosts?.length || 3} starter draft posts.`
+          `Generated strategy themes and ${bp.samplePosts?.length || 0} starter draft posts.`
         );
         router.refresh();
       }

@@ -1,0 +1,277 @@
+import "./register-ts.mjs";
+import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
+if (process.env.MONGO_TEST_DATABASE !== "true") throw new Error("Run through the isolated MongoDB test runner.");
+const s3Mock = process.env.TEST_STORAGE_PROVIDER === "s3" ? await import("./fixtures/mock-s3.mjs") : null;
+
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "@/lib/auth") return { url: "data:text/javascript,export async function getAuthContext(){return globalThis.postifTestAuth;} export const SESSION_COOKIE_NAME='postifai_session';", shortCircuit: true };
+    if (specifier === "next/server") return next("next/server.js", context);
+    return next(specifier, context);
+  },
+});
+const { db, closeDatabase } = await import("../src/db/index.ts");
+const schema = await import("../src/db/schema.ts");
+const { encryptSecret, decryptSecret } = await import("../src/lib/crypto.ts");
+const { POST: social } = await import("../src/app/api/social/route.ts");
+const { GET: jobsResponse } = await import("../src/app/api/jobs/route.ts");
+const { GET: mediaDownload } = await import("../src/app/api/media/[id]/publish/route.ts");
+const { processDuePosts } = await import("../src/lib/publishing-worker.ts");
+const { storeMedia, deleteMedia } = await import("../src/lib/media-storage.ts");
+const { publishingMediaUrl, verifyPublishingMedia } = await import("../src/lib/publishing-media.ts");
+const { transformPostText, generateWeeklyPlan } = await import("../src/lib/ai-engine.ts");
+const { validateRuntimeConfig } = await import("../src/lib/runtime-config.ts");
+process.env.APP_URL = "https://publishing.example.test";
+process.env.OPENAI_API_KEY = "isolated-openai-token";
+const originalFetch = globalThis.fetch;
+const storedFiles = [];
+let user;
+let workspace;
+let completedChecks = false;
+let rejectCredentials = false;
+let rejectAI = false;
+let uncertainWrites = 0;
+let xWrites = 0;
+let providerCalls = 0;
+let rejectYouTubeStatus = false;
+let youtubeUploads = 0;
+let expectedTikTokAi = false;
+const reply = (data, status = 200) => Response.json(data, { status });
+globalThis.fetch = async (input, options = {}) => {
+  const url = new URL(String(input));
+  const body = typeof options.body === "string" ? JSON.parse(options.body) : {};
+  providerCalls++;
+  if (rejectCredentials) return reply({ error: `Do not leak ${options.headers?.Authorization}` }, 401);
+  if (url.hostname === "api.openai.com") return rejectAI ? reply({ error: "provider unavailable" }, 503) : reply({ choices: [{ message: { content: JSON.stringify(body.messages[0].content.includes("weekly content plan") ? { weeklyPlan: [{ day: "Monday", platform: "x", pillar: "Customer supplied pillar", concept: "A verified product walkthrough", status: "planned" }] } : { transformedText: "Hola, mundo.", hashtags: [], cta: "" }) } }], usage: { total_tokens: 17 } });
+  if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Verified LinkedIn" });
+  if (url.pathname === "/rest/posts") return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:confirmed" } });
+  if (url.pathname === "/2/users/me") return reply({ data: { id: "x-user", name: "Verified X", username: "verified-x" } });
+  if (url.pathname === "/2/tweets") {
+    if (body.text.includes("Ambiguous")) { uncertainWrites++; throw new Error("connection interrupted after remote acceptance"); }
+    xWrites++;
+    return reply({ data: { id: `confirmed-x-${xWrites}` } }, 201);
+  }
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/me")) return reply({ id: "facebook-page", name: "Verified Page", category: "Business" });
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/feed")) return reply({ id: "confirmed-facebook-post" });
+  if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/me")) return reply({ user_id: "instagram-user", username: "verified-ig" });
+  if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/media")) {
+    const signed = new URL(body.image_url);
+    assert.equal(signed.searchParams.get("format"), "jpeg");
+    assert.ok(verifyPublishingMedia(Number(signed.pathname.split("/")[3]), Number(signed.searchParams.get("expires")), signed.searchParams.get("signature"), "jpeg"));
+    return reply({ id: "instagram-container" });
+  }
+  if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/instagram-container")) return reply({ status_code: "FINISHED" });
+  if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/media_publish")) return reply({ id: "confirmed-instagram-post" });
+  if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/me")) return reply({ id: "threads-user", username: "verified-threads" });
+  if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads")) return reply({ id: "threads-container" });
+  if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads-container")) return reply({ status: "FINISHED" });
+  if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads_publish")) return reply({ id: "confirmed-threads-post" });
+  if (url.pathname === "/v5/user_account") return reply({ username: "verified-pinterest" });
+  if (url.pathname === "/v5/boards/customer-board") return reply({ id: "customer-board" });
+  if (url.pathname === "/v5/pins") { assert.equal(body.board_id, "customer-board"); return reply({ id: "confirmed-pinterest-post" }); }
+  if (url.pathname === "/youtube/v3/channels") return reply({ items: [{ id: "youtube-channel", snippet: { title: "Verified YouTube" } }] });
+  if (url.pathname === "/upload/youtube/v3/videos" && options.method === "POST") {
+    assert.equal(body.status.selfDeclaredMadeForKids, true, "Use the customer's audience declaration");
+    youtubeUploads++;
+    return new Response(null, { status: 200, headers: { location: "https://www.googleapis.com/upload/customer-session" } });
+  }
+  if (url.pathname === "/upload/customer-session") return reply({ id: "confirmed-youtube-video" }, 201);
+  if (url.pathname === "/youtube/v3/videos") return rejectYouTubeStatus ? reply({ error: "expired token" }, 401) : reply({ items: [{ id: "confirmed-youtube-video", status: { uploadStatus: "processed", privacyStatus: "private" }, processingDetails: { processingStatus: "succeeded" } }] });
+  if (url.pathname === "/v2/user/info/") return reply({ data: { user: { open_id: "tiktok-user", display_name: "Verified TikTok" } }, error: { code: "ok" } });
+  if (url.pathname === "/v2/post/publish/creator_info/query/") return reply({ data: { creator_username: "verified-tiktok", privacy_level_options: ["SELF_ONLY"], comment_disabled: true, duet_disabled: true, stitch_disabled: true }, error: { code: "ok" } });
+  if (url.pathname === "/v2/post/publish/video/init/") {
+    assert.equal(body.post_info.privacy_level, "SELF_ONLY");
+    assert.equal(body.source_info.source, "FILE_UPLOAD");
+    assert.equal(body.post_info.is_aigc, expectedTikTokAi);
+    return reply({ data: { publish_id: "tiktok-operation", upload_url: "https://open-upload.tiktokapis.com/customer-upload" }, error: { code: "ok" } });
+  }
+  if (url.hostname === "open-upload.tiktokapis.com") return new Response(null, { status: 201 });
+  if (url.pathname === "/v2/post/publish/status/fetch/") return reply({ data: { status: "PUBLISH_COMPLETE", publicaly_available_post_id: [] }, error: { code: "ok" } });
+  throw new Error(`Unexpected external request: ${url.origin}${url.pathname}`);
+};
+async function socialRequest(body) {
+  const response = await social(new Request("https://publishing.example.test/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+  return { status: response.status, body: await response.json() };
+}
+async function duePost(brandId, platform, title, mediaIds = []) {
+  const scheduledAt = new Date(Date.now() - 60000);
+  const [post] = await db.insert(schema.posts, { workspaceId: workspace.id, brandId, title, baseContent: title, platforms: [platform], status: "scheduled", scheduledAt, requiresApproval: false, notifyOnPublish: false, mediaIds });
+  const [job] = await db.insert(schema.publishingJobs, { workspaceId: workspace.id, postId: post.id, platform, scheduledFor: scheduledAt, idempotencyKey: crypto.randomUUID() });
+  return { post, job };
+}
+try {
+  validateRuntimeConfig({ NODE_ENV: "production", MONGODB_URI: process.env.MONGODB_URI, MONGODB_DB: process.env.MONGODB_DB, ENCRYPTION_SECRET: process.env.ENCRYPTION_SECRET, WORKER_SECRET: process.env.WORKER_SECRET, APP_URL: process.env.APP_URL, MEDIA_STORAGE_DIR: process.env.MEDIA_STORAGE_DIR });
+  assert.throws(() => validateRuntimeConfig({}), /MONGODB_URI/);
+  assert.throws(() => validateRuntimeConfig({ ...process.env, APP_URL: "http://public.example.test", NODE_ENV: "production" }), /HTTPS/);
+  [user] = await db.insert(schema.users, { email: "social-provider@example.test", name: "Social Test", passwordHash: "test" });
+  [workspace] = await db.insert(schema.workspaces, { ownerId: user.id, name: "Social Test", slug: crypto.randomUUID(), planSlug: "agency", aiBillingMode: "managed", aiCreditsBalance: 100 });
+  const [brand] = await db.insert(schema.brands, { workspaceId: workspace.id, name: "Social Test" });
+  globalThis.postifTestAuth = { user, workspace, activeBrand: brand, memberRole: "owner" };
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
+  if (s3Mock) {
+    const { POST: upload } = await import("../src/app/api/media/upload/route.ts");
+    const { GET: content } = await import("../src/app/api/media/[id]/content/route.ts");
+    const { POST: mediaAction } = await import("../src/app/api/media/route.ts");
+    const action = assetId => mediaAction(new Request("https://publishing.example.test/api/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", assetId }) }));
+    const uploaded = await upload(new Request("https://publishing.example.test/api/media/upload", { method: "POST", headers: { "X-File-Name": "s3-test.png", "Content-Type": "text/html" }, body: png }));
+    assert.equal(uploaded.status, 200);
+    const uploadedId = (await uploaded.json()).asset.id;
+    const [persisted] = await db.find(schema.mediaAssets, { id: uploadedId });
+    assert.equal(persisted.storageProvider, "s3");
+    assert.equal(persisted.byteSize, png.length);
+    assert.equal(persisted.mimeType, "image/png", "Never trust the client's declared MIME type");
+    const response = await content(new Request("https://publishing.example.test/api/media/content"), { params: Promise.resolve({ id: String(uploadedId) }) });
+    assert.equal(response.status, 307);
+    assert.ok(response.headers.get("location").includes("X-Amz-Expires=300"));
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+    const callsBeforeDenied = s3Mock.calls.length;
+    globalThis.postifTestAuth.workspace = { ...workspace, id: workspace.id + 1000000 };
+    assert.equal((await content(new Request("https://publishing.example.test"), { params: Promise.resolve({ id: String(uploadedId) }) })).status, 404);
+    assert.equal((await action(uploadedId)).status, 404);
+    assert.equal(s3Mock.calls.length, callsBeforeDenied, "Cross-tenant requests must not reach S3 or sign URLs");
+    globalThis.postifTestAuth.workspace = workspace;
+    globalThis.postifTestAuth.memberRole = "viewer";
+    assert.equal((await action(uploadedId)).status, 403);
+    globalThis.postifTestAuth.memberRole = "owner";
+    const [attached] = await db.insert(schema.posts, { workspaceId: workspace.id, brandId: brand.id, title: "Keep attached S3 object", baseContent: "Attachment deletion protection", mediaIds: [uploadedId] });
+    assert.equal((await action(uploadedId)).status, 409);
+    await db.remove(schema.posts, { id: attached.id });
+    s3Mock.failS3("DeleteObjectCommand");
+    assert.equal((await action(uploadedId)).status, 503);
+    assert.equal((await db.find(schema.mediaAssets, { id: uploadedId }))[0].generationStatus, "deleting");
+    s3Mock.failS3(undefined);
+    assert.equal((await action(uploadedId)).status, 200);
+    assert.equal((await db.find(schema.mediaAssets, { id: uploadedId })).length, 0);
+    assert.equal(s3Mock.objects.size, 0);
+    const originalInsert = db.insert;
+    db.insert = async function (model, ...args) {
+      if (model === schema.mediaAssets) throw new Error("Isolated persistence failure");
+      return originalInsert.call(this, model, ...args);
+    };
+    try {
+      assert.equal((await upload(new Request("https://publishing.example.test/api/media/upload", { method: "POST", body: png }))).status, 500);
+      assert.equal(s3Mock.objects.size, 0, "A failed database write must clean up the uploaded S3 object");
+    } finally { db.insert = originalInsert; }
+    console.log("Mocked S3 API checks passed: upload metadata, MIME sniffing, private download redirect, tenant/role isolation, attached-object protection, retryable deletion, and database failure cleanup.");
+  }
+  const storedImage = await storeMedia(png, workspace.id); storedFiles.push(storedImage);
+  const storedVideo = await storeMedia(Buffer.from("000000186674797069736f6d0000000069736f6d", "hex"), workspace.id); storedFiles.push(storedVideo);
+  const [image] = await db.insert(schema.mediaAssets, { workspaceId: workspace.id, brandId: brand.id, title: "Image", url: "", ...storedImage });
+  const [video] = await db.insert(schema.mediaAssets, { workspaceId: workspace.id, brandId: brand.id, title: "Video", url: "", ...storedVideo });
+  const downloadUrl = new URL(publishingMediaUrl(image.id, "jpeg"));
+  const download = await mediaDownload(new Request(downloadUrl), { params: Promise.resolve({ id: String(image.id) }) });
+  assert.equal(download.status, 200); assert.equal(download.headers.get("Content-Type"), "image/jpeg");
+  assert.equal(Buffer.from(await download.arrayBuffer()).subarray(0, 2).toString("hex"), "ffd8");
+  assert.equal(verifyPublishingMedia(image.id + 1, Number(downloadUrl.searchParams.get("expires")), downloadUrl.searchParams.get("signature"), "jpeg"), false);
+  assert.equal(verifyPublishingMedia(image.id, Number(downloadUrl.searchParams.get("expires")), downloadUrl.searchParams.get("signature"), "original"), false);
+  const platforms = ["linkedin", "x", "facebook", "instagram", "threads", "pinterest", "youtube", "tiktok"];
+  const accountIds = {};
+  for (const platform of platforms) {
+    const accessToken = `isolated-${platform}-customer-access-token`;
+    const result = await socialRequest({ action: "connect", platform, credentials: { accessToken, ...(platform === "linkedin" ? { apiVersion: "202610" } : {}), ...(platform === "pinterest" ? { boardId: "customer-board" } : {}), ...(platform === "youtube" ? { privacyLevel: "private", madeForKids: true } : {}), ...(platform === "tiktok" ? { privacyLevel: "SELF_ONLY", aiGenerated: false } : {}) } });
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    assert.ok(!JSON.stringify(result.body).includes(accessToken));
+    const account = result.body.account;
+    accountIds[platform] = account.id;
+    const [credential] = await db.find(schema.socialCredentials, { socialAccountId: account.id });
+    assert.ok(!credential.encryptedCredentials.includes(accessToken));
+    assert.equal(JSON.parse(decryptSecret(credential.encryptedCredentials)).accessToken, accessToken);
+    assert.equal(account.followersCount, 0);
+    assert.deepEqual(account.permissions, [], "Read-only identity checks must not invent granted permissions");
+    const { post, job } = await duePost(brand.id, platform, `Verified ${platform} post`, ["instagram", "pinterest"].includes(platform) ? [image.id] : ["youtube", "tiktok"].includes(platform) ? [video.id] : []);
+    await Promise.all([processDuePosts(workspace.id), processDuePosts(workspace.id)]);
+    let [persisted] = await db.find(schema.publishingJobs, { id: job.id });
+    if (persisted.status === "processing") {
+      assert.equal((await db.find(schema.posts, { id: post.id }))[0].publishedAt, null);
+      assert.ok(persisted.encryptedProviderState && !persisted.encryptedProviderState.includes("uploadUrl"));
+      await db.update(schema.publishingJobs, { id: job.id }, { nextCheckAt: new Date(0) });
+      await processDuePosts(workspace.id);
+      [persisted] = await db.find(schema.publishingJobs, { id: job.id });
+    }
+    assert.equal(persisted.status, "completed", `${platform}: ${persisted.errorMessage}`);
+    assert.ok(persisted.externalPostId);
+    assert.equal((await db.find(schema.posts, { id: post.id }))[0].status, "published");
+  }
+  assert.equal(xWrites, 1, "Concurrent workers must not create duplicate posts");
+  assert.equal((await db.find(schema.workspaces, { id: workspace.id }))[0].postsPublishedThisMonth, 8);
+  assert.equal((await socialRequest({ action: "connect", platform: "youtube", credentials: { accessToken: "missing-declaration-token", privacyLevel: "private" } })).status, 400);
+  const unavailableConnection = await duePost(brand.id, "instagram", "Disconnect while processing", [image.id]);
+  await processDuePosts(workspace.id);
+  assert.equal((await socialRequest({ action: "disconnect", accountId: accountIds.instagram })).status, 200);
+  await db.update(schema.publishingJobs, { id: unavailableConnection.job.id }, { nextCheckAt: new Date(0) });
+  await processDuePosts(workspace.id);
+  assert.equal((await db.find(schema.publishingJobs, { id: unavailableConnection.job.id }))[0].status, "uncertain");
+  assert.equal((await db.find(schema.posts, { id: unavailableConnection.post.id }))[0].status, "publishing");
+  const unauthorizedPoll = await duePost(brand.id, "youtube", "Credential failure after upload", [video.id]);
+  await processDuePosts(workspace.id);
+  const publicJobs = await (await jobsResponse()).json();
+  assert.ok(publicJobs.jobs.every(job => !Object.hasOwn(job, "encryptedProviderState")));
+  rejectYouTubeStatus = true;
+  await db.update(schema.publishingJobs, { id: unauthorizedPoll.job.id }, { nextCheckAt: new Date(0) });
+  await processDuePosts(workspace.id);
+  assert.equal((await db.find(schema.publishingJobs, { id: unauthorizedPoll.job.id }))[0].status, "uncertain");
+  assert.equal((await db.find(schema.posts, { id: unauthorizedPoll.post.id }))[0].status, "publishing");
+  const previousUploads = youtubeUploads;
+  await processDuePosts(workspace.id);
+  assert.equal(youtubeUploads, previousUploads, "Losing polling access must not permit uploading the same video again");
+  rejectYouTubeStatus = false;
+  expectedTikTokAi = true;
+  const [generatedVideo] = await db.insert(schema.mediaAssets, { workspaceId: workspace.id, brandId: brand.id, title: "Generated video", url: "", ...storedVideo, generationStartedAt: new Date() });
+  const generatedTikTok = await duePost(brand.id, "tiktok", "Generated media declaration", [generatedVideo.id]);
+  await processDuePosts(workspace.id);
+  await db.update(schema.publishingJobs, { id: generatedTikTok.job.id }, { nextCheckAt: new Date(0) });
+  await processDuePosts(workspace.id);
+  assert.equal((await db.find(schema.publishingJobs, { id: generatedTikTok.job.id }))[0].status, "completed");
+  const beforeDenied = providerCalls;
+  globalThis.postifTestAuth.memberRole = "viewer";
+  assert.equal((await socialRequest({ action: "connect", platform: "x", credentials: { accessToken: "unauthorized-token" } })).status, 403);
+  assert.equal(providerCalls, beforeDenied);
+  globalThis.postifTestAuth.memberRole = "owner";
+  const [other] = await db.insert(schema.workspaces, { ownerId: user.id, name: "Other", slug: crypto.randomUUID() });
+  globalThis.postifTestAuth.workspace = other;
+  assert.equal((await socialRequest({ action: "refresh", accountId: accountIds.x })).status, 404);
+  globalThis.postifTestAuth.workspace = workspace;
+  rejectCredentials = true;
+  const rejected = await socialRequest({ action: "connect", platform: "x", credentials: { accessToken: "invalid-token-must-not-leak" } });
+  assert.equal(rejected.status, 422); assert.ok(!JSON.stringify(rejected.body).includes("invalid-token"));
+  rejectCredentials = false;
+  const ambiguous = await duePost(brand.id, "x", "Ambiguous acceptance");
+  await processDuePosts(workspace.id);
+  assert.equal((await db.find(schema.publishingJobs, { id: ambiguous.job.id }))[0].status, "uncertain");
+  await processDuePosts(workspace.id);
+  assert.equal(uncertainWrites, 1, "Interrupted publishing must not be blindly repeated");
+  const [unconnectedBrand] = await db.insert(schema.brands, { workspaceId: workspace.id, name: "Unconnected brand" });
+  const blocked = await duePost(unconnectedBrand.id, "x", "No matching brand account");
+  await processDuePosts(workspace.id);
+  assert.equal((await db.find(schema.publishingJobs, { id: blocked.job.id }))[0].status, "blocked");
+  const balance = (await db.find(schema.workspaces, { id: workspace.id }))[0].aiCreditsBalance;
+  rejectAI = true;
+  await assert.rejects(transformPostText({ workspaceId: workspace.id, userId: user.id, text: "Hello, world.", action: "translate", targetLanguage: "Spanish" }), /OpenAI returned HTTP 503/);
+  assert.equal((await db.find(schema.workspaces, { id: workspace.id }))[0].aiCreditsBalance, balance, "Failed AI calls must refund reservations instead of returning templates");
+  assert.equal((await db.find(schema.aiUsageRecords, { workspaceId: workspace.id })).length, 0);
+  rejectAI = false;
+  const translated = await transformPostText({ workspaceId: workspace.id, userId: user.id, text: "Hello, world.", action: "translate", targetLanguage: "Spanish" });
+  assert.equal(translated.transformedText, "Hola, mundo.");
+  assert.equal((await db.find(schema.aiUsageRecords, { workspaceId: workspace.id }))[0].tokensEstimate, 17);
+  const weekly = await generateWeeklyPlan({ workspaceId: workspace.id, userId: user.id, brandName: brand.name, description: "", audience: "", contentPillars: ["Customer supplied pillar"], objectives: [], platforms: ["x"], maxPostsPerWeek: 1 });
+  assert.equal(weekly.weeklyPlan.length, 1);
+  assert.equal(weekly.weeklyPlan[0].status, "planned", "Generation must not invent approvals");
+  assert.equal(weekly.meta.executionSource, "openai_live");
+  assert.equal((await socialRequest({ action: "disconnect", accountId: accountIds.x })).status, 200);
+  assert.equal((await db.find(schema.socialCredentials, { socialAccountId: accountIds.x })).length, 0);
+  const encryptionSecret = process.env.ENCRYPTION_SECRET;
+  delete process.env.ENCRYPTION_SECRET;
+  try { assert.throws(() => encryptSecret("must not use a development fallback"), /ENCRYPTION_SECRET/); }
+  finally { process.env.ENCRYPTION_SECRET = encryptionSecret; }
+  console.log("Production/social checks passed: all eight provider identity and publishing adapters, encrypted customer credentials, permissions, tenant/brand isolation, asynchronous completion, concurrency, no blind resend, signed media and JPEG conversion, real AI responses/refunds, and production configuration. All provider calls were mocked.");
+  completedChecks = true;
+} finally {
+  globalThis.fetch = originalFetch;
+  delete globalThis.postifTestAuth;
+  if (workspace) await db.remove(schema.auditLogs, { workspaceId: workspace.id });
+  if (user) await db.remove(schema.users, { id: user.id });
+  await closeDatabase();
+  for (const stored of storedFiles) await deleteMedia({ workspaceId: workspace.id, ...stored });
+  if (s3Mock && completedChecks) assert.equal(s3Mock.objects.size, 0, "S3 test objects must be cleaned up");
+}

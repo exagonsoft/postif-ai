@@ -7,6 +7,9 @@ import { useToast } from "./ToastProvider";
 import { PulseStatusDot, SPRING_SNAPPY } from "./MotionPrimitives";
 import { SOCIAL_PLATFORM_SPECS, SocialPlatformSpec } from "@/lib/social-adapters";
 import { PlatformVariant } from "@/db/schema";
+import { PostMediaPicker, MediaPreview, PostMedia } from "./PostMediaPicker";
+import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
+import { AutomaticMediaSettings, AutomaticMedia } from "./AutomaticMediaSettings";
 import {
   Wand2,
   Sparkles,
@@ -38,78 +41,48 @@ interface BrandOption {
 export function ContentStudioClient({
   brands,
   defaultBrandId,
+  isTeamWorkspace,
+  memberRole,
 }: {
   brands: BrandOption[];
   defaultBrandId: number;
+  isTeamWorkspace: boolean;
+  memberRole: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
 
   const initialBrand = brands.find((b) => b.id === defaultBrandId) || brands[0];
 
-  const [brandId, setBrandId] = useState<number>(initialBrand?.id || 1);
-  const [topic, setTopic] = useState("Autonomous AI Social Media Workflows");
-  const [prompt, setPrompt] = useState(
-    "Explain how engineering and marketing teams save 12+ hours weekly by generating platform-native posts from a single strategic brief."
-  );
-  const [objective, setObjective] = useState("Thought Leadership & Product Trials");
+  const [brandId, setBrandId] = useState<number>(initialBrand?.id || 0);
+  const [mediaIds, setMediaIds] = useState<number[]>([]);
+  const [mediaAssets, setMediaAssets] = useState<PostMedia[]>([]);
+  const [requiresApproval, setRequiresApproval] = useState(isTeamWorkspace);
+  const teamReviewRequired = isTeamWorkspace && !["owner", "admin", "approver"].includes(memberRole);
+  const [notifyOnPublish, setNotifyOnPublish] = useState(true);
+  const [automaticMedia, setAutomaticMedia] = useState<AutomaticMedia>(null);
+  const [topic, setTopic] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [objective, setObjective] = useState("Audience Engagement");
   const [audience, setAudience] = useState(
-    initialBrand?.targetAudience || "Founders, Marketers & Product Leaders"
+    initialBrand?.targetAudience || ""
   );
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([
-    "linkedin",
-    "x",
-    "instagram",
-    "tiktok",
-  ]);
-  const [tone, setTone] = useState(initialBrand?.tone || "Professional & Visionary");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [tone, setTone] = useState(initialBrand?.tone || "Professional");
   const [language, setLanguage] = useState("English");
   const [contentType, setContentType] = useState("Educational Post");
   const [length, setLength] = useState("Medium");
-  const [keywords, setKeywords] = useState("AIAutomation, ContentOps, Growth");
-  const [cta, setCta] = useState("Try POSTIF-AI free today →");
+  const [keywords, setKeywords] = useState(initialBrand?.suggestedHashtags.join(", ") || "");
+  const [cta, setCta] = useState("");
 
   const [activeTab, setActiveTab] = useState<string>("linkedin");
-  const [variants, setVariants] = useState<Record<string, PlatformVariant>>({
-    linkedin: {
-      content:
-        "Most marketing teams spend 80% of their week reformatting the same message across six channels.\n\nWith POSTIF-AI, a single brief adapts natively to every network's algorithm—preserving your brand voice while optimizing hooks, structure, and CTAs.\n\nWhat part of your content workflow still feels too manual?\n\nTry POSTIF-AI free today →",
-      hashtags: ["#AIAutomation", "#ContentOps", "#MarketingStrategy"],
-      cta: "Try POSTIF-AI free today →",
-      formatLabel: "Thought Leadership Post",
-      characterCount: 336,
-    },
-    x: {
-      content:
-        "Stop manually rewriting the same post for 6 different social apps.\n\n1 brief → native LinkedIn post, X thread, Instagram carousel, and TikTok script in seconds.\n\nTry POSTIF-AI free today →",
-      hashtags: ["#AIAutomation", "#BuildInPublic"],
-      cta: "Try POSTIF-AI free today →",
-      formatLabel: "Single Post",
-      characterCount: 194,
-    },
-    instagram: {
-      content:
-        "✨ CREATE ONCE. PUBLISH EVERYWHERE.\n\nTurn one core idea into scroll-stopping posts tailored for every algorithm—without losing your authentic brand voice.\n\n💾 Save this workflow for your next campaign!\n👇 Try POSTIF-AI free today →",
-      hashtags: ["#ContentCreator", "#AIMarketing", "#SocialMediaTips"],
-      cta: "Try POSTIF-AI free today →",
-      formatLabel: "Carousel Caption",
-      characterCount: 237,
-    },
-    tiktok: {
-      content:
-        "[HOOK 0:00-0:03] Still spending 10 hours a week copy-pasting social posts?\n[BODY 0:04-0:18] Watch how one topic turns into native scripts, threads, and captions automatically.\n[CTA 0:19-0:24] Try POSTIF-AI free today →",
-      hashtags: ["#MarketingTok", "#AITools"],
-      cta: "Try POSTIF-AI free today →",
-      formatLabel: "Short Video Script",
-      characterCount: 221,
-    },
-  });
+  const [variants, setVariants] = useState<Record<string, PlatformVariant>>({});
 
+  const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [scheduledAt, setScheduledAt] = useState(() => {
     const d = new Date(Date.now() + 24 * 3600 * 1000);
-    return d.toISOString().slice(0, 16);
+    return formatScheduleInput(d, timezone);
   });
-  const [timezone, setTimezone] = useState("America/New_York");
 
   const [generating, setGenerating] = useState(false);
   const [transforming, setTransforming] = useState(false);
@@ -127,6 +100,10 @@ export function ContentStudioClient({
   };
 
   const handleGenerate = async () => {
+    if (!topic.trim() && !prompt.trim()) {
+      toast("Add a topic or idea", "Describe what the post should be about.", "error");
+      return;
+    }
     if (selectedPlatforms.length === 0) {
       toast("Select at least one channel", "Choose one or more target platforms.", "error");
       return;
@@ -233,13 +210,17 @@ export function ContentStudioClient({
         body: JSON.stringify({
           action: "create",
           brandId,
-          title: topic,
+          title: topic.trim() || prompt.trim().slice(0, 100) || "Untitled Post",
           topic,
           baseContent: primaryVariant?.content || prompt,
           contentType,
           tone,
           status,
-          scheduledAt: status === "scheduled" ? new Date(scheduledAt).toISOString() : null,
+          scheduledAt: ["scheduled", "pending_approval"].includes(status) && scheduledAt ? scheduleToISO(scheduledAt, timezone) : null,
+          requiresApproval,
+          notifyOnPublish,
+          mediaIds,
+          automaticMedia,
           timezone,
           platforms: selectedPlatforms,
           variants,
@@ -252,12 +233,14 @@ export function ContentStudioClient({
       }
       const statusLabels: Record<typeof status, string> = {
         draft: "Saved to Drafts",
-        pending_approval: "Submitted for Approval",
+        pending_approval: isTeamWorkspace ? "Submitted for Approval" : "Scheduled for Your Review",
         scheduled: "Scheduled in Content Calendar",
-        published: "Published Across Selected Channels",
+        published: "Queued for Publication",
       };
-      toast(statusLabels[status], `'${topic}' recorded in PostgreSQL.`);
+      toast(statusLabels[data.post.status as typeof status] || "Post saved", data.post.status === "waiting_media" ? "Media generation is queued. The result will be attached automatically before review or publishing." : data.post.status === "pending_approval" ? (isTeamWorkspace ? "Your team will review this post before it is sent." : "We will wait for your review before sending.") : "Publishing will wait until a social connection is available.");
       router.refresh();
+    } catch (error) {
+      toast("Could not save post", error instanceof Error ? error.message : "Please try again.", "error");
     } finally {
       setSaving(false);
     }
@@ -502,6 +485,10 @@ export function ContentStudioClient({
 
       {/* Right Platform Editor + Realistic Preview + Publishing Lifecycle */}
       <div className="space-y-6 xl:col-span-7">
+        <details className="surface-card rounded-2xl p-4">
+          <summary className="cursor-pointer text-sm font-semibold">Attach existing media (optional)</summary>
+          <PostMediaPicker uploadOnly selected={mediaIds} onChange={setMediaIds} onAssets={setMediaAssets} />
+        </details>
         <div className="surface-card rounded-3xl p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div className="flex flex-wrap gap-1.5">
@@ -650,6 +637,7 @@ export function ContentStudioClient({
             <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">
               {currentVariant.content}
             </p>
+            <div className="mt-3 space-y-3">{mediaAssets.filter(asset => mediaIds.includes(asset.id)).map(asset => <MediaPreview key={asset.id} asset={asset} />)}</div>
             {currentVariant.hashtags?.length > 0 && (
               <p className="mt-2 text-xs font-semibold text-cyan-400">
                 {currentVariant.hashtags.join(" ")}
@@ -676,6 +664,16 @@ export function ContentStudioClient({
 
         {/* Scheduling & Lifecycle Action Bar */}
         <div className="surface-card rounded-3xl p-6">
+          <h3 className="mb-3 font-bold">Review & publishing</h3>
+          <AutomaticMediaSettings value={automaticMedia} onChange={setAutomaticMedia} />
+          <label className="mb-3 block text-sm">{isTeamWorkspace ? "Team publishing permission" : "Publishing preference"}
+            <select disabled={teamReviewRequired} value={requiresApproval ? "review" : "automatic"} onChange={event => setRequiresApproval(event.target.value === "review")} className="elevated-card mt-2 w-full rounded-xl p-3">
+              <option value="automatic">Publish automatically</option>
+              <option value="review">{isTeamWorkspace ? "Send to team approvers before publishing" : "Let me review first"}</option>
+            </select>
+          </label>
+          <label className="mb-3 block text-sm"><input type="checkbox" checked={notifyOnPublish} onChange={event => setNotifyOnPublish(event.target.checked)} className="mr-2" />Notify me about publishing results</label>
+          <p className="mb-4 text-xs text-[var(--text-secondary)]">Choose email, on-site, or browser push in Settings. Social publishing connections will be added later; scheduled posts remain unsent until then.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
@@ -697,6 +695,7 @@ export function ContentStudioClient({
                 onChange={(e) => setTimezone(e.target.value)}
                 className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2 text-xs font-semibold"
               >
+                <option value="America/Montevideo">America/Montevideo (UTC−3)</option>
                 <option value="America/New_York">America/New_York (EST/EDT)</option>
                 <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
                 <option value="Europe/London">Europe/London (GMT/BST)</option>
@@ -716,32 +715,32 @@ export function ContentStudioClient({
               <Save className="h-3.5 w-3.5" /> Save Draft
             </button>
 
-            <button
+            {isTeamWorkspace && <button
               type="button"
               disabled={saving}
               onClick={() => handleSavePost("pending_approval")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Request Approval
-            </button>
+            </button>}
 
             <button
               type="button"
               disabled={saving}
-              onClick={() => handleSavePost("scheduled")}
+              onClick={() => handleSavePost(requiresApproval ? "pending_approval" : "scheduled")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg"
             >
-              <CalendarClock className="h-3.5 w-3.5" /> Schedule Publication
+              <CalendarClock className="h-3.5 w-3.5" /> {requiresApproval ? (isTeamWorkspace ? "Submit for Team Approval" : "Schedule & Notify Me to Review") : "Schedule Post"}
             </button>
 
-            <button
+            {!requiresApproval && !automaticMedia && <button
               type="button"
               disabled={saving}
               onClick={() => handleSavePost("published")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg"
             >
               <Send className="h-3.5 w-3.5" /> Publish Now
-            </button>
+            </button>}
           </div>
         </div>
       </div>

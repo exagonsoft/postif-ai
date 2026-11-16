@@ -146,7 +146,7 @@ export default function HomePage() {
             {
               icon: CalendarClock,
               title: "Persistent Job-Backed Calendar",
-              desc: "Monthly, weekly, daily, and list views backed by idempotent PostgreSQL publishing jobs, retry policies, timezone awareness, and failure logs.",
+              desc: "Monthly, weekly, daily, and list views backed by idempotent MongoDB publishing jobs, retry policies, timezone awareness, and failure logs.",
             },
             {
               icon: Repeat,
@@ -327,58 +327,6 @@ export default function HomePage() {
         </StaggerContainer>
       </section>
 
-      {/* Sample Testimonials (Explicitly Labeled) */}
-      <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <FadeInUp className="surface-card rounded-3xl p-8 sm:p-10">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-2xl font-extrabold">How Modern Teams Use POSTIF-AI</h2>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                Illustrative customer scenarios demonstrating multi-channel and BYOK workflows.
-              </p>
-            </div>
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-300">
-              Sample Demonstration Scenarios
-            </span>
-          </div>
-
-          <StaggerContainer className="mt-8 grid gap-6 md:grid-cols-3">
-            {[
-              {
-                quote:
-                  "Switching our agency to Pro BYOK saved us over $400/month in AI markup while giving every client brand an isolated approval inbox.",
-                author: "Elena Vance (Sample Persona)",
-                role: "Managing Partner, Northstar Digital",
-              },
-              {
-                quote:
-                  "Assisted Mode drafts our entire weekly LinkedIn and X pipeline from our product release notes every Monday morning.",
-                author: "Marcus Sterling (Sample Persona)",
-                role: "Head of Growth, StackPulse",
-              },
-              {
-                quote:
-                  "Smart Repurposing turns one technical blog post into a LinkedIn deep dive, an X thread, and an Instagram carousel in under 30 seconds.",
-                author: "Priya Nair (Sample Persona)",
-                role: "Developer Advocate & Creator",
-              },
-            ].map((item) => (
-              <StaggerItem key={item.author}>
-                <HoverLiftCard className="elevated-card h-full rounded-2xl p-5">
-                  <p className="text-sm italic leading-relaxed text-[var(--text-primary)]">
-                    “{item.quote}”
-                  </p>
-                  <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
-                    <div className="text-xs font-bold">{item.author}</div>
-                    <div className="text-[11px] text-[var(--text-muted)]">{item.role}</div>
-                  </div>
-                </HoverLiftCard>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-        </FadeInUp>
-      </section>
-
       {/* Final Conversion Banner */}
       <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
         <FadeInUp>
@@ -392,16 +340,16 @@ export default function HomePage() {
                 Put Your Social Growth on Intelligent Autopilot
               </h2>
               <p className="mt-3 text-sm text-white/85 sm:text-base">
-                Launch the interactive NebulaCloud AI demo workspace immediately or run AI Brand
-                Discovery on your own website in under two minutes.
+                Create a workspace, configure your brand, and connect your own social accounts.
+                AI suggestions require your configured provider and are always available for review.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <HoverLiftCard>
                   <Link
-                    href="/app"
+                    href="/register"
                     className="inline-block rounded-2xl bg-slate-950 px-7 py-3.5 text-sm font-bold text-white shadow-xl"
                   >
-                    Launch Interactive Demo
+                    Create Your Workspace
                   </Link>
                 </HoverLiftCard>
                 <HoverLiftCard>

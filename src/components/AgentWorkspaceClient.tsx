@@ -46,11 +46,9 @@ interface AgentActionDTO {
 export function AgentWorkspaceClient({
   config,
   actions,
-  autopilotAllowed,
 }: {
   config: AgentConfigDTO;
   actions: AgentActionDTO[];
-  autopilotAllowed: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -111,10 +109,10 @@ export function AgentWorkspaceClient({
     });
     if (res.ok) {
       toast(
-        config.isPaused ? "Autonomous Agent Resumed" : "Autopilot Paused",
+        config.isPaused ? "Planning enabled" : "Planning paused",
         config.isPaused
-          ? "Agent resumed within configured safety guardrails."
-          : "All autonomous scheduling actions are immediately halted."
+          ? "You can generate new weekly plans."
+          : "New plan generation is paused. Existing scheduled posts are unchanged."
       );
       router.refresh();
     }
@@ -204,7 +202,7 @@ export function AgentWorkspaceClient({
             </>
           ) : (
             <>
-              <PauseCircle className="h-4 w-4" /> Pause Autopilot
+              <PauseCircle className="h-4 w-4" /> Pause Planning
             </>
           )}
         </button>
@@ -221,16 +219,16 @@ export function AgentWorkspaceClient({
           {
             id: "assisted",
             title: "Assisted Mode",
-            desc: "AI builds weekly plans, drafts multi-platform variants, and queues scheduling proposals in your Approval Inbox.",
+            desc: "Generate weekly plan suggestions on demand. Create posts and submit them for approval separately.",
           },
           {
             id: "autopilot",
             title: "Autopilot Mode",
-            desc: "AI automatically schedules and publishes content strictly within your weekly post caps and channel allowlists.",
+            desc: "Not available. Recurring autonomous generation and scheduling are not implemented.",
           },
         ].map((m) => {
           const active = mode === m.id;
-          const locked = m.id === "autopilot" && !autopilotAllowed;
+          const locked = m.id === "autopilot";
           return (
             <motion.button
               key={m.id}
@@ -238,6 +236,7 @@ export function AgentWorkspaceClient({
               whileTap={{ scale: 0.99 }}
               transition={SPRING_SNAPPY}
               type="button"
+              disabled={locked}
               onClick={() => handleSaveRules(m.id)}
               className={`relative rounded-3xl p-6 text-left transition-colors ${
                 active
@@ -249,7 +248,7 @@ export function AgentWorkspaceClient({
                 <span className="text-base font-extrabold">{m.title}</span>
                 {locked ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                    <Lock className="h-3 w-3" /> Pro/Agency
+                    <Lock className="h-3 w-3" /> Unavailable
                   </span>
                 ) : active ? (
                   <motion.span

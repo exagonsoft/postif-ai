@@ -211,11 +211,11 @@ export function OverviewInteractive({
                   Engagement & Reach Velocity
                 </h2>
                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
-                  Sample Analytics Data
+                  Recorded Analytics
                 </span>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Interactive impression & engagement distribution across recent publications
+                Stored engagement measurements. Live engagement ingestion must be configured separately.
               </p>
             </div>
 

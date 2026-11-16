@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           </h2>
           <p>
             Customer-provided OpenAI API keys are encrypted server-side using AES-256-GCM before
-            storage in PostgreSQL. Keys are never transmitted back to client browsers, never
+            storage in MongoDB. Keys are never transmitted back to client browsers, never
             included in application logs, and can be permanently revoked at any time from Billing &
             AI Settings.
           </p>

@@ -346,7 +346,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--border-subtle)] pt-8 text-xs text-[var(--text-muted)] sm:flex-row">
             <p>© {new Date().getFullYear()} ExagonSoft. All rights reserved. POSTIF-AI is a product of ExagonSoft.</p>
             <p>
-              Built on Next.js App Router, PostgreSQL & OpenAI Architecture • Simulated social connectors clearly labeled in demo sandbox.
+              Built on Next.js App Router, MongoDB & OpenAI Architecture. Connect your own social platform credentials.
             </p>
           </div>
         </div>

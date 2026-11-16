@@ -1,10 +1,8 @@
 import crypto from "crypto";
 
 function getEncryptionKey(): Buffer {
-  const secret =
-    process.env.ENCRYPTION_SECRET ||
-    process.env.DATABASE_URL ||
-    "postif-ai-exagonsoft-default-dev-key-32b";
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret || secret.length < 32) throw new Error("ENCRYPTION_SECRET must contain at least 32 characters.");
   return crypto.createHash("sha256").update(secret).digest();
 }
 

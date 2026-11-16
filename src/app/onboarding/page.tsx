@@ -38,43 +38,24 @@ export default function OnboardingPage() {
   const [discovering, setDiscovering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [workspaceName, setWorkspaceName] = useState("Hyperion Labs");
-  const [brandName, setBrandName] = useState("Hyperion Labs");
-  const [websiteUrl, setWebsiteUrl] = useState("https://hyperionlabs.example.com");
-  const [industry, setIndustry] = useState("AI Developer Tools & Cloud");
-  const [description, setDescription] = useState(
-    "Hyperion Labs provides real-time observability and automated reliability workflows for cloud-native engineering teams."
-  );
-  const [productsServices, setProductsServices] = useState(
-    "Hyperion Trace Engine, Autonomous Incident Copilot, Latency Telemetry SDK"
-  );
-  const [targetAudience, setTargetAudience] = useState(
-    "VPs of Engineering, Staff SREs, DevOps Architects, Technical Founders"
-  );
-  const [brandVoice, setBrandVoice] = useState("Crisp, authoritative, engineering-led");
-  const [tone, setTone] = useState("Innovative & Visionary");
-  const [marketingGoals, setMarketingGoals] = useState<string[]>([
-    "Increase developer trial signups",
-    "Establish LinkedIn & X thought leadership",
-    "Automate weekly educational distribution",
-  ]);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [brandName, setBrandName] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [description, setDescription] = useState("");
+  const [productsServices, setProductsServices] = useState("");
+  const [targetAudience, setTargetAudience] = useState("");
+  const [brandVoice, setBrandVoice] = useState("");
+  const [tone, setTone] = useState("Professional");
+  const [marketingGoals, setMarketingGoals] = useState<string[]>([]);
   const [goalInput, setGoalInput] = useState("");
-  const [contentPillars, setContentPillars] = useState<string[]>([
-    "Observability Benchmarks",
-    "Incident Post-Mortem Playbooks",
-    "Product Deep-Dives",
-  ]);
-  const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([
-    "#HyperionLabs",
-    "#DevOps",
-    "#CloudNative",
-    "#AIAutomation",
-  ]);
+  const [contentPillars, setContentPillars] = useState<string[]>([]);
+  const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [initialStrategy, setInitialStrategy] = useState("");
-  const [platforms, setPlatforms] = useState<string[]>(["linkedin", "x", "instagram"]);
-  const [aiBillingMode, setAiBillingMode] = useState<"managed" | "byok">("managed");
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [aiBillingMode, setAiBillingMode] = useState<"managed" | "byok">("byok");
   const [byokApiKey, setByokApiKey] = useState("");
-  const [planSlug, setPlanSlug] = useState<string>("pro_ai");
+  const [planSlug, setPlanSlug] = useState<string>("free");
 
   const runDiscovery = async () => {
     setDiscovering(true);
@@ -91,7 +72,7 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Brand discovery notice", data.error || "Using editable defaults.", "error");
+        toast("Brand discovery failed", data.error || "Configure your AI provider or enter your brand details manually.", "error");
         return;
       }
       const d = data.discovery;
@@ -106,7 +87,7 @@ export default function OnboardingPage() {
       setInitialStrategy(d.initialStrategy || "");
       toast(
         "AI Brand Discovery complete",
-        `Extracted brand pillars, voice & hashtags (${data.meta?.executionSource}). Review below.`
+        `Generated suggestions from your brief (${data.meta?.executionSource}). Review and verify them below.`
       );
     } finally {
       setDiscovering(false);
@@ -213,7 +194,7 @@ export default function OnboardingPage() {
               <input
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
-                placeholder="e.g., Hyperion Labs"
+                placeholder="Your workspace name"
                 className="elevated-card w-full rounded-2xl px-4 py-3 text-base font-semibold focus:border-violet-500 focus:outline-none"
               />
             </div>
@@ -228,7 +209,7 @@ export default function OnboardingPage() {
               <input
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
-                placeholder="e.g., Hyperion Labs"
+                placeholder="Your brand name"
                 className="elevated-card w-full rounded-2xl px-4 py-3 text-base font-semibold focus:border-violet-500 focus:outline-none"
               />
             </div>
@@ -444,8 +425,7 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               <h1 className="text-2xl font-extrabold">9. Connect Social Media Channels</h1>
               <p className="text-xs text-[var(--text-secondary)]">
-                Select channels to initialize in your workspace (provisioned via Simulated Sandbox
-                Adapters unless live OAuth credentials are configured).
+                Select the channels you plan to use. No connection is created until you add and verify your own credentials in Social Media Integrations.
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => {
@@ -486,7 +466,7 @@ export default function OnboardingPage() {
                   <Cpu className="h-6 w-6 text-cyan-400" />
                   <div className="mt-3 text-base font-extrabold">Managed AI Credits</div>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    Built-in OpenAI models with monthly credits included. Zero setup required.
+                    Requires the operator to configure Managed OpenAI and grant a real credit balance.
                   </p>
                 </button>
 
@@ -532,6 +512,7 @@ export default function OnboardingPage() {
                   <button
                     key={plan.slug}
                     type="button"
+                    disabled={plan.slug !== "free"}
                     onClick={() => setPlanSlug(plan.slug)}
                     className={`rounded-2xl p-4 text-left transition-all ${
                       planSlug === plan.slug
@@ -549,6 +530,7 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-[var(--text-muted)]">Paid checkout is not enabled. New workspaces start on the Free plan without purchased credits.</p>
             </div>
           )}
 

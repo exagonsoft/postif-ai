@@ -81,11 +81,11 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
 
   return (
     <div className="space-y-8">
-      {/* Sample Data Disclosure + Filters + Export */}
+      {!snapshots.length && <p className="surface-card rounded-2xl p-5 text-sm text-[var(--text-muted)]">No analytics have been recorded. Live engagement ingestion is not configured; no sample statistics are displayed.</p>}
       <div className="surface-card flex flex-wrap items-center justify-between gap-4 rounded-3xl p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-300">
-            Sample Demonstration Data
+            Recorded Analytics
           </span>
 
           <select

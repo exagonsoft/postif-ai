@@ -1,156 +1,42 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import {
-  publishingJobs,
-  posts,
-  notifications,
-  auditLogs,
-  workspaces,
-} from "@/db/schema";
-import { and, desc, eq, lte, sql } from "drizzle-orm";
+import { publishingJobs, posts } from "@/db/schema";
+import { and, eq } from "@/db/filters";
 import { getAuthContext } from "@/lib/auth";
-
+import { canApprove, isPublishable, WorkflowError } from "@/lib/post-policy";
+import { processDuePosts } from "@/lib/publishing-worker";
 export async function GET() {
-  const ctx = await getAuthContext();
-  if (!ctx || !ctx.workspace) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const jobs = await db
-    .select()
-    .from(publishingJobs)
-    .where(eq(publishingJobs.workspaceId, ctx.workspace.id))
-    .orderBy(desc(publishingJobs.createdAt));
-
-  return NextResponse.json({ ok: true, jobs });
-}
-
-export async function POST(req: Request) {
-  try {
     const ctx = await getAuthContext();
-    if (!ctx || !ctx.workspace || !ctx.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx?.workspace)
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const jobs = await db.find(publishingJobs, eq("workspaceId", ctx.workspace.id), { sort: { createdAt: -1 } });
+    return NextResponse.json({ ok: true, jobs: jobs.map(({ encryptedProviderState, ...job }) => ({ ...job, hasProviderState: !!encryptedProviderState })) });
+}
+export async function POST(req: Request) {
+    try {
+        const ctx = await getAuthContext();
+        if (!ctx?.workspace || !canApprove(ctx.memberRole))
+            return NextResponse.json({ error: "Publishing permission required." }, { status: 403 });
+        const body = await req.json();
+        if (body.action === "run_due")
+            return NextResponse.json({ ok: true, processed: await processDuePosts(ctx.workspace.id) });
+        if (body.action === "retry") {
+            await db.transaction(async (tx) => {
+                const [job] = await tx.find(publishingJobs, and(eq("id", Number(body.jobId)), eq("workspaceId", ctx.workspace!.id)), { lock: true });
+                if (!job)
+                    throw new WorkflowError("Job not found.", 404);
+                const [post] = await tx.find(posts, eq("id", job.postId), {});
+                if (!["failed", "blocked"].includes(job.status) || !post || !isPublishable(post))
+                    throw new WorkflowError("This job cannot be retried until the post is approved and scheduled.", 409);
+                if (job.attempts >= job.maxAttempts)
+                    throw new WorkflowError("Retry limit reached. Review the post before rescheduling.", 409);
+                await tx.update(publishingJobs, eq("id", job.id), { status: "queued", errorMessage: null });
+            });
+            return NextResponse.json({ ok: true });
+        }
+        throw new WorkflowError("Invalid job action.");
     }
-
-    const body = await req.json();
-    const action = body.action as string;
-
-    if (action === "retry") {
-      const jobId = Number(body.jobId);
-      const [job] = await db
-        .select()
-        .from(publishingJobs)
-        .where(
-          and(
-            eq(publishingJobs.id, jobId),
-            eq(publishingJobs.workspaceId, ctx.workspace.id)
-          )
-        );
-
-      if (!job) {
-        return NextResponse.json({ error: "Job not found" }, { status: 404 });
-      }
-
-      const [updatedJob] = await db
-        .update(publishingJobs)
-        .set({
-          status: "completed",
-          attempts: job.attempts + 1,
-          executedAt: new Date(),
-          errorMessage: null,
-          externalPostId: `sim_retry_${job.platform}_${Date.now()}`,
-        })
-        .where(eq(publishingJobs.id, jobId))
-        .returning();
-
-      await db
-        .update(posts)
-        .set({
-          status: "published",
-          publishedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, job.postId));
-
-      await db
-        .update(workspaces)
-        .set({
-          postsPublishedThisMonth: sql`${workspaces.postsPublishedThisMonth} + 1`,
-        })
-        .where(eq(workspaces.id, ctx.workspace.id));
-
-      await db.insert(notifications).values({
-        workspaceId: ctx.workspace.id,
-        userId: ctx.user.id,
-        type: "publish_success",
-        title: `Retry succeeded on ${job.platform.toUpperCase()}`,
-        message: `Publishing job #${job.id} completed after retry (Simulated Sandbox Adapter).`,
-        actionHref: "/app/calendar",
-      });
-
-      await db.insert(auditLogs).values({
-        workspaceId: ctx.workspace.id,
-        actorEmail: ctx.user.email,
-        action: "publishing_job.retried_success",
-        resourceType: "publishing_job",
-        resourceId: String(job.id),
-        metadata: { platform: job.platform },
-      });
-
-      return NextResponse.json({ ok: true, job: updatedJob });
+    catch (error) {
+        return NextResponse.json({ error: error instanceof WorkflowError ? error.message : "Job update failed." }, { status: error instanceof WorkflowError ? error.status : 500 });
     }
-
-    if (action === "run_due") {
-      const dueJobs = await db
-        .select()
-        .from(publishingJobs)
-        .where(
-          and(
-            eq(publishingJobs.workspaceId, ctx.workspace.id),
-            eq(publishingJobs.status, "queued"),
-            lte(publishingJobs.scheduledFor, new Date())
-          )
-        );
-
-      let processed = 0;
-      for (const job of dueJobs) {
-        await db
-          .update(publishingJobs)
-          .set({
-            status: "completed",
-            attempts: job.attempts + 1,
-            executedAt: new Date(),
-            externalPostId: `sim_worker_${job.platform}_${Date.now()}`,
-          })
-          .where(eq(publishingJobs.id, job.id));
-
-        await db
-          .update(posts)
-          .set({
-            status: "published",
-            publishedAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(eq(posts.id, job.postId));
-
-        processed += 1;
-      }
-
-      if (processed > 0) {
-        await db
-          .update(workspaces)
-          .set({
-            postsPublishedThisMonth: sql`${workspaces.postsPublishedThisMonth} + ${processed}`,
-          })
-          .where(eq(workspaces.id, ctx.workspace.id));
-      }
-
-      return NextResponse.json({ ok: true, processed });
-    }
-
-    return NextResponse.json({ error: "Invalid job action" }, { status: 400 });
-  } catch (err) {
-    console.error("Jobs API error:", err);
-    return NextResponse.json({ error: "Job execution failed" }, { status: 500 });
-  }
 }

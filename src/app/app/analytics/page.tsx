@@ -2,25 +2,16 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { analyticsSnapshots } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { getAuthContext } from "@/lib/auth";
 import { AnalyticsClient } from "@/components/AnalyticsClient";
-
 export const dynamic = "force-dynamic";
-
 export default async function AnalyticsPage() {
-  const ctx = await getAuthContext();
-  if (!ctx || !ctx.workspace) {
-    redirect("/login");
-  }
-
-  const snapshots = await db
-    .select()
-    .from(analyticsSnapshots)
-    .where(eq(analyticsSnapshots.workspaceId, ctx.workspace.id));
-
-  return (
-    <div className="space-y-6">
+    const ctx = await getAuthContext();
+    if (!ctx || !ctx.workspace) {
+        redirect("/login");
+    }
+    const snapshots = await db.find(analyticsSnapshots, { workspaceId: ctx.workspace.id, isSampleData: false }, {});
+    return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           Analytics & Performance Intelligence
@@ -31,23 +22,20 @@ export default async function AnalyticsPage() {
         </p>
       </div>
 
-      <AnalyticsClient
-        snapshots={snapshots.map((s) => ({
-          id: s.id,
-          platform: s.platform,
-          dateLabel: s.dateLabel,
-          impressions: s.impressions,
-          reach: s.reach,
-          engagements: s.engagements,
-          likes: s.likes,
-          comments: s.comments,
-          shares: s.shares,
-          clicks: s.clicks,
-          followers: s.followers,
-          postType: s.postType,
-          isSampleData: s.isSampleData,
-        }))}
-      />
-    </div>
-  );
+      <AnalyticsClient snapshots={snapshots.map((s) => ({
+            id: s.id,
+            platform: s.platform,
+            dateLabel: s.dateLabel,
+            impressions: s.impressions,
+            reach: s.reach,
+            engagements: s.engagements,
+            likes: s.likes,
+            comments: s.comments,
+            shares: s.shares,
+            clicks: s.clicks,
+            followers: s.followers,
+            postType: s.postType,
+            isSampleData: s.isSampleData,
+        }))}/>
+    </div>);
 }

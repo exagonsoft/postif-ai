@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -62,7 +62,6 @@ interface AppShellProps {
     email: string;
     systemRole: string;
   };
-  isDemoFallback: boolean;
   workspace: WorkspaceDTO;
   workspaces: WorkspaceDTO[];
   activeBrandName: string;
@@ -90,7 +89,6 @@ const NAV_ITEMS = [
 export function AppShell({
   children,
   user,
-  isDemoFallback,
   workspace,
   workspaces,
   activeBrandName,
@@ -108,6 +106,10 @@ export function AppShell({
   const [wsOpen, setWsOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  useEffect(() => {
+    const timer = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 30000);
+    return () => clearInterval(timer);
+  }, [router]);
 
   const switchWorkspace = async (workspaceId: number) => {
     setWsOpen(false);
@@ -339,12 +341,6 @@ export function AppShell({
               <Menu className="h-5 w-5" />
             </button>
 
-            {isDemoFallback && (
-              <span className="hidden items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-cyan-300 sm:inline-flex">
-                <PulseStatusDot color="cyan" />
-                Interactive Demo Mode • {workspace.name}
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">

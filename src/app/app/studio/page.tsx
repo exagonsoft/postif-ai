@@ -2,6 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { ContentStudioClient } from "@/components/ContentStudioClient";
+import { getWorkspacePublishing } from "@/lib/workspace-publishing";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export default async function AIContentStudioPage() {
     redirect("/login");
   }
 
+  const { isTeamWorkspace } = await getWorkspacePublishing(ctx.workspace.id);
   return (
     <div className="space-y-6">
       <div>
@@ -24,6 +26,9 @@ export default async function AIContentStudioPage() {
       </div>
 
       <ContentStudioClient
+        key={`${ctx.workspace.id}-${isTeamWorkspace}`}
+        isTeamWorkspace={isTeamWorkspace}
+        memberRole={ctx.memberRole}
         brands={ctx.brands.map((b) => ({
           id: b.id,
           name: b.name,

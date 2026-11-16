@@ -99,12 +99,12 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-              Password (min 6 characters)
+              Password (min 12 characters)
             </label>
             <input
               required
               type="password"
-              minLength={6}
+              minLength={12}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"

@@ -30,7 +30,7 @@ export default function AboutPage() {
             <h2 className="mt-3 text-base font-bold">Human-in-the-Loop Safety</h2>
             <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
               Every autonomous agent mode enforces weekly limits, channel allowlists, approval
-              gates, and immutable PostgreSQL audit logs.
+              gates, and immutable MongoDB audit logs.
             </p>
           </div>
           <div className="surface-card rounded-3xl p-6">
@@ -45,8 +45,7 @@ export default function AboutPage() {
             <Server className="h-6 w-6 text-cyan-400" />
             <h2 className="mt-3 text-base font-bold">Transparent Architecture</h2>
             <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-              POSTIF-AI clearly distinguishes live OpenAI API executions from local sandbox
-              simulations whenever external OAuth or API keys are unconfigured.
+              POSTIF-AI requires real provider credentials. Unconfigured services report explicit errors instead of simulated results.
             </p>
           </div>
         </div>

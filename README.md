@@ -41,7 +41,7 @@ Set `MONGODB_URI` and `MONGODB_DB` in `.env.local`. `db:migrate` (also `db:init`
 
 ## Languages
 
-The public site, customer application, and administration use `flat-i18n` with English (`en`), Spanish (`es`), German (`de`), and Brazilian Portuguese (`pt-BR`). The language selector updates the shared React context without changing URLs or discarding mounted forms. A validated `postif_locale` cookie preserves the selection for server rendering and refreshes; English is the default.
+The public site, customer application, and administration use `flat-i18n` with English (`en`), Spanish (`es`), German (`de`), and Brazilian Portuguese (`pt-BR`). The language selector updates the shared React context without changing URLs or discarding mounted forms. A validated `postif_locale` cookie preserves the selection for server rendering and refreshes; English is the default. Localized pages are rendered per request so their initial HTML and metadata match the saved language.
 
 Keep all translations in `src/i18n/translations.json`, using flat keys with matching `{placeholder}` names in every language. Client components use `useAppLanguage()` from `src/i18n/provider.tsx`; server components use `await getServerI18n()` from `src/i18n/server.ts`. These expose `t`, `locale`, `formatDate`, and `formatNumber`. MongoDB content, provider resource names/IDs, user-authored text, and billing currencies are not rewritten when switching languages.
 

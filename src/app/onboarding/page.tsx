@@ -17,8 +17,6 @@ export async function generateMetadata() {
 export default async function OnboardingPage({ searchParams }: {
   searchParams: Promise<{ mode?: string }>;
 }) {
-  
-
   const createWorkspace = (await searchParams).mode === "create";
   const ctx = await getAuthContext();
   if (ctx?.user.systemRole === "operator") redirect("/app/admin");

@@ -5,6 +5,7 @@ import path from "node:path";
 import ts from "typescript";
 registerHooks({
   resolve(specifier, context, next) {
+    // flat-i18n publishes extensionless ESM imports that native Node cannot resolve.
     if (specifier.startsWith(".") && context.parentURL?.includes("/node_modules/flat-i18n/dist/")) {
       const file = `${fileURLToPath(new URL(specifier, context.parentURL))}.js`;
       if (existsSync(file)) return { url: pathToFileURL(file).href, shortCircuit: true };

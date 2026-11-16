@@ -1,4 +1,6 @@
 "use client";
+import { useAppLanguage } from "@/i18n/provider";
+
 export type AutomaticMedia = { kind: "image" | "video" | "gif" } | null;
 export function AutomaticMediaSettings({ value, onChange }: { value: AutomaticMedia; onChange: (value: AutomaticMedia) => void }) {
   const { t } = useAppLanguage();

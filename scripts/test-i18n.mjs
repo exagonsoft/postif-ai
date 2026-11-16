@@ -147,6 +147,7 @@ test("changing language updates real React consumers, preserves drafts and URLs,
       assert.equal(container.querySelector("h1").textContent, translations[locale]["billing.title"]);
       assert.equal(container.querySelector("button").textContent, translations[locale]["billing.withdraw"]);
       assert.equal(container.querySelector("select").value, locale);
+      assert.equal(container.querySelector("select").selectedOptions[0].textContent, locale === "pt-BR" ? "pt" : locale);
       assert.equal(dom.window.document.documentElement.lang, locale);
       assert.ok(dom.window.document.cookie.includes(`${LOCALE_COOKIE}=${locale}`));
       assert.equal(container.querySelector("input"), input);

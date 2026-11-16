@@ -13,11 +13,11 @@ export function LanguageSelector() {
       onChange={event => {
         if (isLocale(event.target.value)) setLocale(event.target.value);
       }}
-      className="max-w-36 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50">
-      <option value="en" lang="en">English</option>
-      <option value="es" lang="es">Español</option>
-      <option value="de" lang="de">Deutsch</option>
-      <option value="pt-BR" lang="pt-BR">Português (BR)</option>
+      className="w-16 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50">
+      <option value="en" lang="en" aria-label="English">en</option>
+      <option value="es" lang="es" aria-label="Español">es</option>
+      <option value="de" lang="de" aria-label="Deutsch">de</option>
+      <option value="pt-BR" lang="pt-BR" aria-label="Português (BR)">pt</option>
     </select>
   </div>;
 }

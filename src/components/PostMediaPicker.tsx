@@ -31,7 +31,33 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
     setBusy(true); setMessage("");
     try {
       if (file.size > 50 * 1024 * 1024) throw new Error("Choose a file smaller than 50 MB.");
-      const response = await fetch("/api/media/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) }, body: file });
+      const capabilityResponse = await fetch("/api/media/upload/intents", { cache: "no-store" });
+      const capability = await capabilityResponse.json();
+      if (!capabilityResponse.ok) throw new Error(capability.error || "Upload permission required.");
+      let response: Response;
+      if (capability.direct) {
+        const intentResponse = await fetch("/api/media/upload/intents", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, mimeType: file.type, byteSize: file.size }),
+        });
+        const intent = await intentResponse.json();
+        if (!intentResponse.ok) throw new Error(intent.error || "Unable to start upload.");
+        const form = new FormData();
+        for (const [key, value] of Object.entries(intent.post.fields)) form.append(key, value as string);
+        form.append("file", file);
+        const uploaded = await fetch(intent.post.url, { method: "POST", body: form, credentials: "omit" });
+        if (!uploaded.ok) {
+          await fetch(`/api/media/upload/intents/${intent.intentId}`, { method: "DELETE" });
+          throw new Error("Private storage rejected the upload. Check storage CORS configuration or try again.");
+        }
+        const complete = () => fetch(`/api/media/upload/intents/${intent.intentId}`, { method: "POST" });
+        try { response = await complete(); }
+        catch { response = await complete(); }
+        // A lost completion response is safe to retry; the server returns the same asset.
+        if (response.status >= 500) response = await complete();
+      } else {
+        response = await fetch("/api/media/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) }, body: file });
+      }
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
       if (!libraryOnly) onChange([...selected, data.asset.id]);
       await refresh(); setMessage(libraryOnly ? "Upload saved to your media library." : "Upload attached to this post.");

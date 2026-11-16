@@ -5,7 +5,8 @@ import { canApprove, resolvePostState, WorkflowError } from "./post-policy";
 import { SOCIAL_PLATFORM_SPECS } from "./social-adapters";
 import { notifyWorkspace } from "./notification-service";
 import { z } from "zod";
-import { getPlanDefinition } from "./plans";
+import { assertBrandEntitlement, getPublishingUsage, getWorkspaceEntitlements, releasePublishingReservation, usagePeriod } from "./entitlements";
+import { publishingReservations } from "@/db/entitlement-schema";
 import { queueMedia, cancelQueuedMedia } from "./media-generation";
 import { buildBrandMediaBrief } from "./brand-media-brief";
 import { getWorkspacePublishing } from "./workspace-publishing";
@@ -48,6 +49,7 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
         const [brand] = await tx.find(brands, and(eq("id", brandId), eq("workspaceId", ctx.workspaceId)), {});
         if (!brand)
             throw new WorkflowError("Brand does not belong to this workspace.", 403);
+        await assertBrandEntitlement(ctx.workspaceId, brandId, tx);
         const mediaIds = [...new Set(body.mediaIds ?? existing?.mediaIds ?? [])];
         const media = mediaIds.length ? await tx.find(mediaAssets, and(eq("workspaceId", ctx.workspaceId), inArray("id", mediaIds)), { lock: true }) : [];
         if (media.length !== mediaIds.length || media.some(m => m.generationStatus !== "ready" || !m.storageKey))
@@ -117,8 +119,10 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
         if (!["draft", "cancelled"].includes(state.status) && !baseContent.trim())
             throw new WorkflowError("Generate or write the post before submitting it.");
         if (state.status === "scheduled") {
-            const [workspace] = await tx.find(workspaces, eq("id", ctx.workspaceId), {});
-            if (workspace.postsPublishedThisMonth >= getPlanDefinition(workspace.planSlug).maxPostsPerMonth)
+            const { plan } = await getWorkspaceEntitlements(ctx.workspaceId, tx);
+            const usage = await getPublishingUsage(ctx.workspaceId, tx);
+            const [reserved] = existing ? await tx.find(publishingReservations, { workspaceId: ctx.workspaceId, postId: existing.id, status: { $in: ["reserved", "consumed"] } }) : [];
+            if (usagePeriod(state.scheduledAt ?? now) === usage.period && usage.used >= plan.maxPostsPerMonth && !reserved)
                 throw new WorkflowError("Monthly publishing limit reached.", 403);
         }
         const values = {
@@ -134,6 +138,7 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
             ? await tx.update(posts, eq("id", existing.id), values)
             : await tx.insert(posts, { ...values, workspaceId: ctx.workspaceId });
         await tx.update(publishingJobs, and(eq("postId", post.id), inArray("status", ["queued", "blocked", "retrying", "failed"])), { status: "cancelled" });
+        if (post.status === "cancelled") await releasePublishingReservation(ctx.workspaceId, post.id, tx);
         if (post.status === "scheduled" && post.scheduledAt) {
             for (const platform of platforms)
                 await tx.insert(publishingJobs, {

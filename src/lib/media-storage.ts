@@ -1,9 +1,12 @@
 import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, CopyObjectCommand, ListObjectVersionsCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getMediaStorageConfig, type MediaStorageConfig } from "./media-storage-config";
+import { getWorkerDeadline } from "./worker-network";
+import { deadlineSignal } from "./worker-budget";
 
 export const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 export const MEDIA_DOWNLOAD_TTL_SECONDS = 300;
@@ -73,6 +76,15 @@ function localStorage(directory: string): MediaStorageProvider {
   };
 }
 const clients = new Map<string, S3Client>();
+function storageSignal(timeout: number) {
+  const workerDeadline = getWorkerDeadline();
+  return workerDeadline === undefined ? AbortSignal.timeout(timeout) : AbortSignal.any([AbortSignal.timeout(timeout), deadlineSignal(workerDeadline)]);
+}
+function s3Client(region: string) {
+  let client = clients.get(region);
+  if (!client) { client = new S3Client({ region, maxAttempts: 1 }); clients.set(region, client); }
+  return client;
+}
 function s3Storage(config: Extract<MediaStorageConfig, { provider: "s3" }>): MediaStorageProvider {
   let client = clients.get(config.region);
   if (!client) {
@@ -86,16 +98,16 @@ function s3Storage(config: Extract<MediaStorageConfig, { provider: "s3" }>): Med
         Bucket: config.bucket, Key: key, Body: bytes, ContentType: mimeType, ContentLength: bytes.length,
         CacheControl: "private, no-store", IfNoneMatch: "*",
         ChecksumSHA256: createHash("sha256").update(bytes).digest("base64"),
-      }), { abortSignal: AbortSignal.timeout(60000) });
+      }), { abortSignal: storageSignal(60000) });
       return { storageKey: key, storageProvider: "s3", storageBucket: config.bucket, storageRegion: config.region, byteSize: bytes.length };
     },
     async read(key) {
-      const response = await s3.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }), { abortSignal: AbortSignal.timeout(60000) });
+      const response = await s3.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }), { abortSignal: storageSignal(60000) });
       if (!response.Body) throw new MediaStorageError("Media file unavailable.", 404);
       return readLimitedResponse(new Response(response.Body.transformToWebStream()));
     },
     async delete(key) {
-      await s3.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }), { abortSignal: AbortSignal.timeout(60000) });
+      await s3.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }), { abortSignal: storageSignal(60000) });
     },
     async downloadUrl(key, mimeType) {
       return getSignedUrl(s3, new GetObjectCommand({ Bucket: config.bucket, Key: key, ResponseContentType: mimeType, ResponseContentDisposition: "inline", ResponseCacheControl: "private, no-store" }), { expiresIn: MEDIA_DOWNLOAD_TTL_SECONDS });
@@ -154,6 +166,140 @@ export async function mediaDownloadUrl(reference: MediaStorageReference) {
   const { provider, key, kind } = resolveStorage(reference);
   const mimeType = mimeTypes[key.slice(key.lastIndexOf(".") + 1)];
   return operation(kind, "sign_download", () => provider.downloadUrl(key, mimeType));
+}
+
+export const MEDIA_UPLOAD_TTL_SECONDS = 300;
+export interface DirectMediaReference extends StoredMedia {
+  storageProvider: "s3";
+  storageBucket: string;
+  storageRegion: string;
+  workspaceId: number;
+  quarantineKey: string;
+  mimeType: string;
+}
+export function mediaUploadCapability() {
+  return { direct: getMediaStorageConfig().provider === "s3", maxBytes: MAX_MEDIA_BYTES };
+}
+export function prepareDirectMediaUpload(workspaceId: number, filename: unknown, mimeType: unknown, byteSize: unknown): DirectMediaReference & { title: string } {
+  const config = getMediaStorageConfig();
+  if (config.provider !== "s3") throw new MediaStorageError("Direct uploads require S3 storage.", 409);
+  const extension = Object.keys(mimeTypes).find(ext => mimeTypes[ext] === mimeType);
+  if (!extension) throw new MediaStorageError("Supported files: PNG, JPEG, WebP, GIF, MP4, and WebM.", 400);
+  if (typeof filename !== "string" || !filename.trim() || filename.length > 300 || /[\\/\x00-\x1f\x7f]/.test(filename))
+    throw new MediaStorageError("A valid filename of up to 300 characters is required.", 400);
+  if (typeof byteSize !== "number" || !Number.isSafeInteger(byteSize) || byteSize < 12 || byteSize > MAX_MEDIA_BYTES)
+    throw new MediaStorageError("Media size must be between 12 bytes and 50 MB.", 413);
+  const prefix = `${config.prefix}${workspacePrefix(workspaceId)}`;
+  return {
+    workspaceId, title: filename.trim(), mimeType: mimeType as string, byteSize,
+    storageProvider: "s3", storageBucket: config.bucket, storageRegion: config.region,
+    storageKey: `${prefix}${randomUUID()}.${extension}`,
+    quarantineKey: `${prefix}quarantine/${randomUUID()}.${extension}`,
+  };
+}
+function directStorage(reference: DirectMediaReference) {
+  const config = getMediaStorageConfig();
+  if (config.provider !== "s3" || reference.storageProvider !== "s3" || config.bucket !== reference.storageBucket || config.region !== reference.storageRegion)
+    throw new MediaStorageError("S3 media configuration does not match the upload.");
+  const prefix = config.prefix + workspacePrefix(reference.workspaceId);
+  safeKey(reference, prefix);
+  if (!reference.quarantineKey.startsWith(`${prefix}quarantine/`) || !filenamePattern.test(reference.quarantineKey.slice(`${prefix}quarantine/`.length)))
+    throw new MediaStorageError("Invalid media upload reference.", 400);
+  return { config, client: s3Client(config.region) };
+}
+function uploadSignal(deadline = Date.now() + 5000) {
+  const remaining = deadline - Date.now();
+  if (remaining < 1) throw new MediaStorageError("Media upload operation timed out. Retry later.", 503);
+  return storageSignal(Math.max(1, Math.min(5000, remaining)));
+}
+async function beforeAbort<T>(signal: AbortSignal, callback: () => Promise<T>): Promise<T> {
+  signal.throwIfAborted();
+  let onAbort: () => void = () => undefined;
+  const interrupted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new MediaStorageError("Media storage operation timed out. Retry later.", 503));
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try { return await Promise.race([callback(), interrupted]); }
+  finally { signal.removeEventListener("abort", onAbort); }
+}
+export async function signDirectMediaUpload(reference: DirectMediaReference, expiresAt: Date) {
+  const { config, client } = directStorage(reference);
+  const expires = Math.min(MEDIA_UPLOAD_TTL_SECONDS, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+  if (expires < 1) throw new MediaStorageError("Upload intent expired.", 410);
+  return operation("s3", "sign_upload", () => beforeAbort(uploadSignal(), () => createPresignedPost(client, {
+    Bucket: config.bucket, Key: reference.quarantineKey, Expires: expires,
+    Fields: { "Content-Type": reference.mimeType, "Cache-Control": "private, no-store", success_action_status: "204" },
+    Conditions: [
+      ["content-length-range", reference.byteSize, reference.byteSize],
+      ["eq", "$Content-Type", reference.mimeType], ["eq", "$Cache-Control", "private, no-store"],
+      ["eq", "$success_action_status", "204"],
+    ],
+  })));
+}
+export async function inspectDirectMediaUpload(reference: DirectMediaReference, versionId?: string | null) {
+  const { config, client } = directStorage(reference);
+  return operation("s3", "inspect_upload", async () => {
+    const deadline = Date.now() + 10000;
+    const head = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: reference.quarantineKey, ...(versionId ? { VersionId: versionId } : {}) }), { abortSignal: uploadSignal(deadline) });
+    if (!head.VersionId || head.VersionId === "null") throw new MediaStorageError("Direct uploads require S3 bucket versioning to be enabled.", 503);
+    if (head.ContentLength !== reference.byteSize || head.ContentLength > MAX_MEDIA_BYTES || head.ContentType !== reference.mimeType)
+      throw new MediaStorageError("Uploaded file size or MIME type does not match the intent.", 400);
+    const result = await client.send(new GetObjectCommand({
+      Bucket: config.bucket, Key: reference.quarantineKey, VersionId: head.VersionId, Range: "bytes=0-4095",
+    }), { abortSignal: uploadSignal(deadline) });
+    if (!result.Body) throw new MediaStorageError("Uploaded media is unavailable.", 404);
+    const reader = result.Body.transformToWebStream().getReader();
+    const signal = uploadSignal(deadline);
+    const chunks: Uint8Array[] = []; let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await beforeAbort(signal, () => reader.read());
+        if (done) break;
+        size += value.byteLength;
+        if (size > 4096) throw new MediaStorageError("Storage returned an invalid media range.", 503);
+        chunks.push(value);
+      }
+    } finally { await reader.cancel(); }
+    const format = detectMedia(Buffer.concat(chunks));
+    if (!format || format.mimeType !== reference.mimeType) throw new MediaStorageError("Uploaded bytes are not the declared supported media type.", 400);
+    if (!head.ETag) throw new MediaStorageError("Uploaded media has no version validator.", 503);
+    return { ...format, versionId: head.VersionId, etag: head.ETag };
+  });
+}
+export async function finalizeDirectMediaUpload(reference: DirectMediaReference, versionId: string, etag: string) {
+  const { config, client } = directStorage(reference);
+  return operation("s3", "finalize_upload", async () => {
+    if (!versionId || versionId === "null") throw new MediaStorageError("A versioned media upload is required.", 503);
+    await client.send(new CopyObjectCommand({
+      Bucket: config.bucket, Key: reference.storageKey,
+      CopySource: `${config.bucket}/${reference.quarantineKey.split("/").map(encodeURIComponent).join("/")}?versionId=${encodeURIComponent(versionId)}`,
+      CopySourceIfMatch: etag, MetadataDirective: "REPLACE",
+      ContentType: reference.mimeType, CacheControl: "private, no-store",
+    }), { abortSignal: uploadSignal() });
+    return {
+      storageKey: reference.storageKey, storageProvider: "s3" as const, storageBucket: config.bucket,
+      storageRegion: config.region, byteSize: reference.byteSize,
+    };
+  });
+}
+// Delete every version, not just a delete marker. Each call processes one bounded page.
+export async function cleanupDirectMediaUpload(reference: DirectMediaReference, includePermanent: boolean, deadline: number): Promise<boolean> {
+  const { config, client } = directStorage(reference);
+  return operation("s3", "cleanup_upload", async () => {
+    for (const key of [reference.quarantineKey, ...(includePermanent ? [reference.storageKey] : [])]) {
+      const page = await client.send(new ListObjectVersionsCommand({ Bucket: config.bucket, Prefix: key, MaxKeys: 100 }), { abortSignal: uploadSignal(deadline) });
+      const objects = [...page.Versions || [], ...page.DeleteMarkers || []].filter(item => item.Key === key).map(item => ({ Key: key, VersionId: item.VersionId }));
+      if (objects.some(item => !item.VersionId)) throw new MediaStorageError("Storage returned an unversioned upload.", 503);
+      if (objects.length) {
+        const result = await client.send(new DeleteObjectsCommand({ Bucket: config.bucket, Delete: { Objects: objects, Quiet: true } }), { abortSignal: uploadSignal(deadline) });
+        if (result.Errors?.length) throw new MediaStorageError("Temporary media cleanup failed. Retry later.", 503);
+        // Confirm on the next sweep before marking cleanup as complete.
+        return false;
+      }
+      if (page.IsTruncated) return false;
+    }
+    return true;
+  });
 }
 
 export async function readLimitedResponse(response: Response) {

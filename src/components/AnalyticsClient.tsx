@@ -20,7 +20,7 @@ interface SnapshotRow {
   isSampleData: boolean;
 }
 
-export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
+export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: SnapshotRow[]; advanced?: boolean }) {
   const { toast } = useToast();
   const [platformFilter, setPlatformFilter] = useState("all");
   const [postTypeFilter, setPostTypeFilter] = useState("all");
@@ -61,6 +61,7 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
     .sort((a, b) => b.rate - a.rate);
 
   const exportCsv = () => {
+    if (!advanced) return;
     const header =
       "Date,Platform,PostType,Impressions,Reach,Engagements,Likes,Comments,Shares,Clicks,Followers";
     const lines = filtered.map(
@@ -78,10 +79,10 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
   };
 
   const maxImp = Math.max(1000, ...filtered.map((f) => f.impressions));
+  if (!snapshots.length) return <p className="surface-card rounded-2xl p-5 text-sm text-[var(--text-muted)]">No detailed recorded analytics are available. Supported provider counters appear above; unavailable metrics are not represented as zero.</p>;
 
   return (
     <div className="space-y-8">
-      {!snapshots.length && <p className="surface-card rounded-2xl p-5 text-sm text-[var(--text-muted)]">No analytics have been recorded. Live engagement ingestion is not configured; no sample statistics are displayed.</p>}
       <div className="surface-card flex flex-wrap items-center justify-between gap-4 rounded-3xl p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-300">
@@ -114,13 +115,13 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
           </select>
         </div>
 
-        <button
+        {advanced && <button
           type="button"
           onClick={exportCsv}
           className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white"
         >
           <Download className="h-3.5 w-3.5" /> Export CSV Report
-        </button>
+        </button>}
       </div>
 
       {/* KPI Strip */}
@@ -141,12 +142,12 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
       </div>
 
       {/* Grounded AI Recommendation */}
-      {rankedTypes.length > 0 && (
+      {advanced && rankedTypes.length > 0 && (
         <div className="surface-card rounded-3xl border border-cyan-500/30 p-6">
           <div className="flex items-center gap-2 text-cyan-400">
             <Sparkles className="h-5 w-5" />
             <h2 className="text-base font-extrabold text-[var(--text-primary)]">
-              AI Performance Intelligence Recommendation
+              Recorded Performance Comparison
             </h2>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -157,8 +158,7 @@ export function AnalyticsClient({ snapshots }: { snapshots: SnapshotRow[] }) {
             {rankedTypes[1]
               ? ` compared to ${rankedTypes[1].rate.toFixed(2)}% for ${rankedTypes[1].type}`
               : ""}
-            . Consider allocating +20% of next week’s autonomous agent slots toward{" "}
-            {rankedTypes[0].type} formats.
+            . Compare equivalent date ranges and sample sizes before changing your publishing mix.
           </p>
         </div>
       )}

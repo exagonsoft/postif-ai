@@ -4,7 +4,9 @@ import { db } from "@/db";
 import { socialAccounts } from "@/db/schema";
 import { eq } from "@/db/filters";
 import { getAuthContext } from "@/lib/auth";
-import { getPlanDefinition } from "@/lib/plans";
+import { getWorkspaceEntitlements } from "@/lib/entitlements";
+import { socialLifecycleStatuses } from "@/db/social-lifecycle-schema";
+import { oauthCallbackUrl } from "@/lib/social-oauth-provider";
 import { SocialAccountsClient } from "@/components/SocialAccountsClient";
 export const dynamic = "force-dynamic";
 export default async function SocialAccountsPage() {
@@ -12,8 +14,11 @@ export default async function SocialAccountsPage() {
     if (!ctx || !ctx.workspace) {
         redirect("/login");
     }
-    const plan = getPlanDefinition(ctx.workspace.planSlug);
+    const { plan } = await getWorkspaceEntitlements(ctx.workspace.id);
     const accounts = await db.find(socialAccounts, eq("workspaceId", ctx.workspace.id), {});
+    const lifecycle = await db.find(socialLifecycleStatuses, { workspaceId: ctx.workspace.id });
+    let callbackOrigin: string | null = null;
+    try { callbackOrigin = new URL(oauthCallbackUrl("x")).origin; } catch { /* Manual token connections remain available without OAuth configuration. */ }
     return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
@@ -37,6 +42,10 @@ export default async function SocialAccountsPage() {
             rateLimitMax: a.rateLimitMax,
             followersCount: a.followersCount,
             lastError: a.lastError,
-        }))} maxChannels={plan.maxChannels} planName={plan.name} canManage={["owner", "admin"].includes(ctx.memberRole)}/>
+            renewalStatus: lifecycle.find(s => s.socialAccountId === a.id)?.renewalStatus,
+            renewalMessage: lifecycle.find(s => s.socialAccountId === a.id)?.renewalMessage,
+            analyticsStatus: lifecycle.find(s => s.socialAccountId === a.id)?.analyticsStatus,
+            analyticsMessage: lifecycle.find(s => s.socialAccountId === a.id)?.analyticsMessage,
+        }))} maxChannels={plan.maxChannels} planName={plan.name} callbackOrigin={callbackOrigin} canManage={["owner", "admin"].includes(ctx.memberRole)}/>
     </div>);
 }

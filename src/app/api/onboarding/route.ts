@@ -7,6 +7,9 @@ import { runBrandDiscovery } from "@/lib/ai-engine";
 import { getPlanDefinition } from "@/lib/plans";
 import { encryptSecret, hashToken } from "@/lib/crypto";
 import { cookies } from "next/headers";
+import { getWorkspaceEntitlements } from "@/lib/entitlements";
+import { WorkflowError } from "@/lib/post-policy";
+import { z } from "zod";
 export async function POST(req: Request) {
     try {
         const ctx = await getAuthContext();
@@ -23,15 +26,19 @@ export async function POST(req: Request) {
         }
         const action = body.action as string;
         if (action === "discover") {
+            if (ctx.memberRole !== "owner") throw new WorkflowError("Use a workspace you own for brand discovery, or enter the new brand details manually.", 403);
             const brandName = String(body.brandName || "").trim();
             const websiteUrl = String(body.websiteUrl || "").trim();
             const notes = String(body.notes || "").trim();
+            if (brandName.length > 300 || websiteUrl.length > 2000 || notes.length > 10000) throw new WorkflowError("Brand discovery input is too long.");
+            const requestKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/).optional().parse(req.headers.get("Idempotency-Key") ?? undefined);
             if (!brandName) {
                 return NextResponse.json({ error: "Brand name is required" }, { status: 400 });
             }
             const result = await runBrandDiscovery({
                 workspaceId: ctx.workspace.id,
                 userId: ctx.user.id,
+                requestKey,
                 brandName,
                 websiteUrl,
                 notes,
@@ -56,13 +63,13 @@ export async function POST(req: Request) {
             const selectedPlatforms = Array.isArray(body.platforms)
                 ? body.platforms
                 : [];
+            if (body.aiBillingMode !== undefined && !["managed", "byok"].includes(body.aiBillingMode)) throw new WorkflowError("Choose a valid AI billing mode.");
             const aiBillingMode = body.aiBillingMode === "managed" ? "managed" : "byok";
             const byokApiKey = String(body.byokApiKey || "").trim();
             const planSlug = String(body.planSlug || "free");
-            if (planSlug !== "free") return NextResponse.json({ error: "Paid workspaces require verified billing, which is not enabled yet." }, { status: 501 });
+            if (planSlug !== "free") throw new WorkflowError("Create a Free workspace, then upgrade through Billing.");
             if (!workspaceName || !brandName) return NextResponse.json({ error: "Workspace and brand names are required." }, { status: 400 });
             if (byokApiKey && !/^sk-\S+$/.test(byokApiKey)) return NextResponse.json({ error: "Enter a valid OpenAI API key or leave it empty." }, { status: 400 });
-            const plan = getPlanDefinition(planSlug);
             const rawToken = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
             const workspaceId = await db.transaction(async tx => {
             let workspace;
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
                     name: workspaceName,
                     slug: `${workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${crypto.randomUUID()}`,
                     ownerId: ctx.user.id,
-                    planSlug: plan.slug,
+                    planSlug: "free",
                     aiBillingMode,
                 });
                 await tx.insert(workspaceMembers, {
@@ -88,6 +95,8 @@ export async function POST(req: Request) {
                 const [completed] = await tx.find(auditLogs, { workspaceId: workspace.id, action: "onboarding.completed" }, { limit: 1 });
                 if (completed) return workspace.id;
             }
+            const plan = createWorkspace ? getPlanDefinition("free") : (await getWorkspaceEntitlements(workspace.id, tx)).plan;
+            if (!plan.allowsConfigurableAiMode && aiBillingMode !== plan.defaultAiMode) throw new WorkflowError(`${plan.name} requires ${plan.defaultAiMode.toUpperCase()} AI mode.`, 403);
             await tx.update(workspaces, eq("id", workspace.id), {
                 name: workspaceName,
                 aiBillingMode,
@@ -165,7 +174,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid onboarding action" }, { status: 400 });
     }
     catch (err) {
-        console.error("Onboarding API error:", err);
+        if (err instanceof WorkflowError) return NextResponse.json({ error: err.message }, { status: err.status });
+        if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues[0]?.message || "Invalid onboarding input." }, { status: 400 });
+        console.error("Onboarding request failed", { type: err instanceof Error ? err.name : "unknown" });
         return NextResponse.json({ error: err instanceof Error ? err.message : "Onboarding failed" }, { status: 500 });
     }
 }

@@ -244,7 +244,7 @@ export default function HomePage() {
                 <ul className="mt-6 space-y-3 text-sm">
                   <li className="flex items-center gap-2.5">
                     <Check className="h-4 w-4 text-cyan-400" />
-                    Included monthly AI credits on Free, Starter AI, Pro AI & Agency
+                    Included monthly AI credits on Starter AI, Pro AI & Agency. Free uses your own key.
                   </li>
                   <li className="flex items-center gap-2.5">
                     <Check className="h-4 w-4 text-cyan-400" />
@@ -269,7 +269,7 @@ export default function HomePage() {
               Flexible Plans
             </span>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Start Free. Scale to Autonomous Agency Operations.
+              Start Free. Scale to Assisted Agency Operations.
             </h2>
           </div>
           <Link

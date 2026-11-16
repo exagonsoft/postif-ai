@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Optional HTTP-only trigger for the Next.js worker. No processing runs in Lambda. Review and deploy manually.
+Parameters:
+  AppOrigin:
+    Type: String
+    AllowedPattern: '^https://[a-zA-Z0-9.-]+$'
+    Description: HTTPS application origin without a trailing slash.
+  WorkerSecretArn:
+    Type: String
+    AllowedPattern: '^arn:aws[a-z-]*:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+$'
+    Description: Existing Secrets Manager secret containing the raw WORKER_SECRET (at least 32 characters).
+  SecretKmsKeyArn:
+    Type: String
+    Default: ""
+    Description: Optional customer-managed KMS key ARN for that secret. Leave empty for the default key.
+Conditions:
+  HasKmsKey: !Not [!Equals [!Ref SecretKmsKeyArn, ""]]
+Resources:
+  ScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+  InvokerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadOnlyWorkerSecret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref WorkerSecretArn
+              - !If
+                - HasKmsKey
+                - Effect: Allow
+                  Action: kms:Decrypt
+                  Resource: !Ref SecretKmsKeyArn
+                  Condition:
+                    StringEquals:
+                      kms:ViaService: !Sub secretsmanager.${AWS::Region}.amazonaws.com
+                - !Ref AWS::NoValue
+        - PolicyName: WriteInvokerLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/postif-worker-trigger-${AWS::StackName}:*
+  InvokerLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/postif-worker-trigger-${AWS::StackName}
+      RetentionInDays: 14
+  Invoker:
+    Type: AWS::Lambda::Function
+    DependsOn: InvokerLogs
+    Properties:
+      FunctionName: !Sub postif-worker-trigger-${AWS::StackName}
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt InvokerRole.Arn
+      Timeout: 40
+      MemorySize: 128
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          APP_ORIGIN: !Ref AppOrigin
+          WORKER_SECRET_ARN: !Ref WorkerSecretArn
+      Code:
+        ZipFile: |
+          const { SecretsManagerClient, GetSecretValueCommand } = require("@aws-sdk/client-secrets-manager");
+          const secrets = new SecretsManagerClient({ maxAttempts: 2 });
+          exports.handler = async () => {
+            const value = await secrets.send(new GetSecretValueCommand({ SecretId: process.env.WORKER_SECRET_ARN }));
+            const secret = value.SecretString;
+            if (!secret || secret.length < 32 || /[\r\n]/.test(secret)) throw new Error("Worker secret is invalid.");
+            const response = await fetch(new URL("/api/worker", process.env.APP_ORIGIN), {
+              method: "POST", redirect: "error",
+              headers: { authorization: `Bearer ${secret}` },
+              signal: AbortSignal.timeout(35000)
+            });
+            const result = await response.json();
+            if (!response.ok || result.ok === false) throw new Error(`Worker endpoint returned HTTP ${response.status} or reported a degraded sweep`);
+            console.log("Worker HTTP trigger completed", { status: response.status });
+          };
+  ScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                aws:SourceArn: !GetAtt ScheduleGroup.Arn
+      Policies:
+        - PolicyName: InvokeOnlyHttpTrigger
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt Invoker.Arn
+  Schedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub postif-worker-${AWS::StackName}
+      GroupName: !Ref ScheduleGroup
+      ScheduleExpression: rate(1 minute)
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: DISABLED
+      Target:
+        Arn: !GetAtt Invoker.Arn
+        RoleArn: !GetAtt ScheduleRole.Arn
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 60
+          MaximumRetryAttempts: 1
+Outputs:
+  WorkerEndpoint:
+    Value: !Sub ${AppOrigin}/api/worker

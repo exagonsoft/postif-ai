@@ -106,6 +106,8 @@ try {
   assert.throws(() => validateRuntimeConfig({ ...process.env, APP_URL: "http://public.example.test", NODE_ENV: "production" }), /HTTPS/);
   [user] = await db.insert(schema.users, { email: "social-provider@example.test", name: "Social Test", passwordHash: "test" });
   [workspace] = await db.insert(schema.workspaces, { ownerId: user.id, name: "Social Test", slug: crypto.randomUUID(), planSlug: "agency", aiBillingMode: "managed", aiCreditsBalance: 100 });
+  const { setTestSubscription } = await import("./fixtures/subscription.mjs");
+  await setTestSubscription(workspace.id);
   const [brand] = await db.insert(schema.brands, { workspaceId: workspace.id, name: "Social Test" });
   globalThis.postifTestAuth = { user, workspace, activeBrand: brand, memberRole: "owner" };
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");

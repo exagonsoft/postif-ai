@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { socialAccounts, posts, publishingJobs, analyticsSnapshots, agentConfigurations, agentActions, } from "@/db/schema";
 import { eq } from "@/db/filters";
 import { getAuthContext } from "@/lib/auth";
-import { getPlanDefinition } from "@/lib/plans";
+import { getWorkspaceEntitlements, getPublishingUsage } from "@/lib/entitlements";
 import { OverviewInteractive } from "@/components/OverviewInteractive";
 export const dynamic = "force-dynamic";
 export default async function DashboardOverviewPage() {
@@ -13,7 +13,7 @@ export default async function DashboardOverviewPage() {
         redirect("/login");
     }
     const wsId = ctx.workspace.id;
-    const plan = getPlanDefinition(ctx.workspace.planSlug);
+    const [{ plan }, usage] = await Promise.all([getWorkspaceEntitlements(wsId), getPublishingUsage(wsId)]);
     const [wsSocials, wsPosts, wsJobs, wsMetrics, [agentCfg], wsAgentActions] = await Promise.all([
         db.find(socialAccounts, eq("workspaceId", wsId), {}),
         db.find(posts, eq("workspaceId", wsId), { sort: { createdAt: -1 } }),
@@ -37,8 +37,8 @@ export default async function DashboardOverviewPage() {
             accent: "text-cyan-400",
         },
         {
-            label: "Published This Month",
-            value: `${ctx.workspace.postsPublishedThisMonth} / ${plan.maxPostsPerMonth}`,
+            label: "Monthly Publishing Allowance Used",
+            value: `${usage.used} / ${plan.maxPostsPerMonth}`,
             sub: `${successRate} job publishing success rate`,
             accent: "text-emerald-400",
         },
@@ -102,6 +102,6 @@ export default async function DashboardOverviewPage() {
             description: a.description,
             status: a.status,
             actionType: a.actionType,
-        }))} agentMode={agentCfg?.mode || "assisted"} agentPaused={agentCfg?.isPaused ?? false}/>
+        }))} agentMode={plan.autopilotEnabled ? agentCfg?.mode || "manual" : "manual"} agentPaused={!plan.autopilotEnabled || (agentCfg?.isPaused ?? false)}/>
     </div>);
 }

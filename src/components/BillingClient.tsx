@@ -9,7 +9,6 @@ import {
   Cpu,
   ShieldCheck,
   Check,
-  PlusCircle,
   Trash2,
   CreditCard,
 } from "lucide-react";
@@ -35,6 +34,12 @@ export function BillingClient({
   keyValidated,
   preferredModel,
   usageRecords,
+  subscription,
+  billingReady,
+  billingMissing,
+  isOwner,
+  allowsConfigurableAiMode,
+  defaultAiMode,
 }: {
   currentPlanSlug: string;
   billingCycle: string;
@@ -45,19 +50,27 @@ export function BillingClient({
   keyValidated: boolean;
   preferredModel: string;
   usageRecords: UsageRow[];
+  subscription: { status: string; paidThrough: string | null; cancelAtPeriodEnd: boolean; hasCustomer: boolean; canChange: boolean; pendingPlanSlug: string | null; pendingInterval: string | null; pendingEffectiveAt: string | null };
+  billingReady: boolean;
+  billingMissing: string[];
+  isOwner: boolean;
+  allowsConfigurableAiMode: boolean;
+  defaultAiMode: "managed" | "byok";
 }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [mode, setMode] = useState<"managed" | "byok">(
+  const [selectedMode, setMode] = useState<"managed" | "byok">(
     aiBillingMode === "byok" ? "byok" : "managed"
   );
+  const mode = allowsConfigurableAiMode ? selectedMode : defaultAiMode;
   const [model, setModel] = useState(preferredModel || "gpt-4o-mini");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [cycle, setCycle] = useState<"monthly" | "annual">(
     billingCycle === "annual" ? "annual" : "monthly"
   );
   const [saving, setSaving] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   const handleSaveAIConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,30 +94,38 @@ export function BillingClient({
       toast("AI Provider Updated", data.message);
       setApiKeyInput("");
       router.refresh();
+    } catch {
+      toast("AI Configuration Error", "Could not reach the server. Please retry.", "error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleRevokeKey = async () => {
+    try {
     const res = await fetch("/api/billing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "revoke_byok" }),
     });
     if (res.ok) {
-      setMode("managed");
-      toast("BYOK Key Revoked", "Encrypted key wiped from vault; reverted to Managed AI.");
+      toast("BYOK Key Revoked", "Stored key removed. AI mode is unchanged; BYOK generation requires a new key.");
       router.refresh();
+    } else {
+      const data = await res.json();
+      toast("Could not revoke key", data.error || "Please retry.", "error");
     }
+    } catch { toast("Could not revoke key", "Could not reach the server. Please retry.", "error"); }
   };
 
   const handlePlanSwitch = async (planSlug: string) => {
-    const res = await fetch("/api/billing", {
+    setRedirecting(true);
+    try {
+    const res = await fetch(subscription.canChange ? "/api/billing" : "/api/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "change_plan",
+        ...(subscription.canChange ? { action: "change_plan" } : {}),
         planSlug,
         billingCycle: cycle,
       }),
@@ -114,24 +135,41 @@ export function BillingClient({
       toast("Plan switch blocked", data.error || "Requires Owner/Admin role.", "error");
       return;
     }
-    toast("Subscription Updated", `Active plan set to ${planSlug.replace("_", " ").toUpperCase()}.`);
-    router.refresh();
-  };
-
-  const handleTopUp = async () => {
-    const res = await fetch("/api/billing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "topup_credits", amount: 500 }),
-    });
-    if (res.ok) {
-      toast("Credits Added", "+500 Managed AI credits credited to your workspace.");
+    if (subscription.canChange) {
+      toast("Billing change saved", data.message);
       router.refresh();
+    } else {
+      if (typeof data.url !== "string") throw new Error("Missing redirect URL");
+      window.location.assign(data.url);
     }
+    } catch {
+      toast("Billing unavailable", "Could not open Stripe. Please retry.", "error");
+    } finally { setRedirecting(false); }
+  };
+  const openPortal = async () => {
+    setRedirecting(true);
+    try {
+      const response = await fetch("/api/billing/portal", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok || typeof data.url !== "string") { toast("Billing unavailable", data.error || "Could not open Stripe.", "error"); return; }
+      window.location.assign(data.url);
+    } catch { toast("Billing unavailable", "Could not reach Stripe.", "error"); }
+    finally { setRedirecting(false); }
   };
 
   return (
     <div className="space-y-8">
+      <div className="surface-card rounded-3xl p-6 text-sm">
+        <p>Subscription: <strong>{subscription.status}</strong> · Current access: <strong>{currentPlanSlug.replaceAll("_", " ")}</strong></p>
+        <p>{subscription.paidThrough ? `Paid through ${new Date(subscription.paidThrough).toLocaleString()}.` : "No verified paid period."} {subscription.cancelAtPeriodEnd ? "Cancellation scheduled; paid access remains until the paid-through date." : ""}</p>
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">No trials. Access activates only after verified payment. Included credits reset each paid anniversary month without rollover, including annual plans. Expiry returns to Free BYOK without deleting workspace data. Top-ups are unavailable pending pricing.</p>
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">Refunded or disputed payments invalidate the affected paid term and unused credits, without deleting data. Replayed invoices cannot restore them; a fresh verified payment is required.</p>
+        {subscription.hasCustomer && <p className="mt-2 text-xs text-[var(--text-secondary)]">Upgrades, downgrades and billing-cycle changes take effect at your existing paid-through boundary, without proration. The new term activates only after its payment is verified. Choose your existing plan/cycle to remove a scheduled change or resume renewal.</p>}
+        {subscription.pendingPlanSlug && <p className="mt-2 text-cyan-300">Scheduled: {subscription.pendingPlanSlug.replaceAll("_", " ")} {subscription.pendingInterval === "year" ? "annual" : subscription.pendingInterval === "month" ? "monthly" : ""} from {subscription.pendingEffectiveAt ? new Date(subscription.pendingEffectiveAt).toLocaleString() : "the next paid term"}.</p>}
+        {!billingReady && <p className="mt-2 text-amber-400">Billing unavailable. {billingMissing.length ? `Operator configuration required: ${billingMissing.join(", ")}.` : "Billing is disabled by the operator."}</p>}
+        {subscription.hasCustomer && <button type="button" disabled={!isOwner || !billingReady || redirecting} onClick={openPortal} className="mt-3 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold disabled:opacity-50">Manage payment methods / invoices in Stripe</button>}
+        {!isOwner && <p className="mt-2 text-xs">Only the workspace owner can purchase or manage subscriptions.</p>}
+      </div>
       {/* Dimension 1: AI Consumption Model (BYOK vs Managed AI) */}
       <div className="surface-card rounded-3xl p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -153,6 +191,7 @@ export function BillingClient({
           <div className="grid gap-4 md:grid-cols-2">
             <button
               type="button"
+              disabled={!allowsConfigurableAiMode && defaultAiMode !== "managed"}
               onClick={() => setMode("managed")}
               className={`rounded-2xl p-5 text-left transition-all ${
                 mode === "managed"
@@ -175,6 +214,7 @@ export function BillingClient({
 
             <button
               type="button"
+              disabled={!allowsConfigurableAiMode && defaultAiMode !== "byok"}
               onClick={() => setMode("byok")}
               className={`rounded-2xl p-5 text-left transition-all ${
                 mode === "byok"
@@ -243,15 +283,7 @@ export function BillingClient({
                 Save AI Provider Configuration
               </button>
 
-              {mode === "managed" && (
-                <button
-                  type="button"
-                  onClick={handleTopUp}
-                  className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold hover:border-cyan-400/50"
-                >
-                  <PlusCircle className="h-3.5 w-3.5 text-cyan-400" /> Top Up +500 Demo Credits
-                </button>
-              )}
+              {mode === "managed" && <span className="self-center text-xs text-[var(--text-muted)]">Credit top-ups unavailable — pricing pending.</span>}
             </div>
 
             {keyLast4 && (
@@ -274,7 +306,7 @@ export function BillingClient({
             <CreditCard className="h-5 w-5 text-violet-400" />
             <div>
               <h2 className="text-lg font-extrabold">
-                Dimension 2: Platform Subscription Plan (Stripe-Ready Architecture)
+                Platform Subscription Plan
               </h2>
               <p className="text-xs text-[var(--text-secondary)]">
                 Determines brand limits, connected channels, monthly publishing caps, and
@@ -300,14 +332,15 @@ export function BillingClient({
                 cycle === "annual" ? "bg-violet-600 text-white" : "text-[var(--text-secondary)]"
               }`}
             >
-              Annual (-20%)
+              Annual
             </button>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Object.values(SUBSCRIPTION_PLANS).map((plan) => {
-            const isCurrent = plan.slug === currentPlanSlug;
+            const isCurrent = plan.slug === currentPlanSlug && (plan.slug === "free" || cycle === billingCycle);
+            const canResume = isCurrent && (subscription.cancelAtPeriodEnd || Boolean(subscription.pendingPlanSlug));
             const price = cycle === "annual" ? plan.annualMonthlyPrice : plan.monthlyPrice;
             return (
               <div
@@ -320,9 +353,10 @@ export function BillingClient({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-base font-extrabold">{plan.name}</span>
-                  <span className="text-lg font-extrabold text-cyan-400">${price}/mo</span>
+                  <span className="text-lg font-extrabold text-cyan-400">${price} USD/mo</span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">{plan.tagline}</p>
+                {cycle === "annual" && plan.slug !== "free" && <p className="mt-1 text-xs">${plan.annualMonthlyPrice * 12} USD billed annually; included credits renew monthly.</p>}
                 <ul className="mt-4 space-y-1.5 text-xs text-[var(--text-secondary)]">
                   {plan.features.slice(0, 4).map((f) => (
                     <li key={f} className="flex items-center gap-1.5">
@@ -333,7 +367,7 @@ export function BillingClient({
                 </ul>
                 <button
                   type="button"
-                  disabled={isCurrent}
+                  disabled={(isCurrent && !canResume) || !isOwner || !billingReady || redirecting || (plan.slug === "free" && !subscription.canChange)}
                   onClick={() => handlePlanSwitch(plan.slug)}
                   className={`mt-5 w-full rounded-xl py-2 text-xs font-bold ${
                     isCurrent
@@ -341,7 +375,7 @@ export function BillingClient({
                       : "bg-violet-600 text-white hover:bg-violet-500"
                   }`}
                 >
-                  {isCurrent ? "Current Active Plan" : `Switch to ${plan.name}`}
+                  {canResume ? "Keep current plan / resume renewal" : isCurrent ? "Current Active Plan" : plan.slug === "free" ? "Cancel at paid-through date" : subscription.canChange ? `Schedule ${plan.name} ${cycle}` : `Checkout ${plan.name}`}
                 </button>
               </div>
             );

@@ -34,12 +34,16 @@ export function WorkspacesClient({
   maxBrands,
   planName,
   currentRole,
+  teamEnabled,
+  invitations,
 }: {
   brands: BrandDTO[];
   members: MemberDTO[];
   maxBrands: number;
   planName: string;
   currentRole: string;
+  teamEnabled: boolean;
+  invitations: { id: number; workspaceName: string; role: string }[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -49,6 +53,18 @@ export function WorkspacesClient({
   const [industry, setIndustry] = useState("SaaS & Technology");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("approver");
+  const canManage = ["owner", "admin"].includes(currentRole);
+  const respondToInvitation = async (memberId: number, accept: boolean) => {
+    try {
+      const response = await fetch("/api/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: accept ? "accept_invite" : "decline_invite", memberId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Invitation could not be updated.");
+      toast(accept ? "Invitation accepted" : "Invitation declined", accept ? "Your active workspace has been updated." : "Invitation removed.");
+      router.refresh();
+    } catch (error) {
+      toast("Invitation failed", error instanceof Error ? error.message : "Invitation could not be updated.", "error");
+    }
+  };
 
   const handleCreateBrand = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +105,7 @@ export function WorkspacesClient({
       toast("Invitation blocked", data.error || "Check your permissions.", "error");
       return;
     }
-    toast("Team member invited", `Invited ${inviteEmail} as ${inviteRole.toUpperCase()}.`);
+    toast("Invitation created", `Ask ${inviteEmail} to sign in and open Workspaces to accept. No email has been sent.`);
     setInviteEmail("");
     router.refresh();
   };
@@ -103,6 +119,20 @@ export function WorkspacesClient({
     if (res.ok) {
       toast("Role updated", `Member role changed to ${role.toUpperCase()}.`);
       router.refresh();
+    } else {
+      const data = await res.json();
+      toast("Role update blocked", data.error || "Check your permissions.", "error");
+    }
+  };
+  const handleRemoveMember = async (memberId: number) => {
+    try {
+      const response = await fetch("/api/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove_member", memberId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Access could not be revoked.");
+      toast("Access revoked", "The member or pending invitation has been removed.");
+      router.refresh();
+    } catch (error) {
+      toast("Removal blocked", error instanceof Error ? error.message : "Try again later.", "error");
     }
   };
 
@@ -129,6 +159,13 @@ export function WorkspacesClient({
 
   return (
     <div className="space-y-8">
+      {invitations.length > 0 && <div className="surface-card space-y-3 rounded-3xl p-6">
+        <h2 className="font-bold">Workspace invitations</h2>
+        {invitations.map(invite => <div key={invite.id} className="flex flex-wrap items-center justify-between gap-3">
+          <span>{invite.workspaceName} &mdash; {invite.role}</span>
+          <div className="flex gap-3"><button type="button" onClick={() => respondToInvitation(invite.id, true)}>Accept</button><button type="button" onClick={() => respondToInvitation(invite.id, false)}>Decline</button></div>
+        </div>)}
+      </div>}
       {/* Brand Profiles Section */}
       <div className="surface-card rounded-3xl p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -216,6 +253,7 @@ export function WorkspacesClient({
           </div>
           <button
             type="submit"
+            disabled={!canManage || brands.length >= maxBrands}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 py-2.5 text-xs font-bold text-white"
           >
             <Plus className="h-4 w-4" /> Add Brand
@@ -241,6 +279,7 @@ export function WorkspacesClient({
           onSubmit={handleInviteMember}
           className="mt-5 grid gap-3 sm:grid-cols-12 sm:items-end"
         >
+          {!teamEnabled && <p className="text-xs text-amber-300 sm:col-span-12">A Pro or Agency subscription is required to invite or edit team members. Existing data remains available.</p>}
           <div className="sm:col-span-6">
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
               Team Member or Client Email
@@ -263,7 +302,7 @@ export function WorkspacesClient({
               onChange={(e) => setInviteRole(e.target.value)}
               className="elevated-card mt-1 w-full rounded-xl px-3 py-2 text-xs font-bold"
             >
-              <option value="admin">Administrator</option>
+              {currentRole === "owner" && <option value="admin">Administrator</option>}
               <option value="editor">Editor</option>
               <option value="approver">Approver (Client Sign-off)</option>
               <option value="viewer">Viewer (Read-Only)</option>
@@ -272,9 +311,10 @@ export function WorkspacesClient({
           <div className="sm:col-span-3">
             <button
               type="submit"
+              disabled={!teamEnabled || !canManage}
               className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-xs font-bold text-white"
             >
-              <UserPlus className="h-4 w-4" /> Send Invite
+              <UserPlus className="h-4 w-4" /> Create Invitation
             </button>
           </div>
         </form>
@@ -292,18 +332,19 @@ export function WorkspacesClient({
                 </div>
               </div>
 
-              <select
+              <div className="flex items-center gap-3"><select
                 value={m.role}
-                disabled={m.role === "owner"}
+                disabled={m.role === "owner" || !teamEnabled || !canManage || (currentRole !== "owner" && m.role === "admin")}
                 onChange={(e) => handleRoleUpdate(m.id, e.target.value)}
                 className="surface-card rounded-xl px-3 py-1.5 text-xs font-bold uppercase"
               >
-                <option value="owner">Owner</option>
-                <option value="admin">Administrator</option>
+                {m.role === "owner" && <option value="owner">Owner</option>}
+                <option value="admin" disabled={currentRole !== "owner"}>Administrator</option>
                 <option value="editor">Editor</option>
                 <option value="approver">Approver</option>
                 <option value="viewer">Viewer</option>
               </select>
+              {canManage && m.role !== "owner" && (currentRole === "owner" || m.role !== "admin") && m.status !== "revoked" && <button type="button" onClick={() => handleRemoveMember(m.id)} className="text-xs text-red-300">Revoke access</button>}</div>
             </div>
           ))}
         </div>

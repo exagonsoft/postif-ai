@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useToast } from "@/components/ToastProvider";
@@ -36,12 +37,13 @@ type InitialBrand = Pick<BrandsDocument, "name" | "websiteUrl" | "industry" | "d
   "productsServices" | "targetAudience" | "brandVoice" | "tone" | "marketingGoals" |
   "contentPillars" | "suggestedHashtags">;
 
-export default function OnboardingWizard({ workspaceId, createWorkspace, initialWorkspaceName, initialBrand, initialAiBillingMode }: {
+export default function OnboardingWizard({ workspaceId, createWorkspace, initialWorkspaceName, initialBrand, initialAiBillingMode, allowedAiModes }: {
   workspaceId: number;
   createWorkspace: boolean;
   initialWorkspaceName: string;
   initialBrand: InitialBrand | null;
   initialAiBillingMode: "managed" | "byok";
+  allowedAiModes: ("managed" | "byok")[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -67,11 +69,12 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
   const [aiBillingMode, setAiBillingMode] = useState(initialAiBillingMode);
   const [byokApiKey, setByokApiKey] = useState("");
   const [planSlug, setPlanSlug] = useState<string>("free");
+  const [requestAi] = useState(createIdempotentFetcher);
 
   const runDiscovery = async () => {
     setDiscovering(true);
     try {
-      const res = await fetch("/api/onboarding", {
+      const res = await requestAi("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -102,6 +105,8 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
         "AI Brand Discovery complete",
         `Generated suggestions from your brief (${data.meta?.executionSource}). Review and verify them below.`
       );
+    } catch (error) {
+      toast("Brand discovery interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
     } finally {
       setDiscovering(false);
     }
@@ -474,6 +479,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                 <button
                   type="button"
                   onClick={() => setAiBillingMode("managed")}
+                  disabled={!allowedAiModes.includes("managed")}
                   className={`rounded-2xl p-5 text-left transition-all ${
                     aiBillingMode === "managed"
                       ? "border-2 border-cyan-400 bg-cyan-500/10"
@@ -483,13 +489,14 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   <Cpu className="h-6 w-6 text-cyan-400" />
                   <div className="mt-3 text-base font-extrabold">Managed AI Credits</div>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    Requires the operator to configure Managed OpenAI and grant a real credit balance.
+                    Included with a paid AI plan. Free uses your own OpenAI key.
                   </p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setAiBillingMode("byok")}
+                  disabled={!allowedAiModes.includes("byok")}
                   className={`rounded-2xl p-5 text-left transition-all ${
                     aiBillingMode === "byok"
                       ? "border-2 border-violet-500 bg-violet-500/10"
@@ -547,7 +554,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[var(--text-muted)]">Paid checkout is not enabled. New workspaces start on the Free plan without purchased credits.</p>
+              <p className="text-xs text-[var(--text-muted)]">New workspaces start on Free with BYOK and no included credits. Upgrade securely through Billing after setup.</p>
             </div>
           )}
 

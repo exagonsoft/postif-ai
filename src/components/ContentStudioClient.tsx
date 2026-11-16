@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "./ToastProvider";
@@ -88,6 +89,7 @@ export function ContentStudioClient({
   const [transforming, setTransforming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastExecutionBadge, setLastExecutionBadge] = useState<string>("");
+  const [requestAi] = useState(createIdempotentFetcher);
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) => {
@@ -111,7 +113,7 @@ export function ContentStudioClient({
     setGenerating(true);
     try {
       const brandObj = brands.find((b) => b.id === brandId);
-      const res = await fetch("/api/ai/generate", {
+      const res = await requestAi("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -147,6 +149,8 @@ export function ContentStudioClient({
         `Created tailored copy for ${selectedPlatforms.length} channel(s).`
       );
       router.refresh();
+    } catch (error) {
+      toast("Generation interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
     } finally {
       setGenerating(false);
     }
@@ -160,7 +164,7 @@ export function ContentStudioClient({
 
     setTransforming(true);
     try {
-      const res = await fetch("/api/ai/generate", {
+      const res = await requestAi("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -189,6 +193,8 @@ export function ContentStudioClient({
       }));
       toast(`Applied '${action}' to ${activeTab.toUpperCase()}`);
       router.refresh();
+    } catch (error) {
+      toast("Editorial action interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
     } finally {
       setTransforming(false);
     }

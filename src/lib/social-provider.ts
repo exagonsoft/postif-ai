@@ -3,6 +3,7 @@ import type { MediaAssetsDocument, PostsDocument } from "@/db/schema";
 import { readMedia } from "./media-storage";
 import { publishingMediaUrl } from "./publishing-media";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "./social-adapters";
+import { workerFetch as fetch } from "./worker-network";
 
 const identifier = z.string().regex(/^[A-Za-z0-9:_-]{1,250}$/);
 export const customerCredentials = z.object({
@@ -14,6 +15,12 @@ export const customerCredentials = z.object({
   madeForKids: z.boolean().optional(),
   aiGenerated: z.boolean().optional(),
   expiresAt: z.iso.datetime().optional(),
+  clientId: z.string().trim().min(1).max(1000).optional(),
+  clientSecret: z.string().min(1).max(10000).optional(),
+  refreshToken: z.string().min(1).max(10000).optional(),
+  refreshExpiresAt: z.iso.datetime().optional(),
+  tokenKind: z.enum(["oauth", "manual", "long_lived"]).optional(),
+  analyticsEnabled: z.boolean().optional(),
 }).strict();
 export type CustomerCredentials = z.infer<typeof customerCredentials>;
 export const providerState = z.object({
@@ -110,7 +117,8 @@ export async function verifyCustomerConnection(platform: SocialPlatform, input: 
       break;
     }
     case "instagram": {
-      const me = await json(`https://graph.instagram.com/${graphVersion(credentials)}/me?fields=user_id,username`, credentials, z.object({ user_id: z.union([z.string(), z.number().int().safe()]).transform(String), username: z.string() }));
+      const identityResponse = z.object({ user_id: z.union([z.string(), z.number().int().safe()]).transform(String), username: z.string() });
+      const me = await json(`https://graph.instagram.com/${graphVersion(credentials)}/me?fields=user_id,username`, credentials, z.union([identityResponse, z.object({ data: z.array(identityResponse).length(1) }).transform(result => result.data[0])]));
       identity = { id: me.user_id, name: me.username, handle: `@${me.username}` };
       break;
     }

@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { getAuthContext } from "@/lib/auth";
 import OnboardingWizard from "./OnboardingWizard";
+import { getWorkspaceEntitlements } from "@/lib/entitlements";
+import { getPlanDefinition } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,7 @@ export default async function OnboardingPage({ searchParams }: {
     action: "onboarding.completed",
   }, { limit: 1 });
   if (!createWorkspace && completed) redirect("/app");
+  const plan = createWorkspace ? getPlanDefinition("free") : (await getWorkspaceEntitlements(ctx.workspace.id)).plan;
 
   return <OnboardingWizard
     workspaceId={ctx.workspace.id}
@@ -26,5 +29,6 @@ export default async function OnboardingPage({ searchParams }: {
     initialWorkspaceName={createWorkspace ? "" : ctx.workspace.name}
     initialBrand={createWorkspace ? null : ctx.activeBrand}
     initialAiBillingMode={!createWorkspace && ctx.workspace.aiBillingMode === "managed" ? "managed" : "byok"}
+    allowedAiModes={plan.allowsConfigurableAiMode ? ["managed", "byok"] : [plan.defaultAiMode]}
   />;
 }

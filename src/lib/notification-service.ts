@@ -3,7 +3,12 @@ import { users, workspaceMembers, workspaces, notifications, notificationPrefere
 import { and, eq, inArray, lte } from "@/db/filters";
 import nodemailer from "nodemailer";
 import * as webpush from "web-push";
+import { deadlineSignal, hasTime, type WorkerOptions } from "./worker-budget";
+import { workerNotices } from "@/db/worker-schema";
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export async function queueWorkspaceNotification(tx: Transaction, key: string, workspaceId: number, type: string, title: string, message: string, actionHref: string, approversOnly = false) {
+    await tx.insert(workerNotices, { key, workspaceId, type, title, message, actionHref, approversOnly }, { ignoreDuplicates: true });
+}
 export async function notifyWorkspace(tx: Transaction, workspaceId: number, type: string, title: string, message: string, actionHref: string, approversOnly = false) {
     const members = await tx.find(workspaceMembers, and(eq("workspaceId", workspaceId), eq("status", "active")), {});
     const [workspace] = await tx.find(workspaces, eq("id", workspaceId), {});
@@ -23,11 +28,25 @@ export async function notifyWorkspace(tx: Transaction, workspaceId: number, type
 export function notificationReadiness() {
     return { email: !!(process.env.SMTP_URL && process.env.MAIL_FROM && process.env.APP_URL), push: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT && process.env.APP_URL) };
 }
-export async function deliverNotifications() {
+export async function deliverNotifications({ deadline = Date.now() + 20000, limit = 5 }: WorkerOptions = {}) {
     return db.withLease("notification-delivery", async () => {
     let processed = 0;
-    // A renewable MongoDB lease serializes delivery. Network sends never run in retried transactions.
-    for (let i = 0; i < 5; i++) {
+    const notices = await db.find(workerNotices, { status: "queued", availableAt: { $lte: new Date() } }, { limit, sort: { availableAt: 1 } });
+    for (const notice of notices) {
+        if (!hasTime(deadline)) break;
+        try {
+            await db.transaction(async tx => {
+                const [current] = await tx.find(workerNotices, { id: notice.id, status: "queued" }, { lock: true });
+                if (!current) return;
+                await notifyWorkspace(tx, current.workspaceId, current.type, current.title, current.message, current.actionHref, current.approversOnly);
+                await tx.update(workerNotices, { id: current.id, status: "queued" }, { status: "completed" });
+            });
+        } catch {
+            await db.update(workerNotices, { id: notice.id, status: "queued", attempts: notice.attempts }, { attempts: notice.attempts + 1, status: notice.attempts >= 4 ? "failed" : "queued", availableAt: new Date(Date.now() + 60000 * 2 ** notice.attempts) });
+        }
+    }
+    await db.update(notificationDeliveries, { status: "processing", availableAt: { $lte: new Date() } }, { status: "failed", lastError: "Delivery was interrupted and may already have reached the recipient. Verify before manually retrying." });
+    for (let i = 0; i < limit && hasTime(deadline, 1000); i++) {
         const found = await (async () => {
             const tx = db;
             const [item] = await tx.find(notificationDeliveries, and(inArray("status", ["queued", "retrying"]), lte("availableAt", new Date())), { limit: 1, sort: { id: 1 },  });
@@ -39,10 +58,16 @@ export async function deliverNotifications() {
                 await tx.update(notificationDeliveries, eq("id", item.id), { status: "cancelled" });
                 return true;
             }
+            const readiness = notificationReadiness();
+            if (!(item.channel === "email" ? readiness.email : readiness.push)) {
+                await tx.update(notificationDeliveries, { id: item.id, status: item.status }, { availableAt: new Date(Date.now() + 3600000), lastError: "Notification provider is not configured. Delivery remains queued." });
+                return true;
+            }
+            const claimUntil = new Date(Date.now() + 120000);
+            const [claim] = await tx.update(notificationDeliveries, { id: item.id, status: item.status, availableAt: item.availableAt }, { status: "processing", availableAt: claimUntil });
+            if (!claim) return true;
+            let attempted = false;
             try {
-                const readiness = notificationReadiness();
-                if (!(item.channel === "email" ? readiness.email : readiness.push))
-                    throw new Error("Notification provider is not configured.");
                 const href = new URL(item.actionHref, process.env.APP_URL).toString();
                 if (item.channel === "email") {
                     const [user] = await tx.find(users, eq("id", item.userId), {});
@@ -51,11 +76,18 @@ export async function deliverNotifications() {
                     const smtp = new URL(process.env.SMTP_URL!);
                     if (!["smtp:", "smtps:"].includes(smtp.protocol))
                         throw new Error("Invalid SMTP URL.");
-                    const transport = nodemailer.createTransport({ host: smtp.hostname, port: Number(smtp.port || (smtp.protocol === "smtps:" ? 465 : 587)), secure: smtp.protocol === "smtps:", auth: smtp.username ? { user: decodeURIComponent(smtp.username), pass: decodeURIComponent(smtp.password) } : undefined, connectionTimeout: 10000, socketTimeout: 15000 });
+                    const timeout = Math.max(1, Math.min(10000, deadline - Date.now() - 500));
+                    const transport = nodemailer.createTransport({ host: smtp.hostname, port: Number(smtp.port || (smtp.protocol === "smtps:" ? 465 : 587)), secure: smtp.protocol === "smtps:", auth: smtp.username ? { user: decodeURIComponent(smtp.username), pass: decodeURIComponent(smtp.password) } : undefined, connectionTimeout: timeout, greetingTimeout: timeout, socketTimeout: timeout });
+                    let timer: ReturnType<typeof setTimeout> | undefined;
                     try {
-                        await transport.sendMail({ from: process.env.MAIL_FROM, to: user.email, subject: item.title, text: `${item.message}\n\n${href}`, messageId: `<postif-notification-${item.id}@${new URL(process.env.APP_URL!).hostname}>` });
+                        attempted = true;
+                        await Promise.race([
+                            transport.sendMail({ from: process.env.MAIL_FROM, to: user.email, subject: item.title, text: `${item.message}\n\n${href}`, messageId: `<postif-notification-${item.id}@${new URL(process.env.APP_URL!).hostname}>` }),
+                            new Promise<never>((_, reject) => { timer = setTimeout(() => { transport.close(); reject(new Error("Notification deadline exceeded.")); }, timeout); }),
+                        ]);
                     }
                     finally {
+                        if (timer) clearTimeout(timer);
                         transport.close();
                     }
                 }
@@ -65,8 +97,15 @@ export async function deliverNotifications() {
                     if (!subscriptions.length)
                         throw new Error("No browser is subscribed to push notifications.");
                     for (const subscription of subscriptions) {
+                        if (!hasTime(deadline, 500)) throw new Error("Push deadline exceeded.");
                         try {
-                            await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({ title: item.title, body: item.message, url: href, tag: `postif-${item.id}` }), { TTL: 86400, timeout: 10000 });
+                            attempted = true;
+                            const details = webpush.generateRequestDetails({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({ title: item.title, body: item.message, url: href, tag: `postif-${item.id}` }), { TTL: 86400 });
+                            const response = await fetch(details.endpoint, { method: details.method,
+                                headers: Object.fromEntries(Object.entries(details.headers).map(([key, value]) => [key, String(value)])),
+                                body: new Uint8Array(details.body), redirect: "error", signal: deadlineSignal(deadline - 500, 10000) });
+                            await response.body?.cancel();
+                            if (!response.ok) throw Object.assign(new Error("Push provider rejected delivery."), { statusCode: response.status });
                         }
                         catch (error) {
                             const status = (error as {
@@ -79,10 +118,10 @@ export async function deliverNotifications() {
                         }
                     }
                 }
-                await tx.update(notificationDeliveries, eq("id", item.id), { status: "sent", attempts: item.attempts + 1, lastError: null });
+                await tx.update(notificationDeliveries, { id: item.id, status: "processing", availableAt: claimUntil }, { status: "sent", attempts: item.attempts + 1, lastError: null });
             }
             catch {
-                await tx.update(notificationDeliveries, eq("id", item.id), { status: item.attempts >= 4 ? "failed" : "retrying", attempts: item.attempts + 1, availableAt: new Date(Date.now() + 60000 * 2 ** item.attempts), lastError: "Delivery failed. Check provider configuration and recipient settings." });
+                await tx.update(notificationDeliveries, { id: item.id, status: "processing", availableAt: claimUntil }, { status: attempted || item.attempts >= 4 ? "failed" : "retrying", attempts: item.attempts + 1, availableAt: new Date(Date.now() + 60000 * 2 ** item.attempts), lastError: attempted ? "Delivery result is uncertain. Verify delivery before manually retrying." : "Delivery failed. Check provider configuration and recipient settings." });
             }
             return true;
         })();

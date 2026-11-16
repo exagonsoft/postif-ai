@@ -17,7 +17,6 @@ import {
   XCircle,
   Save,
   Loader2,
-  Lock,
 } from "lucide-react";
 
 interface AgentConfigDTO {
@@ -56,12 +55,10 @@ export function AgentWorkspaceClient({
   const [mode, setMode] = useState(config.mode);
   const [maxPostsPerWeek, setMaxPostsPerWeek] = useState(config.maxPostsPerWeek);
   const [allowedPlatforms, setAllowedPlatforms] = useState<string[]>(config.allowedPlatforms);
-  const [requireApprovalForPromotions, setRequireApprovalForPromotions] = useState(
-    config.requireApprovalForPromotions
-  );
   const [strategy, setStrategy] = useState(config.currentStrategy);
   const [saving, setSaving] = useState(false);
   const [generatingPlan, setGeneratingPlan] = useState(false);
+  const planRequestKey = React.useRef<string | null>(null);
 
   const toggleAllowedPlatform = (id: string) => {
     setAllowedPlatforms((prev) =>
@@ -81,8 +78,9 @@ export function AgentWorkspaceClient({
           mode: targetMode,
           maxPostsPerWeek,
           allowedPlatforms,
-          requireApprovalForPromotions,
+          requireApprovalForPromotions: true,
           currentStrategy: strategy,
+          recurringEnabled: targetMode === "autopilot",
         }),
       });
       const data = await res.json();
@@ -91,6 +89,7 @@ export function AgentWorkspaceClient({
         return;
       }
       setMode(targetMode);
+      planRequestKey.current = null;
       toast(
         "Agent configuration saved",
         `Operating in ${targetMode.toUpperCase()} mode with updated guardrails.`
@@ -115,24 +114,34 @@ export function AgentWorkspaceClient({
           : "New plan generation is paused. Existing scheduled posts are unchanged."
       );
       router.refresh();
+    } else {
+      const data = await res.json();
+      toast("Planning not changed", data.error || "Could not update planning.", "error");
     }
   };
 
   const handleRegeneratePlan = async () => {
     setGeneratingPlan(true);
+    planRequestKey.current ||= crypto.randomUUID();
     try {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "generate_plan" }),
+        body: JSON.stringify({ action: "generate_plan", requestKey: planRequestKey.current }),
       });
       if (res.ok) {
+        planRequestKey.current = null;
         toast(
           "Weekly plan regenerated",
           "Mapped brand content pillars across approved channels."
         );
         router.refresh();
+      } else {
+        const data = await res.json();
+        toast("Plan not generated", data.error || "Check your plan, credentials, and AI credits.", "error");
       }
+    } catch {
+      toast("Plan request interrupted", "Retry reuses the same request key; an uncertain provider request is never automatically repeated.", "error");
     } finally {
       setGeneratingPlan(false);
     }
@@ -149,10 +158,13 @@ export function AgentWorkspaceClient({
     });
     if (res.ok) {
       toast(
-        decision === "approved" ? "Proposal Approved & Scheduled" : "Proposal Rejected",
+        decision === "approved" ? "Proposal Approved" : "Proposal Rejected",
         "Action recorded in workspace audit log."
       );
       router.refresh();
+    } else {
+      const data = await res.json();
+      toast("Proposal not changed", data.error || "Review the post and your approval permissions.", "error");
     }
   };
 
@@ -224,11 +236,10 @@ export function AgentWorkspaceClient({
           {
             id: "autopilot",
             title: "Autopilot Mode",
-            desc: "Not available. Recurring autonomous generation and scheduling are not implemented.",
+            desc: "Enable recurring weekly AI planning and real generated drafts (Pro/Agency). Every draft requires human approval and a publishing time; no automatic promotional or client approval.",
           },
         ].map((m) => {
           const active = mode === m.id;
-          const locked = m.id === "autopilot";
           return (
             <motion.button
               key={m.id}
@@ -236,7 +247,7 @@ export function AgentWorkspaceClient({
               whileTap={{ scale: 0.99 }}
               transition={SPRING_SNAPPY}
               type="button"
-              disabled={locked}
+              disabled={saving}
               onClick={() => handleSaveRules(m.id)}
               className={`relative rounded-3xl p-6 text-left transition-colors ${
                 active
@@ -246,11 +257,7 @@ export function AgentWorkspaceClient({
             >
               <div className="flex items-center justify-between">
                 <span className="text-base font-extrabold">{m.title}</span>
-                {locked ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                    <Lock className="h-3 w-3" /> Unavailable
-                  </span>
-                ) : active ? (
+                {active ? (
                   <motion.span
                     layoutId="agentModeSelectedBadge"
                     transition={SPRING_SNAPPY}
@@ -314,7 +321,7 @@ export function AgentWorkspaceClient({
                       onClick={() => handleResolveProposal(act.id, "approved")}
                       className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500 py-2 text-xs font-bold text-slate-950"
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Approve & Schedule
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Approve Draft
                     </button>
                     <button
                       type="button"
@@ -417,11 +424,11 @@ export function AgentWorkspaceClient({
               <label className="elevated-card flex w-full items-center gap-2.5 rounded-xl p-3 text-xs font-semibold">
                 <input
                   type="checkbox"
-                  checked={requireApprovalForPromotions}
-                  onChange={(e) => setRequireApprovalForPromotions(e.target.checked)}
+                  checked
+                  disabled
                   className="accent-violet-600"
                 />
-                Always require approval for promotional offers
+                All generated drafts require approval, including promotional and client content
               </label>
             </div>
           </div>

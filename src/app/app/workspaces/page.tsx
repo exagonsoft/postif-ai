@@ -1,10 +1,10 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { workspaceMembers } from "@/db/schema";
+import { workspaceMembers, workspaces } from "@/db/schema";
 import { eq } from "@/db/filters";
 import { getAuthContext } from "@/lib/auth";
-import { getPlanDefinition } from "@/lib/plans";
+import { getWorkspaceEntitlements } from "@/lib/entitlements";
 import { WorkspacesClient } from "@/components/WorkspacesClient";
 export const dynamic = "force-dynamic";
 export default async function BrandsWorkspacesPage() {
@@ -12,8 +12,10 @@ export default async function BrandsWorkspacesPage() {
     if (!ctx || !ctx.workspace) {
         redirect("/login");
     }
-    const plan = getPlanDefinition(ctx.workspace.planSlug);
+    const { plan, features } = await getWorkspaceEntitlements(ctx.workspace.id);
     const members = await db.find(workspaceMembers, eq("workspaceId", ctx.workspace.id), {});
+    const invites = await db.find(workspaceMembers, { invitedEmail: ctx.user.email, status: "invited" }, { limit: 50 });
+    const invitedWorkspaces = invites.length ? await db.find(workspaces, { id: { $in: invites.map(invite => invite.workspaceId) } }) : [];
     return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
@@ -37,6 +39,7 @@ export default async function BrandsWorkspacesPage() {
             memberName: m.memberName,
             role: m.role,
             status: m.status,
-        }))} maxBrands={plan.maxBrands} planName={plan.name} currentRole={ctx.memberRole}/>
+        }))} maxBrands={plan.maxBrands} planName={plan.name} currentRole={ctx.memberRole} teamEnabled={features.team}
+        invitations={invites.map(invite => ({ id: invite.id, workspaceName: invitedWorkspaces.find(workspace => workspace.id === invite.workspaceId)?.name || "Workspace", role: invite.role }))}/>
     </div>);
 }

@@ -169,6 +169,8 @@ export async function initializeDatabase() {
     }
   }
   await database.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await database.collection("account_tokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await database.collection("social_oauth_attempts").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await database.collection("publishing_jobs").createIndex({ status: 1, scheduledFor: 1 });
   await database.collection("notification_deliveries").createIndex({ status: 1, availableAt: 1 });
   await database.collection("media_assets").createIndex({ generationStatus: 1, id: 1 });

@@ -6,6 +6,7 @@ import { getAuthContext } from "@/lib/auth";
 import { savePost } from "@/lib/post-workflow";
 import { WorkflowError } from "@/lib/post-policy";
 import { cancelQueuedMedia } from "@/lib/media-generation";
+import { releasePublishingReservation, retainPublishedUsage } from "@/lib/entitlements";
 export async function GET() {
     const ctx = await getAuthContext();
     if (!ctx?.workspace)
@@ -43,6 +44,8 @@ export async function POST(req: Request) {
                     throw new WorkflowError("Publishing is in progress. Try again later.", 409);
                 if (locked?.automaticMediaId)
                     await cancelQueuedMedia(tx, locked.automaticMediaId, ctx.workspace!.id);
+                if (locked) await retainPublishedUsage(locked, tx);
+                await releasePublishingReservation(ctx.workspace!.id, post.id, tx);
                 await tx.remove(posts, eq("id", post.id));
             });
             return NextResponse.json({ ok: true });

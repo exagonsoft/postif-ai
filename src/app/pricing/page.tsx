@@ -22,7 +22,7 @@ export default function PricingPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-base text-[var(--text-secondary)]">
             Bring your own OpenAI API key to pay wholesale token rates directly, or choose Managed
-            AI plans with turnkey monthly credits included.
+            AI plans with turnkey monthly credits included. All prices are in USD.
           </p>
 
           {/* Monthly / Annual Switch */}

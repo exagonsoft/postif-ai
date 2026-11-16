@@ -1,4 +1,10 @@
 import { defineCollection } from "./model";
+import { entitlementCollections } from "./entitlement-schema";
+import { accountCollections } from "./account-schema";
+import { billingCollections } from "./billing-schema";
+import { socialLifecycleCollections } from "./social-lifecycle-schema";
+import { workerCollections } from "./worker-schema";
+import { mediaUploadCollections } from "./media-upload-schema";
 
 export interface PlatformVariant {
   content: string;
@@ -26,7 +32,7 @@ export interface UsersDocument {
   createdAt: Date;
 }
 export const users = defineCollection<UsersDocument>("users", {
-  defaults: () => ({ systemRole: "user", emailVerified: true, createdAt: new Date() }),
+  defaults: () => ({ systemRole: "user", emailVerified: false, createdAt: new Date() }),
   primaryKey: "id",
   autoId: true,
   unique: ["id","email"],
@@ -550,4 +556,4 @@ export const socialCredentials = defineCollection<SocialCredentialsDocument>("so
   validator: { bsonType: "object", required: ["socialAccountId", "workspaceId", "encryptedCredentials", "verifiedAt", "expiresAt"], properties: { socialAccountId: { bsonType: ["int", "long", "double"] }, workspaceId: { bsonType: ["int", "long", "double"] }, encryptedCredentials: { bsonType: "string" }, verifiedAt: { bsonType: "date" }, expiresAt: { bsonType: ["date", "null"] } } },
 });
 
-export const collections = [users, sessions, workspaces, workspaceMembers, brands, socialAccounts, aiConfigurations, aiUsageRecords, posts, publishingJobs, campaigns, mediaAssets, agentConfigurations, agentActions, analyticsSnapshots, notifications, auditLogs, featureFlags, notificationPreferences, pushSubscriptions, notificationDeliveries, socialCredentials];
+export const collections = [users, sessions, workspaces, workspaceMembers, brands, socialAccounts, aiConfigurations, aiUsageRecords, posts, publishingJobs, campaigns, mediaAssets, agentConfigurations, agentActions, analyticsSnapshots, notifications, auditLogs, featureFlags, notificationPreferences, pushSubscriptions, notificationDeliveries, socialCredentials, ...entitlementCollections, ...accountCollections, ...billingCollections, ...socialLifecycleCollections, ...workerCollections, ...mediaUploadCollections];

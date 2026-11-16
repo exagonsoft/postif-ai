@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
+import type { generateCampaignBlueprint } from "@/lib/ai-engine";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
@@ -34,12 +36,12 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [prompt, setPrompt] = useState(
-    "Create a four-week marketing campaign for our new AI Developer Inference SDK launch."
-  );
+  const [prompt, setPrompt] = useState("");
   const [objective, setObjective] = useState("Product Launch & Qualified Signups");
   const [platforms, setPlatforms] = useState<string[]>(["linkedin", "x", "instagram"]);
   const [generating, setGenerating] = useState(false);
+  const [requestAi] = useState(createIdempotentFetcher);
+  const [pendingBlueprint, setPendingBlueprint] = useState<{ signature: string; blueprint: Awaited<ReturnType<typeof generateCampaignBlueprint>>["blueprint"] } | null>(null);
 
   const togglePlatform = (id: string) => {
     setPlatforms((prev) =>
@@ -51,7 +53,10 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
     if (!prompt.trim()) return;
     setGenerating(true);
     try {
-      const aiRes = await fetch("/api/ai/generate", {
+      const signature = JSON.stringify({ prompt, objective, platforms });
+      let bp = pendingBlueprint?.signature === signature ? pendingBlueprint.blueprint : null;
+      if (!bp) {
+      const aiRes = await requestAi("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,8 +72,11 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
         return;
       }
 
-      const bp = aiData.blueprint;
-      const createRes = await fetch("/api/campaigns", {
+      bp = aiData.blueprint;
+      if (!bp) throw new Error("The generated campaign was empty.");
+      setPendingBlueprint({ signature, blueprint: bp });
+      }
+      const createRes = await requestAi("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,12 +93,18 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
         }),
       });
       if (createRes.ok) {
+        setPendingBlueprint(null);
         toast(
           "4-Week Campaign Created!",
           `Generated strategy themes and ${bp.samplePosts?.length || 0} starter draft posts.`
         );
         router.refresh();
+      } else {
+        const result = await createRes.json();
+        throw new Error(result.error || "Generated campaign could not be saved. Retry to save without another AI request.");
       }
+    } catch (error) {
+      toast("Campaign request failed", error instanceof Error ? error.message : "Try again to resume the same request.", "error");
     } finally {
       setGenerating(false);
     }
@@ -195,7 +209,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
           ) : (
             <Megaphone className="h-4 w-4" />
           )}
-          Generate 4-Week Campaign & Starter Posts
+          {pendingBlueprint?.signature === JSON.stringify({ prompt, objective, platforms }) ? "Retry Saving Generated Campaign" : "Generate 4-Week Campaign & Starter Posts"}
         </button>
       </div>
 

@@ -1,11 +1,14 @@
 import { db } from "@/db";
 import { posts, publishingJobs, socialAccounts, socialCredentials, mediaAssets, workspaces } from "@/db/schema";
 import { increment } from "@/db/filters";
-import { isPublishable } from "./post-policy";
-import { notifyWorkspace } from "./notification-service";
+import { isPublishable, WorkflowError } from "./post-policy";
+import { queueWorkspaceNotification } from "./notification-service";
 import { encryptSecret, decryptSecret } from "./crypto";
 import { customerCredentials, providerState, publishToCustomerAccount, SocialProviderError } from "./social-provider";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "./social-adapters";
+import { assertPublishingEntitlement, consumePublishingReservation, releasePublishingReservation } from "./entitlements";
+import { hasTime, type WorkerOptions } from "./worker-budget";
+import { withWorkerDeadline } from "./worker-network";
 
 async function updatePostResult(postId: number) {
   await db.transaction(async tx => {
@@ -14,32 +17,40 @@ async function updatePostResult(postId: number) {
     const jobs = await tx.find(publishingJobs, { postId, status: { $ne: "cancelled" } });
     if (jobs.length && jobs.every(job => job.status === "completed")) {
       await tx.update(posts, { id: postId }, { status: "published", publishedAt: new Date(), updatedAt: new Date() });
+      await consumePublishingReservation(post.workspaceId, post.id, tx);
       await tx.update(workspaces, { id: post.workspaceId }, { postsPublishedThisMonth: increment(1) });
-      if (post.notifyOnPublish) await notifyWorkspace(tx, post.workspaceId, "publish_success", "Post published", `"${post.title}" was confirmed by every selected platform.`, "/app/calendar");
+      if (post.notifyOnPublish) await queueWorkspaceNotification(tx, `published:${post.id}`, post.workspaceId, "publish_success", "Post published", `"${post.title}" was confirmed by every selected platform.`, "/app/calendar");
     } else if (jobs.some(job => ["processing", "queued", "retrying", "completed", "uncertain"].includes(job.status))) {
       await tx.update(posts, { id: postId }, { status: "publishing", updatedAt: new Date() });
     } else {
       await tx.update(posts, { id: postId }, { status: "scheduled", updatedAt: new Date() });
+      await releasePublishingReservation(post.workspaceId, post.id, tx);
     }
   });
 }
 
-export async function processDuePosts(workspaceId?: number) {
+export async function processDuePosts(workspaceId?: number, { deadline = Date.now() + 20000, limit = 5 }: WorkerOptions = {}) {
   return db.withLease("social-publishing", async () => {
     const scope = workspaceId ? { workspaceId } : {};
-    const interrupted = await db.find(publishingJobs, { ...scope, status: "processing", encryptedProviderState: null, startedAt: { $lte: new Date(Date.now() - 600000) } });
+    const finalizing = await db.find(posts, { ...scope, status: "publishing" }, { projection: { id: 1 }, limit: 10, sort: { updatedAt: 1 } });
+    for (const post of finalizing) {
+      if (!hasTime(deadline)) break;
+      await updatePostResult(post.id);
+    }
+    const interrupted = await db.find(publishingJobs, { ...scope, status: "processing", encryptedProviderState: null, startedAt: { $lte: new Date(Date.now() - 120000) } }, { limit: 20 });
     for (const job of interrupted) {
       await db.update(publishingJobs, { id: job.id, status: "processing" }, { status: "uncertain", errorMessage: "Worker stopped during a provider request. Check the platform before rescheduling." });
       await updatePostResult(job.postId);
     }
     let processed = 0;
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < limit && hasTime(deadline, 2000); i++) {
       const claim = await db.transaction(async tx => {
         const [job] = await tx.find(publishingJobs, { ...scope, $or: [{ status: { $in: ["queued", "retrying"] }, scheduledFor: { $lte: new Date() }, $or: [{ nextCheckAt: null }, { nextCheckAt: { $lte: new Date() } }] }, { status: "processing", encryptedProviderState: { $type: "string" }, nextCheckAt: { $lte: new Date() } }] }, { sort: { scheduledFor: 1 }, limit: 1, lock: true });
         if (!job) return null;
         const [post] = await tx.find(posts, { id: job.postId }, { lock: true });
         if (!post || !isPublishable(post) || !post.platforms.includes(job.platform) || post.scheduledAt?.getTime() !== job.scheduledFor.getTime()) {
           await tx.update(publishingJobs, { id: job.id }, { status: "cancelled", errorMessage: "Post is no longer eligible for publishing." });
+          if (post) await releasePublishingReservation(post.workspaceId, post.id, tx);
           return { job, post: null, account: null };
         }
         const accounts = await tx.find(socialAccounts, { workspaceId: post.workspaceId, brandId: post.brandId, platform: job.platform, status: "connected" });
@@ -48,15 +59,25 @@ export async function processDuePosts(workspaceId?: number) {
           await tx.update(publishingJobs, { id: job.id }, { status: job.encryptedProviderState ? "uncertain" : "blocked", errorMessage: job.encryptedProviderState ? "The connection for an in-progress operation is unavailable. Check the platform before creating a new post." : accounts.length > 1 ? "Multiple accounts match this brand/platform. Keep exactly one connected account before retrying." : "Connect your own platform credentials for this brand before retrying." });
           return { job, post: null, account: null };
         }
-        await tx.update(publishingJobs, { id: job.id }, { status: "processing", attempts: job.encryptedProviderState ? job.attempts : job.attempts + 1, socialAccountId: account.id, startedAt: job.startedAt || new Date(), nextCheckAt: new Date(Date.now() + 60000), errorMessage: null });
+        try {
+          await assertPublishingEntitlement(post, tx);
+        } catch (error) {
+          if (!(error instanceof WorkflowError)) throw error;
+          await tx.update(publishingJobs, { id: job.id }, { status: job.encryptedProviderState ? "uncertain" : "blocked", errorMessage: error.message });
+          await releasePublishingReservation(post.workspaceId, post.id, tx);
+          return { job, post: null, account: null };
+        }
+        const startedAt = new Date();
+        await tx.update(publishingJobs, { id: job.id, status: job.status }, { status: "processing", attempts: job.encryptedProviderState ? job.attempts : job.attempts + 1, socialAccountId: account.id, startedAt, nextCheckAt: new Date(Date.now() + 60000), errorMessage: null });
         await tx.update(posts, { id: post.id }, { status: "publishing" });
-        return { job, post, account };
+        return { job: { ...job, startedAt }, post, account };
       });
       if (!claim) break;
       processed++;
       const { job, post, account } = claim;
       if (!post || !account) { await updatePostResult(job.postId); continue; }
       let checkpointed = !!job.encryptedProviderState;
+      let attempted = false;
       let checkpointStage: string | undefined;
       try {
         if (!Object.hasOwn(SOCIAL_PLATFORM_SPECS, account.platform)) throw new SocialProviderError("Unsupported platform.");
@@ -71,26 +92,30 @@ export async function processDuePosts(workspaceId?: number) {
         const media = post.mediaIds.length ? await db.find(mediaAssets, { workspaceId: post.workspaceId, id: { $in: post.mediaIds } }) : [];
         if (media.length !== post.mediaIds.length) throw new SocialProviderError("An attached media asset is missing.");
         const orderedMedia = post.mediaIds.map(id => media.find(asset => asset.id === id)!);
-        const result = await publishToCustomerAccount(account.platform as SocialPlatform, credentials, post, orderedMedia, async state => {
-          await db.update(publishingJobs, { id: job.id, status: "processing" }, { encryptedProviderState: encryptSecret(JSON.stringify(state)), nextCheckAt: new Date(Date.now() + 60000) });
+        attempted = true;
+        const result = await withWorkerDeadline(deadline - 500, () => publishToCustomerAccount(account.platform as SocialPlatform, credentials, post, orderedMedia, async state => {
+          const [checkpoint] = await db.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, { encryptedProviderState: encryptSecret(JSON.stringify(state)), nextCheckAt: new Date(Date.now() + 60000) });
+          if (!checkpoint) throw new SocialProviderError("Publishing claim was lost. Verify the platform before retrying.", 409, true);
           checkpointed = true;
           checkpointStage = state.stage;
-        }, state);
-        await db.update(publishingJobs, { id: job.id, status: "processing" }, result.status === "completed"
+        }, state));
+        await db.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, result.status === "completed"
           ? { status: "completed", externalPostId: result.id, executedAt: new Date(), encryptedProviderState: null, errorMessage: null }
           : { encryptedProviderState: encryptSecret(JSON.stringify(result.state)), nextCheckAt: new Date(Date.now() + 60000) });
         await updatePostResult(post.id);
       } catch (error) {
         const providerError = error instanceof SocialProviderError ? error : null;
         const publiclyProcessing = ["tiktok-upload", "youtube-upload", "youtube-processing"].includes(checkpointStage || "");
-        const uncertain = providerError?.uncertain || (!providerError && checkpointed) || (publiclyProcessing && ![429, 502, 503, 504].includes(providerError?.status || 0));
+        const uncertain = providerError?.uncertain || (!providerError && (checkpointed || attempted)) || (publiclyProcessing && ![429, 502, 503, 504].includes(providerError?.status || 0));
         const retryable = !uncertain && providerError && [429, 502, 503, 504].includes(providerError.status) && job.attempts + 1 < job.maxAttempts;
         const message = providerError?.message || "Publishing failed. Check credentials, media, and server logs.";
         console.error("Social publishing failed", { jobId: job.id, platform: job.platform, status: providerError?.status || 500, uncertain });
         await db.transaction(async tx => {
-          await tx.update(publishingJobs, { id: job.id }, { status: uncertain ? "uncertain" : retryable ? "retrying" : "failed", errorMessage: message, nextCheckAt: new Date(Date.now() + 60000 * 2 ** Math.min(job.attempts, 5)), ...(!uncertain && !retryable ? { encryptedProviderState: null } : {}) });
+          const [changed] = await tx.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, { status: uncertain ? "uncertain" : retryable ? "retrying" : "failed", errorMessage: message, nextCheckAt: new Date(Date.now() + 60000 * 2 ** Math.min(job.attempts, 5)), ...(!uncertain && !retryable ? { encryptedProviderState: null } : {}) });
+          if (!changed) return;
+          if (!uncertain && !retryable) await releasePublishingReservation(post.workspaceId, post.id, tx);
           if (providerError && [401, 403].includes(providerError.status)) await tx.update(socialAccounts, { id: account.id }, { status: "needs_review", lastError: message });
-          if (!retryable && post.notifyOnPublish) await notifyWorkspace(tx, post.workspaceId, "publish_failed", uncertain ? "Publishing needs verification" : "Publishing failed", `"${post.title}": ${message}`, "/app/calendar");
+          if (!retryable && post.notifyOnPublish) await queueWorkspaceNotification(tx, `publish-failed:${job.id}:${job.attempts}`, post.workspaceId, "publish_failed", uncertain ? "Publishing needs verification" : "Publishing failed", `"${post.title}": ${message}`, "/app/calendar");
         });
         await updatePostResult(post.id);
       }

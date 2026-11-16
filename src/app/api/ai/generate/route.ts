@@ -1,10 +1,39 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
+import { z } from "zod";
+import { assertBrandEntitlement, assertFeature } from "@/lib/entitlements";
+import { WorkflowError } from "@/lib/post-policy";
+import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import {
   generateMultiPlatformPosts,
   transformPostText,
   generateCampaignBlueprint,
 } from "@/lib/ai-engine";
+
+const requestInput = z.object({
+  mode: z.enum(["generate", "transform", "repurpose", "campaign"]),
+  topic: z.string().max(2000).optional(),
+  prompt: z.string().max(10000).optional(),
+  brandName: z.string().max(300).optional(),
+  objective: z.string().max(2000).optional(),
+  audience: z.string().max(2000).optional(),
+  platforms: z.array(z.string().refine(value => Object.hasOwn(SOCIAL_PLATFORM_SPECS, value))).min(1).max(8).optional(),
+  tone: z.string().max(100).optional(),
+  language: z.string().max(100).optional(),
+  contentType: z.string().max(100).optional(),
+  length: z.string().max(100).optional(),
+  keywords: z.union([z.array(z.string().max(100)).max(30), z.string().max(3000)]).optional(),
+  cta: z.string().max(2000).optional(),
+  text: z.string().max(30000).optional(),
+  action: z.enum(["rewrite", "improve", "shorten", "expand", "translate", "tone", "hashtags", "cta"]).optional(),
+  targetTone: z.string().max(100).optional(),
+  targetLanguage: z.string().max(100).optional(),
+  platform: z.string().max(30).optional(),
+  sourceText: z.string().max(30000).optional(),
+  sourceType: z.string().max(100).optional(),
+  preserveMeaning: z.boolean().optional(),
+  avoidRepetition: z.boolean().optional(),
+});
 
 export async function POST(req: Request) {
   try {
@@ -12,15 +41,19 @@ export async function POST(req: Request) {
     if (!ctx || !ctx.workspace || !ctx.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!["owner", "admin", "editor", "approver"].includes(ctx.memberRole)) throw new WorkflowError("AI generation permission required.", 403);
+    if (ctx.activeBrand) await assertBrandEntitlement(ctx.workspace.id, ctx.activeBrand.id);
 
-    const body = await req.json();
-    const mode = body.mode as string;
+    const body = requestInput.parse(await req.json());
+    const mode = body.mode;
+    const requestKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/).optional().parse(req.headers.get("Idempotency-Key") ?? undefined);
 
     if (mode === "generate") {
       if (!String(body.topic || "").trim() && !String(body.prompt || "").trim()) return NextResponse.json({ error: "Enter a topic or idea before generating a post." }, { status: 400 });
       const result = await generateMultiPlatformPosts({
         workspaceId: ctx.workspace.id,
         userId: ctx.user.id,
+        requestKey,
         brandName: String(body.brandName || ctx.activeBrand?.name || ctx.workspace.name),
         topic: String(body.topic || "AI Social Media Automation"),
         prompt: String(body.prompt || ""),
@@ -47,6 +80,7 @@ export async function POST(req: Request) {
       const result = await transformPostText({
         workspaceId: ctx.workspace.id,
         userId: ctx.user.id,
+        requestKey,
         text: String(body.text || ""),
         action: body.action || "improve",
         targetTone: body.targetTone,
@@ -74,12 +108,11 @@ export async function POST(req: Request) {
       const result = await generateMultiPlatformPosts({
         workspaceId: ctx.workspace.id,
         userId: ctx.user.id,
+        operation: "repurpose_content",
+        requestKey,
         brandName: ctx.activeBrand?.name || ctx.workspace.name,
         topic: `Repurposed from ${sourceType}`,
-        prompt: `Preserve core insights and brand voice while transforming this ${sourceType}: ${sourceText.slice(
-          0,
-          1200
-        )}`,
+        prompt: `${body.preserveMeaning !== false ? "Preserve the original meaning and core insights." : "Adapt the core subject creatively without inventing facts."} ${body.avoidRepetition !== false ? "Avoid repeated wording across platforms." : ""} Keep the brand voice while transforming this ${sourceType}: ${sourceText}`,
         objective: "Multi-Channel Content Amplification",
         audience: ctx.activeBrand?.targetAudience || "Target Customers",
         platforms,
@@ -95,9 +128,11 @@ export async function POST(req: Request) {
     }
 
     if (mode === "campaign") {
+      await assertFeature(ctx.workspace.id, "campaigns");
       const result = await generateCampaignBlueprint({
         workspaceId: ctx.workspace.id,
         userId: ctx.user.id,
+        requestKey,
         brandName: ctx.activeBrand?.name || ctx.workspace.name,
         prompt: String(body.prompt || "Four-week multi-channel growth campaign"),
         objective: String(body.objective || "Lead Generation & Brand Awareness"),
@@ -109,7 +144,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: "Unsupported AI mode" }, { status: 400 });
   } catch (err) {
-    console.error("AI generate API error:", err);
+    if (err instanceof WorkflowError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues[0]?.message || "Invalid AI request." }, { status: 400 });
+    console.error("AI generation request failed", { type: err instanceof Error ? err.name : "unknown" });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "AI operation failed" },
       { status: 400 }

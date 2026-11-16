@@ -5,6 +5,8 @@ import { users, sessions, workspaces, workspaceMembers, brands, aiConfigurations
 import { eq } from "@/db/filters";
 import { generateSessionToken, hashPassword, hashToken, verifyPassword, } from "@/lib/crypto";
 import { getAuthContext, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { completeAccountAction, requestAccountEmail } from "@/lib/account-email";
+import { WorkflowError } from "@/lib/post-policy";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -19,11 +21,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: true });
         }
         if (action === "recover_password") {
-            return NextResponse.json({ error: "Password recovery is not available yet. Contact your administrator." }, { status: 501 });
+            const email = String(body.email || "").trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) throw new WorkflowError("Enter a valid email address.");
+            await requestAccountEmail(email, "reset_password");
+            return NextResponse.json({ ok: true, message: "If this email has an account, a recovery link has been sent." });
+        }
+        if (action === "send_verification") {
+            const ctx = await getAuthContext();
+            if (!ctx) throw new WorkflowError("Sign in to verify your email.", 401);
+            await requestAccountEmail(ctx.user.email, "verify_email");
+            return NextResponse.json({ ok: true });
+        }
+        if (action === "verify_email" || action === "reset_password") {
+            const result = await completeAccountAction(String(body.token || ""), action, typeof body.password === "string" ? body.password : undefined);
+            return NextResponse.json(result);
         }
         if (action === "login") {
             const email = String(body.email || "").trim().toLowerCase();
             const password = String(body.password || "");
+            if (email.length > 254 || password.length > 1024) throw new WorkflowError("Invalid email or password.");
             const [user] = await db.find(users, eq("email", email), {});
             if (!user || !verifyPassword(password, user.passwordHash)) {
                 return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
@@ -50,7 +66,7 @@ export async function POST(req: Request) {
             const email = String(body.email || "").trim().toLowerCase();
             const password = String(body.password || "");
             const workspaceName = String(body.workspaceName || `${name}'s Workspace`).trim();
-            if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12) {
+            if (!name || name.length > 200 || workspaceName.length > 300 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 1024) {
                 return NextResponse.json({ error: "Please provide a name, valid email, and a password of at least 12 characters." }, { status: 400 });
             }
             const existing = await db.find(users, eq("email", email), {});
@@ -141,7 +157,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unsupported auth action" }, { status: 400 });
     }
     catch (err) {
-        console.error("Auth API error:", err);
+        if (err instanceof WorkflowError) return NextResponse.json({ error: err.message }, { status: err.status });
+        console.error("Authentication request failed", { type: err instanceof Error ? err.name : "unknown" });
         return NextResponse.json({ error: "Authentication request failed" }, { status: 500 });
     }
 }

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users, sessions, workspaces, workspaceMembers, brands, } from "@/db/schema";
 import { eq, gt, and } from "@/db/filters";
 import { hashToken } from "./crypto";
+import { getWorkspaceEntitlements } from "./entitlements";
 export const SESSION_COOKIE_NAME = "postifai_session";
 export async function getAuthContext() {
     const cookieStore = await cookies();
@@ -41,12 +42,13 @@ export async function getAuthContext() {
     }
     const workspaceBrands = await db.find(brands, eq("workspaceId", selectedWorkspace.id), {});
     const membership = memberships.find((m) => m.workspaceId === selectedWorkspace.id);
+    const entitlement = await getWorkspaceEntitlements(selectedWorkspace.id);
     return {
         user: currentUser,
-        workspace: selectedWorkspace,
+        workspace: { ...selectedWorkspace, planSlug: entitlement.plan.slug, aiBillingMode: entitlement.plan.allowsConfigurableAiMode ? selectedWorkspace.aiBillingMode : entitlement.plan.defaultAiMode },
         workspaces: userWorkspaces,
         brands: workspaceBrands,
         activeBrand: workspaceBrands[0] || null,
-        memberRole: selectedWorkspace.ownerId === currentUser.id ? "owner" : membership?.role || "viewer",
+        memberRole: selectedWorkspace.ownerId === currentUser.id ? "owner" : entitlement.features.team && membership && ["admin", "editor", "approver", "viewer"].includes(membership.role) ? membership.role : "viewer",
     };
 }

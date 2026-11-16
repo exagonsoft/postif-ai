@@ -1,4 +1,5 @@
 import { getMediaStorageConfig } from "./media-storage-config";
+import { validateBillingConfig } from "./stripe";
 
 export function validateRuntimeConfig(env: NodeJS.ProcessEnv = process.env) {
   for (const key of ["MONGODB_URI", "MONGODB_DB", "ENCRYPTION_SECRET", "APP_URL", "WORKER_SECRET"]) {
@@ -15,4 +16,5 @@ export function validateRuntimeConfig(env: NodeJS.ProcessEnv = process.env) {
   if (env.SMTP_URL && (!env.MAIL_FROM || !["smtp:", "smtps:"].includes(new URL(env.SMTP_URL).protocol))) throw new Error("Configure a valid SMTP_URL and MAIL_FROM together.");
   const pushKeys = [env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, env.VAPID_SUBJECT];
   if (pushKeys.some(Boolean) && !pushKeys.every(Boolean)) throw new Error("Configure all VAPID values together, or leave all empty.");
+  validateBillingConfig(env);
 }

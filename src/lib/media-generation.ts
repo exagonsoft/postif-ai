@@ -1,145 +1,215 @@
 import { db } from "@/db";
 import { aiConfigurations, mediaAssets, workspaces, aiUsageRecords, type MediaAssetsDocument } from "@/db/schema";
-import { and, eq, inArray, increment } from "@/db/filters";
+import { mediaReservations, type MediaReservation } from "@/db/worker-schema";
+import { increment } from "@/db/filters";
 import { decryptSecret } from "./crypto";
 import { WorkflowError } from "./post-policy";
 import { storeMedia, deleteMedia, readLimitedResponse } from "./media-storage";
-import { videoToGif, verifyGifEncoder } from "./gif-generation";
-async function imageKey(workspaceId: number) {
-    const [config] = await db.find(aiConfigurations, eq("workspaceId", workspaceId), {});
-    if (config?.mode === "byok")
-        return { key: config.encryptedApiKey ? decryptSecret(config.encryptedApiKey) : null, byok: true };
-    return { key: process.env.OPENAI_API_KEY || null, byok: false };
-}
-function runwayHeaders() { return { Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`, "X-Runway-Version": "2024-11-06", "Content-Type": "application/json" }; }
-async function saveGeneratedMedia(asset: MediaAssetsDocument, bytes: Buffer) {
-    const stored = await storeMedia(bytes, asset.workspaceId);
-    try {
-        const [updated] = await db.update(mediaAssets, { id: asset.id, workspaceId: asset.workspaceId, generationStatus: "processing" }, { ...stored, generationStatus: "ready" });
-        if (!updated) throw new Error("Generated media is no longer available for completion.");
-    } catch (error) {
-        try { await deleteMedia({ workspaceId: asset.workspaceId, ...stored }); }
-        catch { console.error("Generated media rollback cleanup failed", { assetId: asset.id, workspaceId: asset.workspaceId }); }
-        throw error;
-    }
-}
+import { assertBrandEntitlement, getWorkspaceEntitlements } from "./entitlements";
+import { credentialVersion, validCreditBalance, validReservationCredits } from "./ai-request-policy";
+import { deadlineSignal, hasTime, type WorkerOptions } from "./worker-budget";
+import { getCreditEpoch } from "./subscriptions";
+import { verifyGifEncoder, videoToGif } from "./gif-generation";
+import { backgroundImageModelSupported, backgroundImageResult, pollBackgroundImage, submitBackgroundImage } from "./openai-background-images";
+import { withWorkerDeadline } from "./worker-network";
+
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+async function mediaPayer(tx: Transaction, workspaceId: number, kind: string) {
+  const { plan } = await getWorkspaceEntitlements(workspaceId, tx);
+  const [config] = await tx.find(aiConfigurations, { workspaceId });
+  const [workspace] = await tx.find(workspaces, { id: workspaceId });
+  const mode = plan.allowsConfigurableAiMode ? config?.mode ?? workspace?.aiBillingMode : plan.defaultAiMode;
+  if (!["byok", "managed"].includes(mode)) throw new WorkflowError("Invalid AI billing mode.", 409);
+  if (kind !== "image" && mode === "byok") throw new WorkflowError("BYOK video/GIF generation is not supported. No managed provider will be charged.", 409);
+  const billingMode = mode as "byok" | "managed";
+  const raw = kind === "image" ? billingMode === "byok" ? config?.encryptedApiKey : process.env.OPENAI_API_KEY : process.env.RUNWAY_API_KEY;
+  const key = kind === "image" && billingMode === "byok" ? raw && decryptSecret(raw) : raw;
+  if (!key || !raw) throw new WorkflowError(kind === "image" ? "Configure a valid OpenAI key before generating images." : "Managed video requires an administrator-configured Runway key.", 409);
+  const model = kind === "image" ? process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5" : "gen4.5";
+  const responseModel = kind === "image" && backgroundImageModelSupported(model) ? process.env.OPENAI_IMAGE_RESPONSE_MODEL || "gpt-5.2" : null;
+  const transport = kind === "image" ? responseModel ? "openai_responses" as const : "openai_images" as const : "runway" as const;
+  return { key, billingMode, model, responseModel, transport, credentialVersion: credentialVersion(billingMode, raw, model) };
+}
+function runwayHeaders(key: string) {
+  return { Authorization: `Bearer ${key}`, "X-Runway-Version": "2024-11-06", "Content-Type": "application/json" };
+}
+export function mediaGenerationReadiness() {
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5";
+  const asynchronous = backgroundImageModelSupported(model);
+  return {
+    image: { configured: !!process.env.OPENAI_API_KEY, byokSupported: true, asynchronous,
+      model, responseModel: asynchronous ? process.env.OPENAI_IMAGE_RESPONSE_MODEL || "gpt-5.2" : null,
+      providerAccessVerified: false, boundedSynchronous: !asynchronous },
+    video: { configured: !!process.env.RUNWAY_API_KEY, asynchronous: true, byokSupported: false },
+    gif: { supported: true, available: null, byokSupported: false,
+      configuredPath: !!process.env.FFMPEG_PATH, bundledPackage: "ffmpeg-static",
+      validation: "FFMPEG_PATH or the bundled FFmpeg executable is verified in the Next.js runtime before reserving credits; conversion has a hard remaining-deadline timeout." },
+  };
+}
+async function saveGeneratedMedia(asset: MediaAssetsDocument, reservation: MediaReservation, bytes: Buffer, tokens = 0) {
+  const stored = await storeMedia(bytes, asset.workspaceId);
+  try {
+    await db.transaction(async tx => {
+      const [current] = await tx.find(mediaReservations, { id: reservation.id, status: "reserved" }, { lock: true });
+      if (!current) throw new Error("Generation reservation is no longer active.");
+      const [updated] = await tx.update(mediaAssets, { id: asset.id, workspaceId: asset.workspaceId, generationStatus: "processing" }, { ...stored, generationStatus: "ready", generationError: null });
+      if (!updated) throw new Error("Generated media is no longer available.");
+      await tx.update(mediaReservations, { id: current.id }, { status: "succeeded" });
+      if (current.usageRecordId) await tx.update(aiUsageRecords, { id: current.usageRecordId, workspaceId: asset.workspaceId }, {
+        executionSource: asset.assetType === "image" ? current.billingMode === "byok" ? "byok_live" : "openai_live" : "runway_live", tokensEstimate: tokens,
+      });
+    });
+  } catch (error) {
+    // A lost commit acknowledgement must not delete an object already attached by a committed transaction.
+    const [persisted] = await db.find(mediaAssets, { id: asset.id, workspaceId: asset.workspaceId });
+    if (persisted?.generationStatus === "ready" && persisted.storageKey === stored.storageKey) return;
+    try { await deleteMedia({ workspaceId: asset.workspaceId, ...stored }); }
+    catch { console.error("Generated media rollback cleanup failed", { assetId: asset.id }); }
+    throw error;
+  }
+}
+async function refundAsset(tx: Transaction, asset: MediaAssetsDocument, message: string, cancelled = false) {
+  const [current] = await tx.find(mediaAssets, { id: asset.id, workspaceId: asset.workspaceId, generationStatus: { $in: cancelled ? ["queued"] : ["queued", "processing"] } }, { lock: true });
+  if (!current) return;
+  const [reservation] = await tx.find(mediaReservations, { assetId: asset.id }, { lock: true });
+  if (reservation && reservation.status !== "reserved") return;
+  const credits = reservation?.credits ?? current.generationCredits;
+  validReservationCredits(credits, reservation?.billingMode || "managed");
+  if (!Number.isSafeInteger(credits) || credits < 0 || credits !== current.generationCredits) throw new Error("Media credits require administrator reconciliation.");
+  const [workspace] = await tx.find(workspaces, { id: current.workspaceId }, { lock: true });
+  if (!workspace) return;
+  validCreditBalance(workspace.aiCreditsBalance);
+  const restored = reservation?.creditEpoch === await getCreditEpoch(current.workspaceId, tx) ? credits : 0;
+  if (!Number.isSafeInteger(workspace.aiCreditsBalance + restored)) throw new Error("AI credit balance overflow.");
+  const reason = !restored && credits ? `${message.replace(/Credits returned;?/g, "Reservation closed;")} Expired or unversioned credits are not carried into the current allowance.` : message;
+  await tx.update(mediaAssets, { id: current.id, generationStatus: current.generationStatus }, { generationStatus: cancelled ? "cancelled" : "failed", generationError: reason, generationCredits: 0 });
+  if (reservation) await tx.update(mediaReservations, { id: reservation.id }, { status: "refunded", refundedCredits: restored });
+  if (reservation?.usageRecordId) await tx.update(aiUsageRecords, { id: reservation.usageRecordId, workspaceId: current.workspaceId }, { executionSource: cancelled ? "cancelled" : "failed" });
+  if (credits) {
+    if (restored) await tx.update(workspaces, { id: current.workspaceId }, { aiCreditsBalance: increment(restored) });
+    await tx.insert(aiUsageRecords, { workspaceId: current.workspaceId, operation: restored ? "Media generation credit refund" : "Expired media reservation closed (no carryover)", billingMode: reservation?.billingMode || "managed", creditsUsed: -restored, model: reservation?.model || current.assetType, executionSource: !restored ? "expired_refund" : cancelled ? "cancelled" : "failed_refund", tokensEstimate: 0 });
+  }
+}
 export async function cancelQueuedMedia(tx: Transaction, id: number, workspaceId: number) {
-    const [asset] = await tx.find(mediaAssets, and(eq("id", id), eq("workspaceId", workspaceId)), { lock: true });
-    if (asset?.generationStatus !== "queued")
-        return;
-    await tx.update(mediaAssets, eq("id", id), { generationStatus: "cancelled", generationCredits: 0 });
-    if (asset.generationCredits) {
-        await tx.update(workspaces, eq("id", workspaceId), { aiCreditsBalance: increment(asset.generationCredits) });
-        await tx.insert(aiUsageRecords, { workspaceId, operation: "Cancelled media generation refund", creditsUsed: -asset.generationCredits, model: asset.assetType, executionSource: "cancelled", tokensEstimate: 0 });
-    }
+  const [asset] = await tx.find(mediaAssets, { id, workspaceId }, { lock: true });
+  if (asset?.generationStatus === "queued") await refundAsset(tx, asset, "Generation cancelled.", true);
 }
 export async function queueMedia(workspaceId: number, brandId: number, userId: number, input: {
-    prompt: string;
-    kind: "image" | "video" | "gif";
-    aspectRatio: string;
+  prompt: string; kind: "image" | "video" | "gif"; aspectRatio: string;
 }, transaction?: Transaction) {
-    const credentials = input.kind === "image" ? await imageKey(workspaceId) : { key: process.env.RUNWAY_API_KEY, byok: false };
-    if (!credentials.key)
-        throw new WorkflowError(input.kind === "image" ? "Configure an OpenAI key in Billing before generating images." : "Video generation requires the administrator to configure Runway.", 409);
+  const enqueue = async (tx: Transaction) => {
+    const [workspace] = await tx.find(workspaces, { id: workspaceId }, { lock: true });
+    if (!workspace) throw new WorkflowError("Workspace not found.", 404);
+    await assertBrandEntitlement(workspaceId, brandId, tx);
+    validCreditBalance(workspace.aiCreditsBalance);
+    const payer = await mediaPayer(tx, workspaceId, input.kind);
     if (input.kind === "gif") {
-        try {
-            await verifyGifEncoder();
-        }
-        catch (error) {
-            throw new WorkflowError(error instanceof Error ? error.message : "GIF encoder is unavailable.", 409);
-        }
+      try { await verifyGifEncoder({ deadline: Date.now() + 2500 }); }
+      catch (error) { throw new WorkflowError(error instanceof Error ? error.message : "FFmpeg is unavailable in this Next.js runtime.", 409); }
     }
-    const credits = credentials.byok ? 0 : input.kind === "image" ? 40 : 120;
-    const enqueue = async (tx: Transaction) => {
-        const [workspace] = await tx.find(workspaces, eq("id", workspaceId), { lock: true });
-        if (!workspace || workspace.aiCreditsBalance < credits)
-            throw new WorkflowError(`This generation requires ${credits} managed credits.`, 409);
-        if (credits)
-            await tx.update(workspaces, eq("id", workspaceId), { aiCreditsBalance: increment(-credits) });
-        const [asset] = await tx.insert(mediaAssets, { workspaceId, brandId, title: input.prompt.slice(0, 100), prompt: input.prompt, assetType: input.kind, aspectRatio: input.aspectRatio, url: "", generationStatus: "queued", generationCredits: credits, altText: input.prompt.slice(0, 500), isSampleData: false });
-        await tx.insert(aiUsageRecords, { workspaceId, userId, operation: `Queued ${input.kind} generation`, billingMode: credentials.byok ? "byok" : "managed", creditsUsed: credits, model: input.kind === "image" ? (process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5") : "gen4.5", executionSource: "queued", tokensEstimate: 0 });
-        return asset;
-    };
-    return transaction ? enqueue(transaction) : db.transaction(enqueue);
+    const credits = payer.billingMode === "byok" ? 0 : input.kind === "image" ? 40 : 120;
+    if (workspace.aiCreditsBalance < credits) throw new WorkflowError(`This generation requires ${credits} managed credits.`, 409);
+    if (credits) await tx.update(workspaces, { id: workspaceId }, { aiCreditsBalance: increment(-credits) });
+    const [asset] = await tx.insert(mediaAssets, { workspaceId, brandId, title: input.prompt.slice(0, 100), prompt: input.prompt, assetType: input.kind, aspectRatio: input.aspectRatio, url: "", generationStatus: "queued", generationCredits: credits, altText: input.prompt.slice(0, 500), isSampleData: false });
+    const [usage] = await tx.insert(aiUsageRecords, { workspaceId, userId, operation: `Queued ${input.kind} generation`, billingMode: payer.billingMode, creditsUsed: credits, model: payer.model, executionSource: "queued", tokensEstimate: 0 });
+    await tx.insert(mediaReservations, { workspaceId, assetId: asset.id, credits, billingMode: payer.billingMode, model: payer.model,
+      transport: payer.transport, responseModel: payer.responseModel, usageRecordId: usage.id,
+      credentialVersion: payer.credentialVersion, creditEpoch: await getCreditEpoch(workspaceId, tx) });
+    return asset;
+  };
+  return transaction ? enqueue(transaction) : db.transaction(enqueue);
 }
-// Called by the server worker, so generation survives closing the browser.
-export async function refreshPendingMedia() {
-    return db.withLease("media-generation", async () => {
-    const assets = await db.find(mediaAssets, inArray("generationStatus", ["queued", "processing"]), { projection: { id: 1 }, limit: 1, sort: { id: 1 } });
+
+export async function refreshPendingMedia({ deadline = Date.now() + 20000, limit = 3 }: WorkerOptions = {}) {
+  return withWorkerDeadline(deadline, () => db.withLease("media-generation", async () => {
+    // Legacy jobs have no immutable payer. Never charge the currently selected provider for them.
+    const legacy = await db.find(mediaAssets, { generationStatus: { $in: ["queued", "processing"] } }, { limit: 10, sort: { id: 1 } });
+    for (const asset of legacy) {
+      if (!hasTime(deadline)) break;
+      const [reservation] = await db.find(mediaReservations, { assetId: asset.id });
+      if (!reservation) await db.transaction(tx => refundAsset(tx, asset, "Legacy generation has no immutable payer reservation. Credits returned; verify any provider task before retrying."));
+    }
+    const reservations = await db.find(mediaReservations, { status: "reserved", nextCheckAt: { $lte: new Date() } }, { limit, sort: { lastCheckedAt: 1, id: 1 } });
     let processed = 0;
-    for (const { id } of assets) {
-        // Commit the claim before any paid provider request. An interrupted submission
-        // is never automatically re-submitted because its delivery is uncertain.
-        const [claimed] = await db.update(mediaAssets, and(eq("id", id), eq("generationStatus", "queued")), { generationStatus: "processing", generationStartedAt: new Date() });
-        await (async () => {
-            const tx = db;
-            const [asset] = await tx.find(mediaAssets, and(eq("id", id), inArray("generationStatus", ["queued", "processing"])), { limit: 1 });
-            if (!asset)
-                return;
-            try {
-                if (!claimed && !asset.providerJobId) {
-                    if (asset.generationStartedAt && Date.now() - asset.generationStartedAt.getTime() < 10 * 60000)
-                        return;
-                    throw new Error("Generation was interrupted. Credits returned; check the provider before generating again.");
-                }
-                if (asset.providerJobId && asset.generationStartedAt && Date.now() - asset.generationStartedAt.getTime() > 24 * 3600000)
-                    throw new Error("Video generation did not finish within 24 hours.");
-                if (asset.assetType === "image") {
-                    const { key } = await imageKey(asset.workspaceId);
-                    if (!key)
-                        throw new Error("Image provider is not configured.");
-                    const response = await fetch("https://api.openai.com/v1/images/generations", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5", prompt: asset.prompt, n: 1, size: asset.aspectRatio === "1:1" ? "1024x1024" : asset.aspectRatio === "9:16" ? "1024x1536" : "1536x1024", output_format: "png" }), signal: AbortSignal.timeout(120000) });
-                    if (!response.ok)
-                        throw new Error(`Image provider returned HTTP ${response.status}.`);
-                    const data = await response.json();
-                    if (!data.data?.[0]?.b64_json)
-                        throw new Error("Image provider returned no image.");
-                    await saveGeneratedMedia(asset, Buffer.from(data.data[0].b64_json, "base64"));
-                }
-                else if (!asset.providerJobId) {
-                    if (!process.env.RUNWAY_API_KEY)
-                        throw new Error("Video provider is not configured.");
-                    const response = await fetch("https://api.dev.runwayml.com/v1/text_to_video", { method: "POST", headers: runwayHeaders(), body: JSON.stringify({ model: "gen4.5", promptText: asset.prompt, ratio: asset.aspectRatio === "9:16" ? "720:1280" : "1280:720", duration: 5 }), signal: AbortSignal.timeout(30000) });
-                    if (!response.ok)
-                        throw new Error(`Video provider returned HTTP ${response.status}.`);
-                    const data = await response.json();
-                    if (typeof data.id !== "string")
-                        throw new Error("Video provider returned no task ID.");
-                    await tx.update(mediaAssets, eq("id", id), { generationStatus: "processing", providerJobId: data.id });
-                }
-                else {
-                    const response = await fetch(`https://api.dev.runwayml.com/v1/tasks/${encodeURIComponent(asset.providerJobId)}`, { headers: runwayHeaders(), signal: AbortSignal.timeout(15000) });
-                    if (response.status === 429 || response.status >= 500)
-                        return; // Poll again, don't resubmit a paid generation.
-                    if (!response.ok)
-                        throw new Error(`Video status returned HTTP ${response.status}.`);
-                    const data = await response.json();
-                    if (["FAILED", "CANCELLED"].includes(data.status))
-                        throw new Error("Video generation failed. Try a different prompt.");
-                    if (data.status !== "SUCCEEDED")
-                        return;
-                    const url = new URL(data.output?.[0]);
-                    if (url.protocol !== "https:")
-                        throw new Error("Invalid generated video URL.");
-                    const download = await fetch(url, { signal: AbortSignal.timeout(60000) });
-                    const video = await readLimitedResponse(download);
-                    await saveGeneratedMedia(asset, asset.assetType === "gif" ? await videoToGif(video) : video);
-                }
-                processed++;
-            }
-            catch (error) {
-                // Keep the provider ID for manual investigation; never silently regenerate and charge again.
-                await db.transaction(async tx => {
-                await tx.update(mediaAssets, eq("id", id), { generationStatus: "failed", generationError: error instanceof Error ? error.message : "Generation failed.", generationCredits: 0 });
-                if (asset.generationCredits)
-                    await tx.update(workspaces, eq("id", asset.workspaceId), { aiCreditsBalance: increment(asset.generationCredits) });
-                if (asset.generationCredits)
-                    await tx.insert(aiUsageRecords, { workspaceId: asset.workspaceId, operation: "Media generation credit refund", creditsUsed: -asset.generationCredits, model: asset.assetType === "image" ? "image" : "video", executionSource: "failed", tokensEstimate: 0 });
-                });
-            }
-        })();
+    for (const reservation of reservations) {
+      if (!hasTime(deadline, 2000)) break;
+      await db.update(mediaReservations, { id: reservation.id, status: "reserved" }, { lastCheckedAt: new Date(), nextCheckAt: new Date(Date.now() + 30000) });
+      const [asset] = await db.find(mediaAssets, { id: reservation.assetId, generationStatus: { $in: ["queued", "processing"] } });
+      if (!asset) continue;
+      const [claimed] = await db.update(mediaAssets, { id: asset.id, generationStatus: "queued" }, { generationStatus: "processing", generationStartedAt: new Date() });
+      let providerJobId = asset.providerJobId;
+      try {
+        if (!claimed && !asset.providerJobId) {
+          if (asset.generationStartedAt && Date.now() - asset.generationStartedAt.getTime() < 120000) continue;
+          throw new Error("Provider submission was interrupted. Credits returned; verify the provider before creating a new generation. This job will not be resubmitted.");
+        }
+        if (asset.generationStartedAt && Date.now() - asset.generationStartedAt.getTime() > 86400000) throw new Error("Provider generation exceeded 24 hours. Verify the provider before retrying.");
+        const payer = await mediaPayer(db, asset.workspaceId, asset.assetType);
+        if (payer.billingMode !== reservation.billingMode || payer.model !== reservation.model || payer.credentialVersion !== reservation.credentialVersion ||
+          payer.transport !== reservation.transport || payer.responseModel !== reservation.responseModel) throw new Error("Generation payer, model, or credential version changed. Credits returned; submit a new request with your current configuration.");
+        if (asset.assetType === "image" && reservation.transport === "openai_responses") {
+          const response = providerJobId
+            ? await pollBackgroundImage(payer.key, providerJobId, deadline)
+            : await submitBackgroundImage({ key: payer.key, model: reservation.model, responseModel: reservation.responseModel!,
+              prompt: asset.prompt, aspectRatio: asset.aspectRatio, workspaceId: asset.workspaceId, assetId: asset.id, deadline });
+          if (!response) continue;
+          if (!providerJobId) {
+            const [checkpoint] = await db.update(mediaAssets, { id: asset.id, generationStatus: "processing", providerJobId: null }, { providerJobId: response.id });
+            if (!checkpoint) throw new Error("Background image checkpoint could not be saved. Verify provider usage before requesting another image.");
+            providerJobId = response.id;
+          }
+          const result = backgroundImageResult(response);
+          if (!result || !hasTime(deadline, 2000)) continue;
+          await saveGeneratedMedia(asset, reservation, result.bytes, result.tokens);
+        } else if (asset.assetType === "image") {
+          const response = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST", headers: { Authorization: `Bearer ${payer.key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: reservation.model, prompt: asset.prompt, n: 1, size: asset.aspectRatio === "1:1" ? "1024x1024" : asset.aspectRatio === "9:16" ? "1024x1536" : "1536x1024", output_format: "png" }),
+            signal: deadlineSignal(deadline - 3000, 12000),
+          });
+          if (!response.ok) throw new Error(`Image provider returned HTTP ${response.status}.`);
+          const data = await response.json();
+          if (!data.data?.[0]?.b64_json) throw new Error("Image provider returned no image.");
+          if (!hasTime(deadline, 1500)) throw new Error("Image exceeded the bounded hosting budget. Provider usage may have occurred; verify before requesting another image.");
+          await saveGeneratedMedia(asset, reservation, Buffer.from(data.data[0].b64_json, "base64"));
+        } else if (!asset.providerJobId) {
+          const response = await fetch("https://api.dev.runwayml.com/v1/text_to_video", {
+            method: "POST", headers: runwayHeaders(payer.key),
+            body: JSON.stringify({ model: reservation.model, promptText: asset.prompt, ratio: asset.aspectRatio === "9:16" ? "720:1280" : "1280:720", duration: 5 }),
+            signal: deadlineSignal(deadline - 1500, 6000),
+          });
+          if (!response.ok) throw new Error(`Video provider returned HTTP ${response.status}.`);
+          const data = await response.json();
+          if (typeof data.id !== "string") throw new Error("Video provider returned no task ID.");
+          await db.update(mediaAssets, { id: asset.id, generationStatus: "processing", providerJobId: null }, { providerJobId: data.id });
+        } else {
+          const response = await fetch(`https://api.dev.runwayml.com/v1/tasks/${encodeURIComponent(asset.providerJobId)}`, { headers: runwayHeaders(payer.key), signal: deadlineSignal(deadline - 1500, 4000) });
+          if (response.status === 429 || response.status >= 500) continue;
+          if (!response.ok) throw new Error(`Video status returned HTTP ${response.status}.`);
+          const data = await response.json();
+          if (["FAILED", "CANCELLED"].includes(data.status)) throw new Error("Video provider reported a failed generation.");
+          if (data.status !== "SUCCEEDED" || !hasTime(deadline, 5000)) continue;
+          const url = new URL(data.output?.[0]);
+          if (url.protocol !== "https:") throw new Error("Invalid generated video URL.");
+          const download = await fetch(url, { signal: deadlineSignal(deadline - 2000, 6000) });
+          const video = await readLimitedResponse(download);
+          if (asset.assetType === "gif") await verifyGifEncoder({ deadline });
+          const output = asset.assetType === "gif" ? await videoToGif(video, { deadline: deadline - 1500 }) : video;
+          await saveGeneratedMedia(asset, reservation, output);
+        }
+        processed++;
+      } catch (error) {
+        // Poll/download timeouts are recoverable with the same task ID; never resubmit a paid task.
+        if (providerJobId && error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) {
+          await db.update(mediaAssets, { id: asset.id, generationStatus: "processing" }, { generationError: "Generation output retrieval or conversion reached the request deadline. The same saved provider task will be retried; no new generation is submitted." });
+          continue;
+        }
+        const message = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)
+          ? "Provider submission timed out within the hosting budget. Credits returned; provider usage is uncertain. Verify the provider before retrying."
+          : error instanceof Error ? error.message : "Generation failed.";
+        await db.transaction(tx => refundAsset(tx, asset, message));
+      }
     }
     return processed;
-    }, 0);
+  }, 0));
 }

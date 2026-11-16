@@ -12,6 +12,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  async function recoverPassword() {
+    if (!email.trim()) { toast("Email required", "Enter your account email first.", "error"); return; }
+    setLoading(true);
+    try {
+      const response = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recover_password", email }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Recovery email could not be sent.");
+      toast("Check your email", result.message);
+    } catch (error) {
+      toast("Password recovery unavailable", error instanceof Error ? error.message : "Try again later.", "error");
+    } finally { setLoading(false); }
+  }
   async function login(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
@@ -35,7 +47,7 @@ export default function LoginPage() {
         <label className="block text-xs font-bold">Password<input required type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} className="elevated-card mt-2 w-full rounded-xl p-3 text-sm" /></label>
         <button disabled={loading} className="w-full rounded-xl bg-violet-600 p-3 text-sm font-bold text-white disabled:opacity-50">Sign in</button>
       </form>
-      <p className="mt-5 text-xs text-[var(--text-muted)]">For account recovery, contact your administrator. Automated password recovery is not available yet.</p>
+      <button type="button" disabled={loading} onClick={recoverPassword} className="mt-5 text-xs text-cyan-400">Forgot password? Send a recovery link</button>
       <p className="mt-6 text-center text-sm">New to POSTIF-AI? <Link href="/register" className="text-cyan-400">Create an account</Link></p>
     </div>
   </div>;

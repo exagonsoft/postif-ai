@@ -12,6 +12,8 @@ export interface PlanDefinition {
   includedMonthlyCredits: number;
   autopilotEnabled: boolean;
   teamCollaboration: boolean;
+  campaignsEnabled: boolean;
+  advancedAnalytics: boolean;
   popular?: boolean;
   features: string[];
 }
@@ -20,23 +22,25 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   free: {
     slug: "free",
     name: "Free",
-    tagline: "Explore AI social workflows with starter credits.",
+    tagline: "Plan and publish with your own OpenAI key.",
     monthlyPrice: 0,
     annualMonthlyPrice: 0,
-    defaultAiMode: "managed",
+    defaultAiMode: "byok",
     allowsConfigurableAiMode: false,
     maxBrands: 1,
     maxChannels: 2,
     maxPostsPerMonth: 5,
-    includedMonthlyCredits: 50,
+    includedMonthlyCredits: 0,
     autopilotEnabled: false,
     teamCollaboration: false,
+    campaignsEnabled: false,
+    advancedAnalytics: false,
     features: [
       "1 Brand Profile",
       "2 Connected Social Channels",
       "5 Published Posts / month",
       "Manual Publishing Approval",
-      "50 Trial Managed AI Credits",
+      "Bring Your Own OpenAI API Key",
     ],
   },
   starter_byok: {
@@ -53,6 +57,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     includedMonthlyCredits: 0,
     autopilotEnabled: false,
     teamCollaboration: false,
+    campaignsEnabled: true,
+    advancedAnalytics: false,
     features: [
       "1 Brand Profile",
       "3 Connected Social Channels",
@@ -75,6 +81,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     includedMonthlyCredits: 300,
     autopilotEnabled: false,
     teamCollaboration: false,
+    campaignsEnabled: true,
+    advancedAnalytics: false,
     features: [
       "1 Brand Profile",
       "3 Connected Social Channels",
@@ -97,6 +105,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     includedMonthlyCredits: 0,
     autopilotEnabled: true,
     teamCollaboration: true,
+    campaignsEnabled: true,
+    advancedAnalytics: true,
     features: [
       "3 Brand Profiles",
       "8 Connected Social Channels",
@@ -108,7 +118,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   pro_ai: {
     slug: "pro_ai",
     name: "Pro AI",
-    tagline: "Full autonomous marketing team on managed AI infrastructure.",
+    tagline: "Recurring AI planning with managed credits and review controls.",
     monthlyPrice: 49,
     annualMonthlyPrice: 39,
     defaultAiMode: "managed",
@@ -119,13 +129,15 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     includedMonthlyCredits: 1000,
     autopilotEnabled: true,
     teamCollaboration: true,
+    campaignsEnabled: true,
+    advancedAnalytics: true,
     popular: true,
     features: [
       "3 Brand Profiles",
       "8 Connected Social Channels",
       "150 Published Posts / month",
       "1,000 Managed AI Credits / month",
-      "Full Autopilot AI Marketing Agent",
+      "Recurring AI Planning & Advanced Analytics",
     ],
   },
   agency: {
@@ -142,6 +154,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     includedMonthlyCredits: 3500,
     autopilotEnabled: true,
     teamCollaboration: true,
+    campaignsEnabled: true,
+    advancedAnalytics: true,
     features: [
       "Up to 15 Client Brands",
       "40 Connected Social Channels",
@@ -151,6 +165,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
     ],
   },
 };
+
+export const BILLING_CURRENCY = "usd";
 
 export const AI_OPERATION_COSTS: Record<string, { label: string; credits: number }> = {
   generate_posts: { label: "Multi-Platform Post Generation", credits: 10 },
@@ -164,6 +180,8 @@ export const AI_OPERATION_COSTS: Record<string, { label: string; credits: number
 
 export function getPlanDefinition(planSlug: string): PlanDefinition {
   return (
-    SUBSCRIPTION_PLANS[planSlug as PlanDefinition["slug"]] || SUBSCRIPTION_PLANS.pro_ai
+    Object.hasOwn(SUBSCRIPTION_PLANS, planSlug)
+      ? SUBSCRIPTION_PLANS[planSlug as PlanDefinition["slug"]]
+      : SUBSCRIPTION_PLANS.free
   );
 }

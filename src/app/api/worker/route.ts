@@ -1,25 +1,16 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { processDuePosts } from "@/lib/publishing-worker";
-import { deliverNotifications } from "@/lib/notification-service";
-import { refreshPendingMedia } from "@/lib/media-generation";
-import { reconcileAutomaticPostMedia } from "@/lib/automatic-post-media";
+import { runWorkerSweep } from "@/lib/worker-orchestrator";
+import { isWorkerAuthorized } from "@/lib/worker-auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 30;
 export async function POST(req: Request) {
-  const secret = process.env.WORKER_SECRET;
-  const actual = Buffer.from(req.headers.get("authorization") || "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  if (!secret || secret.length < 32 || actual.length !== expected.length || !timingSafeEqual(actual, expected)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isWorkerAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const media = await refreshPendingMedia();
-    const preparedPosts = await reconcileAutomaticPostMedia();
-    const processed = await processDuePosts();
-    const notifications = await deliverNotifications();
-    return NextResponse.json({ ok: true, processed, media, preparedPosts, notifications });
-  } catch (error) {
-    console.error("Worker failed", error);
+    const result = await runWorkerSweep();
+    return NextResponse.json(result, { status: result.ok ? 200 : 207, headers: { "Cache-Control": "no-store" } });
+  } catch {
+    console.error("Worker sweep could not complete.");
     return NextResponse.json({ error: "Worker run failed." }, { status: 500 });
   }
 }

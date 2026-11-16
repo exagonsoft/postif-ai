@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { SOCIAL_PLATFORM_SPECS, SocialPlatformSpec } from "@/lib/social-adapters";
@@ -12,9 +13,7 @@ export default function SmartRepurposePage() {
   const { toast } = useToast();
 
   const [sourceType, setSourceType] = useState("Blog Post");
-  const [sourceText, setSourceText] = useState(
-    "In Q2, our engineering team re-architected our edge routing layer to support sub-20ms model inference across 14 global regions. By combining intent classification with adaptive batching, enterprise customers cut GPU idle spend by 61% without sacrificing response quality."
-  );
+  const [sourceText, setSourceText] = useState("");
   const [tone, setTone] = useState("Authoritative & Insightful");
   const [preserveMeaning, setPreserveMeaning] = useState(true);
   const [avoidRepetition, setAvoidRepetition] = useState(true);
@@ -25,6 +24,7 @@ export default function SmartRepurposePage() {
     "threads",
   ]);
   const [loading, setLoading] = useState(false);
+  const [requestAi] = useState(createIdempotentFetcher);
   const [variants, setVariants] = useState<Record<string, PlatformVariant> | null>(null);
 
   const togglePlatform = (id: string) => {
@@ -40,7 +40,7 @@ export default function SmartRepurposePage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/generate", {
+      const res = await requestAi("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -64,6 +64,8 @@ export default function SmartRepurposePage() {
         `Generated ${Object.keys(data.variants).length} distinct channel adaptations.`
       );
       router.refresh();
+    } catch (error) {
+      toast("Repurposing interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
     } finally {
       setLoading(false);
     }

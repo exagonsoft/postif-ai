@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
@@ -50,6 +51,31 @@ export function ContentStudioClient({
   isTeamWorkspace: boolean;
   memberRole: string;
 }) {
+  const { t, formatNumber } = useAppLanguage();
+
+  const displayLabel = (value: string) => ({
+    "Educational Post": t("customer.text.262"),
+    "Product Promotion": t("customer.text.406"),
+    "Announcement": t("customer.text.407"),
+    "Storytelling Content": t("customer.text.408"),
+    "Community Engagement": t("customer.text.409"),
+    "Carousel Copy": t("customer.text.410"),
+    "Short Video Script": t("customer.text.411"),
+    "Professional & Visionary": t("customer.text.415"),
+    "Authoritative": t("customer.text.416"),
+    "Conversational": t("customer.text.417"),
+    "Energetic & Bold": t("customer.text.418"),
+    "Educational": t("customer.text.419"),
+    "English": t("customer.text.421"),
+    "Spanish": t("customer.text.422"),
+    "French": t("customer.text.423"),
+    "German": t("customer.text.424"),
+    "Portuguese": t("customer.text.425"),
+    "Short": t("customer.text.427"),
+    "Medium": t("customer.text.428"),
+    "Long-Form": t("customer.text.429")
+  } as Record<string, string>)[value] ?? value;
+  const displayAction = (value: string) => ({"rewrite": t("customer.text.441"), "improve": t("customer.text.442"), "shorten": t("customer.text.443"), "expand": t("customer.text.444"), "translate": t("customer.text.445"), "hashtags": t("customer.text.446"), "cta": t("customer.text.447")} as Record<string, string>)[value] ?? value;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -64,7 +90,7 @@ export function ContentStudioClient({
   const [automaticMedia, setAutomaticMedia] = useState<AutomaticMedia>(null);
   const [topic, setTopic] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [objective, setObjective] = useState("Audience Engagement");
+  const [objective, setObjective] = useState(t("customer.text.362"));
   const [audience, setAudience] = useState(
     initialBrand?.targetAudience || ""
   );
@@ -103,11 +129,11 @@ export function ContentStudioClient({
 
   const handleGenerate = async () => {
     if (!topic.trim() && !prompt.trim()) {
-      toast("Add a topic or idea", "Describe what the post should be about.", "error");
+      toast(t("customer.text.368"), t("customer.text.369"), "error");
       return;
     }
     if (selectedPlatforms.length === 0) {
-      toast("Select at least one channel", "Choose one or more target platforms.", "error");
+      toast(t("customer.text.370"), t("customer.text.371"), "error");
       return;
     }
     setGenerating(true);
@@ -134,7 +160,7 @@ export function ContentStudioClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Generation error", data.error || "Failed to generate content.", "error");
+        toast(t("customer.text.373"), data.error || t("customer.text.374"), "error");
         return;
       }
       setVariants(data.variants);
@@ -142,15 +168,15 @@ export function ContentStudioClient({
         setActiveTab(selectedPlatforms[0]);
       }
       setLastExecutionBadge(
-        `${data.meta.executionSource} • ${data.meta.model} (${data.meta.creditsCharged} credits)`
+        t("customer.executionBadge", { source: data.meta.executionSource, model: data.meta.model, count: formatNumber(data.meta.creditsCharged) })
       );
       toast(
-        "Platform variants generated!",
-        `Created tailored copy for ${selectedPlatforms.length} channel(s).`
+        t("customer.text.375"),
+        t("customer.tailoredCopy", { count: formatNumber(selectedPlatforms.length) })
       );
       router.refresh();
     } catch (error) {
-      toast("Generation interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
+      toast(t("customer.text.376"), error instanceof Error ? error.message : t("customer.text.60"), "error");
     } finally {
       setGenerating(false);
     }
@@ -178,7 +204,7 @@ export function ContentStudioClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Editorial action failed", data.error || "Could not transform post.", "error");
+        toast(t("customer.text.380"), data.error || t("customer.text.381"), "error");
         return;
       }
       setVariants((prev) => ({
@@ -191,10 +217,10 @@ export function ContentStudioClient({
           characterCount: data.transformedText.length,
         },
       }));
-      toast(`Applied '${action}' to ${activeTab.toUpperCase()}`);
+      toast(t("customer.appliedAction", { action: displayAction(action), platform: activeTab.toUpperCase() }));
       router.refresh();
     } catch (error) {
-      toast("Editorial action interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
+      toast(t("customer.text.382"), error instanceof Error ? error.message : t("customer.text.60"), "error");
     } finally {
       setTransforming(false);
     }
@@ -204,7 +230,7 @@ export function ContentStudioClient({
     status: "draft" | "pending_approval" | "scheduled" | "published"
   ) => {
     if (selectedPlatforms.length === 0) {
-      toast("Select a platform", "Choose at least one channel before saving.", "error");
+      toast(t("customer.text.384"), t("customer.text.385"), "error");
       return;
     }
     setSaving(true);
@@ -216,7 +242,7 @@ export function ContentStudioClient({
         body: JSON.stringify({
           action: "create",
           brandId,
-          title: topic.trim() || prompt.trim().slice(0, 100) || "Untitled Post",
+          title: topic.trim() || prompt.trim().slice(0, 100) || t("customer.text.386"),
           topic,
           baseContent: primaryVariant?.content || prompt,
           contentType,
@@ -234,19 +260,19 @@ export function ContentStudioClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Could not save post", data.error || "Check plan quotas or role permissions.", "error");
+        toast(t("customer.text.387"), data.error || t("customer.text.388"), "error");
         return;
       }
       const statusLabels: Record<typeof status, string> = {
-        draft: "Saved to Drafts",
-        pending_approval: isTeamWorkspace ? "Submitted for Approval" : "Scheduled for Your Review",
-        scheduled: "Scheduled in Content Calendar",
-        published: "Queued for Publication",
+        draft: t("customer.text.61"),
+        pending_approval: isTeamWorkspace ? t("customer.text.390") : t("customer.text.391"),
+        scheduled: t("customer.text.392"),
+        published: t("customer.text.393"),
       };
-      toast(statusLabels[data.post.status as typeof status] || "Post saved", data.post.status === "waiting_media" ? "Media generation is queued. The result will be attached automatically before review or publishing." : data.post.status === "pending_approval" ? (isTeamWorkspace ? "Your team will review this post before it is sent." : "We will wait for your review before sending.") : "Publishing will wait until a social connection is available.");
+      toast(statusLabels[data.post.status as typeof status] || t("customer.text.394"), data.post.status === "waiting_media" ? t("customer.text.395") : data.post.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.396") : t("customer.text.397")) : t("customer.text.398"));
       router.refresh();
     } catch (error) {
-      toast("Could not save post", error instanceof Error ? error.message : "Please try again.", "error");
+      toast(t("customer.text.387"), error instanceof Error ? error.message : t("customer.text.400"), "error");
     } finally {
       setSaving(false);
     }
@@ -256,7 +282,7 @@ export function ContentStudioClient({
     content: "",
     hashtags: [],
     cta: "",
-    formatLabel: "Post",
+    formatLabel: t("customer.text.401"),
     characterCount: 0,
   };
   const activeSpec =
@@ -268,7 +294,7 @@ export function ContentStudioClient({
       {/* Left Configuration & Generation Controls */}
       <div className="surface-card space-y-5 rounded-3xl p-6 xl:col-span-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-extrabold">1. Content Brief & Parameters</h2>
+          <h2 className="text-base font-extrabold">{t("customer.text.402")}</h2>
           {lastExecutionBadge && (
             <span className="rounded-full bg-cyan-500/15 px-2.5 py-0.5 text-[10px] font-bold text-cyan-300">
               {lastExecutionBadge}
@@ -279,7 +305,7 @@ export function ContentStudioClient({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Brand Profile
+              {t("customer.text.403")}
             </label>
             <select
               value={brandId}
@@ -296,7 +322,7 @@ export function ContentStudioClient({
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Content Type
+              {t("customer.text.404")}
             </label>
             <select
               value={contentType}
@@ -313,7 +339,7 @@ export function ContentStudioClient({
                 "Short Video Script",
               ].map((ct) => (
                 <option key={ct} value={ct}>
-                  {ct}
+                  {displayLabel(ct)}
                 </option>
               ))}
             </select>
@@ -322,7 +348,7 @@ export function ContentStudioClient({
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            Topic / Headline
+            {t("customer.text.412")}
           </label>
           <input
             value={topic}
@@ -333,7 +359,7 @@ export function ContentStudioClient({
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            AI Creative Brief / Prompt
+            {t("customer.text.413")}
           </label>
           <textarea
             rows={3}
@@ -346,7 +372,7 @@ export function ContentStudioClient({
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Tone
+              {t("customer.text.414")}
             </label>
             <select
               value={tone}
@@ -361,7 +387,7 @@ export function ContentStudioClient({
                 "Educational",
               ].map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {displayLabel(t)}
                 </option>
               ))}
             </select>
@@ -369,7 +395,7 @@ export function ContentStudioClient({
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Language
+              {t("customer.text.420")}
             </label>
             <select
               value={language}
@@ -378,7 +404,7 @@ export function ContentStudioClient({
             >
               {["English", "Spanish", "French", "German", "Portuguese"].map((lang) => (
                 <option key={lang} value={lang}>
-                  {lang}
+                  {displayLabel(lang)}
                 </option>
               ))}
             </select>
@@ -386,7 +412,7 @@ export function ContentStudioClient({
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Length
+              {t("customer.text.426")}
             </label>
             <select
               value={length}
@@ -395,7 +421,7 @@ export function ContentStudioClient({
             >
               {["Short", "Medium", "Long-Form"].map((l) => (
                 <option key={l} value={l}>
-                  {l}
+                  {displayLabel(l)}
                 </option>
               ))}
             </select>
@@ -405,7 +431,7 @@ export function ContentStudioClient({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Objective
+              {t("customer.text.430")}
             </label>
             <input
               value={objective}
@@ -415,7 +441,7 @@ export function ContentStudioClient({
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Target Audience
+              {t("customer.text.431")}
             </label>
             <input
               value={audience}
@@ -428,7 +454,7 @@ export function ContentStudioClient({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Keywords / Hashtags
+              {t("customer.text.432")}
             </label>
             <input
               value={keywords}
@@ -438,7 +464,7 @@ export function ContentStudioClient({
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Call To Action
+              {t("customer.text.433")}
             </label>
             <input
               value={cta}
@@ -451,7 +477,7 @@ export function ContentStudioClient({
         {/* Target Social Platforms */}
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            Target Social Channels
+            {t("customer.text.434")}
           </label>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => {
@@ -485,14 +511,14 @@ export function ContentStudioClient({
           ) : (
             <Wand2 className="h-4 w-4" />
           )}
-          Generate Platform-Optimized Posts
+          {t("customer.text.436")}
         </button>
       </div>
 
       {/* Right Platform Editor + Realistic Preview + Publishing Lifecycle */}
       <div className="space-y-6 xl:col-span-7">
         <details className="surface-card rounded-2xl p-4">
-          <summary className="cursor-pointer text-sm font-semibold">Attach existing media (optional)</summary>
+          <summary className="cursor-pointer text-sm font-semibold">{t("customer.text.437")}</summary>
           <PostMediaPicker uploadOnly selected={mediaIds} onChange={setMediaIds} onAssets={setMediaAssets} />
         </details>
         <div className="surface-card rounded-3xl p-6">
@@ -532,24 +558,24 @@ export function ContentStudioClient({
                   : "text-[var(--text-muted)]"
               }`}
             >
-              {currentVariant.content.length} / {activeSpec.maxChars} chars
+              {formatNumber(currentVariant.content.length)} / {formatNumber(activeSpec.maxChars)} {t("customer.text.83")}
             </span>
           </div>
 
           {/* AI Editorial Transformation Toolbar */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              AI Refine:
+              {t("customer.text.440")}
             </span>
             {(
               [
-                { id: "rewrite", label: "Rewrite", icon: RefreshCw },
-                { id: "improve", label: "Improve", icon: Sparkles },
-                { id: "shorten", label: "Shorten", icon: Scissors },
-                { id: "expand", label: "Expand", icon: Maximize2 },
-                { id: "translate", label: "Translate", icon: Languages },
-                { id: "hashtags", label: "+ Hashtags", icon: Hash },
-                { id: "cta", label: "+ CTA", icon: MousePointerClick },
+                { id: "rewrite", label: t("customer.text.441"), icon: RefreshCw },
+                { id: "improve", label: t("customer.text.442"), icon: Sparkles },
+                { id: "shorten", label: t("customer.text.443"), icon: Scissors },
+                { id: "expand", label: t("customer.text.444"), icon: Maximize2 },
+                { id: "translate", label: t("customer.text.445"), icon: Languages },
+                { id: "hashtags", label: t("customer.text.446"), icon: Hash },
+                { id: "cta", label: t("customer.text.447"), icon: MousePointerClick },
               ] as const
             ).map((btn) => {
               const Icon = btn.icon;
@@ -606,11 +632,11 @@ export function ContentStudioClient({
         <div className="surface-card rounded-3xl p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-muted)]">
-              Live {activeSpec.name} Post Preview ({currentVariant.formatLabel})
+              {t("customer.studio.preview", { platform: activeSpec.name, format: currentVariant.formatLabel })}
             </h3>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
               <PulseStatusDot color="emerald" />
-              Channel Formatted
+              {t("customer.text.450")}
             </span>
           </div>
 
@@ -632,10 +658,10 @@ export function ContentStudioClient({
               </div>
               <div>
                 <div className="text-sm font-bold">
-                  {brands.find((b) => b.id === brandId)?.name || "Brand Account"}
+                  {brands.find((b) => b.id === brandId)?.name || t("customer.text.451")}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)]">
-                  Sponsored / Scheduled Preview • Just now
+                  {t("customer.text.452")}
                 </div>
               </div>
             </div>
@@ -652,16 +678,16 @@ export function ContentStudioClient({
 
             <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3 text-xs text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1">
-                <Heart className="h-3.5 w-3.5" /> Like
+                <Heart className="h-3.5 w-3.5" /> {t("customer.text.453")}
               </span>
               <span className="inline-flex items-center gap-1">
-                <MessageCircle className="h-3.5 w-3.5" /> Comment
+                <MessageCircle className="h-3.5 w-3.5" /> {t("customer.text.454")}
               </span>
               <span className="inline-flex items-center gap-1">
-                <Repeat2 className="h-3.5 w-3.5" /> Repost
+                <Repeat2 className="h-3.5 w-3.5" /> {t("customer.text.455")}
               </span>
               <span className="inline-flex items-center gap-1">
-                <Share className="h-3.5 w-3.5" /> Share
+                <Share className="h-3.5 w-3.5" /> {t("customer.text.456")}
               </span>
             </div>
             </motion.div>
@@ -670,20 +696,20 @@ export function ContentStudioClient({
 
         {/* Scheduling & Lifecycle Action Bar */}
         <div className="surface-card rounded-3xl p-6">
-          <h3 className="mb-3 font-bold">Review & publishing</h3>
+          <h3 className="mb-3 font-bold">{t("customer.text.457")}</h3>
           <AutomaticMediaSettings value={automaticMedia} onChange={setAutomaticMedia} />
-          <label className="mb-3 block text-sm">{isTeamWorkspace ? "Team publishing permission" : "Publishing preference"}
+          <label className="mb-3 block text-sm">{isTeamWorkspace ? t("customer.text.458") : t("customer.text.459")}
             <select disabled={teamReviewRequired} value={requiresApproval ? "review" : "automatic"} onChange={event => setRequiresApproval(event.target.value === "review")} className="elevated-card mt-2 w-full rounded-xl p-3">
-              <option value="automatic">Publish automatically</option>
-              <option value="review">{isTeamWorkspace ? "Send to team approvers before publishing" : "Let me review first"}</option>
+              <option value="automatic">{t("customer.text.460")}</option>
+              <option value="review">{isTeamWorkspace ? t("customer.text.461") : t("customer.text.462")}</option>
             </select>
           </label>
-          <label className="mb-3 block text-sm"><input type="checkbox" checked={notifyOnPublish} onChange={event => setNotifyOnPublish(event.target.checked)} className="mr-2" />Notify me about publishing results</label>
-          <p className="mb-4 text-xs text-[var(--text-secondary)]">Choose email, on-site, or browser push in Settings. Social publishing connections will be added later; scheduled posts remain unsent until then.</p>
+          <label className="mb-3 block text-sm"><input type="checkbox" checked={notifyOnPublish} onChange={event => setNotifyOnPublish(event.target.checked)} className="mr-2" />{t("customer.text.463")}</label>
+          <p className="mb-4 text-xs text-[var(--text-secondary)]">{t("customer.text.464")}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Schedule Date & Time
+                {t("customer.text.465")}
               </label>
               <input
                 type="datetime-local"
@@ -694,7 +720,7 @@ export function ContentStudioClient({
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Timezone
+                {t("customer.text.466")}
               </label>
               <select
                 value={timezone}
@@ -718,7 +744,7 @@ export function ContentStudioClient({
               onClick={() => handleSavePost("draft")}
               className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold hover:border-violet-500/40"
             >
-              <Save className="h-3.5 w-3.5" /> Save Draft
+              <Save className="h-3.5 w-3.5" /> {t("customer.text.473")}
             </button>
 
             {isTeamWorkspace && <button
@@ -727,7 +753,7 @@ export function ContentStudioClient({
               onClick={() => handleSavePost("pending_approval")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30"
             >
-              <CheckCircle2 className="h-3.5 w-3.5" /> Request Approval
+              <CheckCircle2 className="h-3.5 w-3.5" /> {t("customer.text.474")}
             </button>}
 
             <button
@@ -736,7 +762,7 @@ export function ContentStudioClient({
               onClick={() => handleSavePost(requiresApproval ? "pending_approval" : "scheduled")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg"
             >
-              <CalendarClock className="h-3.5 w-3.5" /> {requiresApproval ? (isTeamWorkspace ? "Submit for Team Approval" : "Schedule & Notify Me to Review") : "Schedule Post"}
+              <CalendarClock className="h-3.5 w-3.5" /> {requiresApproval ? (isTeamWorkspace ? t("customer.text.475") : t("customer.text.476")) : t("customer.text.477")}
             </button>
 
             {!requiresApproval && !automaticMedia && <button
@@ -745,7 +771,7 @@ export function ContentStudioClient({
               onClick={() => handleSavePost("published")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg"
             >
-              <Send className="h-3.5 w-3.5" /> Publish Now
+              <Send className="h-3.5 w-3.5" /> {t("customer.text.478")}
             </button>}
           </div>
         </div>

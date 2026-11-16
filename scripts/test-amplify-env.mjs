@@ -9,7 +9,9 @@ import { serializeAmplifyEnvironment, writeAmplifyEnvironment } from "./prepare-
 import { auditAmplifyEnvironment, assertEnvironmentPolicy, collectEnvironmentReferences, environmentPolicy } from "./audit-amplify-env.mjs";
 
 const require = createRequire(import.meta.url);
-assert.deepEqual(Object.keys(parse(await readFile(resolve("env_sample"), "utf8"))).sort(), [...environmentPolicy.runtime].sort(), "The reviewed policy and environment template must stay aligned");
+const template = await readFile(resolve("env_sample"), "utf8");
+const optionalOverrides = [...template.matchAll(/^\s*#\s*([A-Z][A-Z0-9_]*)=/gm)].map(match => match[1]);
+assert.deepEqual([...Object.keys(parse(template)), ...optionalOverrides].sort(), [...environmentPolicy.runtime].sort(), "Active settings and documented optional overrides must match the reviewed environment policy");
 const env = {
   APP_URL: "https://app.example.test", MONGODB_URI: "mongodb://example.test/isolated", MONGODB_DB: "isolated",
   ENCRYPTION_SECRET: "test-encryption-$MONGODB_DB-${UNSET}-configuration",
@@ -27,7 +29,7 @@ const future = new Map(Object.entries(references));
 future.set("FUTURE_PRIVATE_SETTING", ["src/future.ts"]);
 assert.throws(() => assertEnvironmentPolicy(future), /Unclassified: FUTURE_PRIVATE_SETTING/);
 assert.throws(() => assertEnvironmentPolicy(new Map(Object.entries(references)), ["src/future.ts:1"]), /Unresolved dynamic access: src\/future.ts:1/);
-const patterns = collectEnvironmentReferences(`
+const patternsSource = `
   const { env: environment } = process;
   const alias = environment;
   const key = "STATIC_KEY";
@@ -37,9 +39,11 @@ const patterns = collectEnvironmentReferences(`
     for (const name of ["REQUIRED_KEY"]) env[name];
     env[externalInput];
   }
-`);
+`;
+const patterns = collectEnvironmentReferences(patternsSource);
 assert.deepEqual(patterns.names, ["BRACKET_KEY", "DESTRUCTURED_KEY", "OPTIONAL_KEY", "REQUIRED_KEY", "STATIC_KEY"]);
 assert.equal(patterns.dynamic[0].expression, "externalInput");
+assert.deepEqual(collectEnvironmentReferences(patternsSource.replaceAll("\n", "\r\n")).dynamic.map(access => access.signature), patterns.dynamic.map(access => access.signature), "Reviewed signatures must survive Windows/Linux line endings");
 
 const serialized = serializeAmplifyEnvironment({ ...env, FFMPEG_PATH: "", RUNWAY_API_KEY: "   " });
 const parsed = parse(serialized);

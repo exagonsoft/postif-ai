@@ -1,42 +1,38 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import Link from "next/link";
 import { PublicShell } from "@/components/PublicShell";
 import { Sparkles, Check, ArrowRight } from "lucide-react";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Solutions for Creators — Scale Your Personal Brand Across Every Platform",
-};
+export async function generateMetadata() {
+  const { locale } = await getServerI18n();
+  return publicPageMetadata("creators", locale);
+}
 
-export default function CreatorsSolutionPage() {
+export default async function CreatorsSolutionPage() {
+  const { t } = await getServerI18n();
   return (
     <PublicShell>
       <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1 text-xs font-semibold text-violet-300">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-          Solutions for Solo Creators & Educators
-        </span>
-        <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Turn One Deep Idea Into a Full Week of Native Content
-        </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-          Stop rewriting the same insight six times for X, LinkedIn, Instagram, TikTok, YouTube
-          Shorts, and Threads. POSTIF-AI preserves your authentic voice while adapting length,
-          hooks, and CTAs automatically.
-        </p>
+          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />{t("public.creators.text01")}</span>
+        <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">{t("public.creators.text02")}</h1>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">{t("public.creators.text03")}</p>
 
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {[
             {
-              title: "Smart Blog & Video Repurposing",
-              desc: "Paste a newsletter issue or YouTube script and extract threads, carousels, and short-form video hooks in seconds.",
+              title: t("public.creators.text04"),
+              desc: t("public.creators.text05"),
             },
             {
-              title: "Affordable Starter BYOK ($9/mo)",
-              desc: "Plug in your own OpenAI API key to generate hundreds of drafts for pennies in direct token spend.",
+              title: t("public.creators.text06"),
+              desc: t("public.creators.text07"),
             },
             {
-              title: "Consistent Daily Cadence",
-              desc: "Queue content across timezones with automated retries so you never miss peak engagement windows.",
+              title: t("public.creators.text08"),
+              desc: t("public.creators.text09"),
             },
           ].map((item) => (
             <div key={item.title} className="surface-card rounded-3xl p-6">
@@ -51,8 +47,7 @@ export default function CreatorsSolutionPage() {
           <Link
             href="/register"
             className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3.5 text-sm font-bold text-white"
-          >
-            Create a Free Creator Account <ArrowRight className="h-4 w-4" />
+          >{t("public.creators.text10")}{" "}<ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>

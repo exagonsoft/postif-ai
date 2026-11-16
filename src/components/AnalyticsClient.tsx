@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { useToast } from "./ToastProvider";
 import { Download, Sparkles, BarChart3 } from "lucide-react";
@@ -21,6 +22,14 @@ interface SnapshotRow {
 }
 
 export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: SnapshotRow[]; advanced?: boolean }) {
+  const { t, formatDate, formatNumber } = useAppLanguage();
+
+  const displayPostType = (value: string) => ({"Educational Post": t("customer.text.262"), "Product Announcement": t("customer.text.263"), "Case Study": t("customer.text.264"), "Carousel": t("customer.text.265"), "Video Script": t("customer.text.266")} as Record<string, string>)[value] ?? value;
+  const displayDate = (value: string) => {
+    const monthDay = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})$/.exec(value);
+    const date = monthDay ? new Date(Date.UTC(2000, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(monthDay[1]), Number(monthDay[2]))) : /^\d{4}-\d{2}-\d{2}/.test(value) ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? formatDate(date, { month: "short", day: "numeric", timeZone: "UTC" }) : value;
+  };
   const { toast } = useToast();
   const [platformFilter, setPlatformFilter] = useState("all");
   const [postTypeFilter, setPostTypeFilter] = useState("all");
@@ -41,10 +50,7 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
     { impressions: 0, reach: 0, engagements: 0, clicks: 0 }
   );
 
-  const engagementRate =
-    totals.impressions > 0
-      ? ((totals.engagements / totals.impressions) * 100).toFixed(2)
-      : "0.00";
+  const engagementRate = formatNumber(totals.impressions > 0 ? totals.engagements / totals.impressions : 0, { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Grounded recommendation computed from filtered snapshots
   const byType: Record<string, { imp: number; eng: number }> = {};
@@ -63,10 +69,10 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
   const exportCsv = () => {
     if (!advanced) return;
     const header =
-      "Date,Platform,PostType,Impressions,Reach,Engagements,Likes,Comments,Shares,Clicks,Followers";
+      t("customer.text.252");
     const lines = filtered.map(
       (r) =>
-        `${r.dateLabel},${r.platform},"${r.postType}",${r.impressions},${r.reach},${r.engagements},${r.likes},${r.comments},${r.shares},${r.clicks},${r.followers}`
+        `${displayDate(r.dateLabel)},${r.platform},"${displayPostType(r.postType)}",${r.impressions},${r.reach},${r.engagements},${r.likes},${r.comments},${r.shares},${r.clicks},${r.followers}`
     );
     const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -75,18 +81,18 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
     a.download = `postif-ai-analytics-${platformFilter}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("CSV Report Exported", `Downloaded ${filtered.length} analytics rows.`);
+    toast(t("customer.text.253"), t("customer.downloadedRows", { count: formatNumber(filtered.length) }));
   };
 
   const maxImp = Math.max(1000, ...filtered.map((f) => f.impressions));
-  if (!snapshots.length) return <p className="surface-card rounded-2xl p-5 text-sm text-[var(--text-muted)]">No detailed recorded analytics are available. Supported provider counters appear above; unavailable metrics are not represented as zero.</p>;
+  if (!snapshots.length) return <p className="surface-card rounded-2xl p-5 text-sm text-[var(--text-muted)]">{t("customer.text.254")}</p>;
 
   return (
     <div className="space-y-8">
       <div className="surface-card flex flex-wrap items-center justify-between gap-4 rounded-3xl p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-300">
-            Recorded Analytics
+            {t("customer.text.255")}
           </span>
 
           <select
@@ -94,7 +100,7 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
             onChange={(e) => setPlatformFilter(e.target.value)}
             className="elevated-card rounded-xl px-3 py-2 text-xs font-bold uppercase"
           >
-            <option value="all">All Platforms</option>
+            <option value="all">{t("customer.text.256")}</option>
             <option value="linkedin">LinkedIn</option>
             <option value="x">X (Twitter)</option>
             <option value="instagram">Instagram</option>
@@ -106,12 +112,12 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
             onChange={(e) => setPostTypeFilter(e.target.value)}
             className="elevated-card rounded-xl px-3 py-2 text-xs font-bold"
           >
-            <option value="all">All Formats</option>
-            <option value="Educational Post">Educational Post</option>
-            <option value="Product Announcement">Product Announcement</option>
-            <option value="Case Study">Case Study</option>
-            <option value="Carousel">Carousel</option>
-            <option value="Video Script">Video Script</option>
+            <option value="all">{t("customer.text.261")}</option>
+            <option value="Educational Post">{t("customer.text.262")}</option>
+            <option value="Product Announcement">{t("customer.text.263")}</option>
+            <option value="Case Study">{t("customer.text.264")}</option>
+            <option value="Carousel">{t("customer.text.265")}</option>
+            <option value="Video Script">{t("customer.text.266")}</option>
           </select>
         </div>
 
@@ -120,17 +126,17 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
           onClick={exportCsv}
           className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white"
         >
-          <Download className="h-3.5 w-3.5" /> Export CSV Report
+          <Download className="h-3.5 w-3.5" /> {t("customer.text.267")}
         </button>}
       </div>
 
       {/* KPI Strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Total Impressions", value: totals.impressions.toLocaleString(), color: "text-violet-400" },
-          { label: "Unique Reach", value: totals.reach.toLocaleString(), color: "text-cyan-400" },
-          { label: "Engagement Rate", value: `${engagementRate}%`, color: "text-emerald-400" },
-          { label: "Outbound Link Clicks", value: totals.clicks.toLocaleString(), color: "text-amber-400" },
+          { label: t("customer.text.268"), value: formatNumber(totals.impressions), color: "text-violet-400" },
+          { label: t("customer.text.269"), value: formatNumber(totals.reach), color: "text-cyan-400" },
+          { label: t("customer.text.270"), value: engagementRate, color: "text-emerald-400" },
+          { label: t("customer.text.271"), value: formatNumber(totals.clicks), color: "text-amber-400" },
         ].map((card) => (
           <div key={card.label} className="surface-card rounded-3xl p-5">
             <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
@@ -147,18 +153,18 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
           <div className="flex items-center gap-2 text-cyan-400">
             <Sparkles className="h-5 w-5" />
             <h2 className="text-base font-extrabold text-[var(--text-primary)]">
-              Recorded Performance Comparison
+              {t("customer.text.272")}
             </h2>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-            Based on the currently filtered dataset,{" "}
-            <strong className="text-[var(--text-primary)]">{rankedTypes[0].type}</strong>{" "}
-            content achieved the highest engagement rate at{" "}
-            <strong className="text-emerald-400">{rankedTypes[0].rate.toFixed(2)}%</strong>
+            {t("customer.text.273")}{" "}
+            <strong className="text-[var(--text-primary)]">{displayPostType(rankedTypes[0].type)}</strong>{" "}
+            {t("customer.text.274")}{" "}
+            <strong className="text-emerald-400">{formatNumber(rankedTypes[0].rate, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong>
             {rankedTypes[1]
-              ? ` compared to ${rankedTypes[1].rate.toFixed(2)}% for ${rankedTypes[1].type}`
+              ? t("customer.comparedTo", { rate: formatNumber(rankedTypes[1].rate, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), type: displayPostType(rankedTypes[1].type) })
               : ""}
-            . Compare equivalent date ranges and sample sizes before changing your publishing mix.
+            {t("customer.text.275")}
           </p>
         </div>
       )}
@@ -167,7 +173,7 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
       <div className="surface-card rounded-3xl p-6">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-violet-400" />
-          <h3 className="text-base font-extrabold">Channel Performance Breakdown</h3>
+          <h3 className="text-base font-extrabold">{t("customer.text.276")}</h3>
         </div>
 
         <div className="mt-6 grid h-48 grid-cols-5 items-end gap-3 border-b border-[var(--border-subtle)] pb-3 sm:grid-cols-10">
@@ -178,7 +184,7 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
                 <div
                   className="w-full max-w-[30px] rounded-t-lg bg-gradient-to-t from-violet-600 to-cyan-400"
                   style={{ height: `${pct}%` }}
-                  title={`${row.dateLabel} (${row.platform}): ${row.impressions} impressions`}
+                  title={t("customer.chartImpressions", { date: displayDate(row.dateLabel), platform: row.platform, count: formatNumber(row.impressions) })}
                 />
                 <span className="mt-2 text-[10px] font-semibold uppercase text-[var(--text-muted)]">
                   {row.platform}
@@ -192,25 +198,25 @@ export function AnalyticsClient({ snapshots, advanced = false }: { snapshots: Sn
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[var(--border-subtle)] text-[11px] uppercase text-[var(--text-muted)]">
-                <th className="py-2.5 pr-4">Date</th>
-                <th className="py-2.5 pr-4">Platform</th>
-                <th className="py-2.5 pr-4">Format</th>
-                <th className="py-2.5 pr-4">Impressions</th>
-                <th className="py-2.5 pr-4">Engagements</th>
-                <th className="py-2.5 pr-4">Clicks</th>
-                <th className="py-2.5">Followers</th>
+                <th className="py-2.5 pr-4">{t("customer.text.277")}</th>
+                <th className="py-2.5 pr-4">{t("customer.text.278")}</th>
+                <th className="py-2.5 pr-4">{t("customer.text.279")}</th>
+                <th className="py-2.5 pr-4">{t("customer.text.280")}</th>
+                <th className="py-2.5 pr-4">{t("customer.text.281")}</th>
+                <th className="py-2.5 pr-4">{t("customer.text.282")}</th>
+                <th className="py-2.5">{t("customer.text.283")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  <td className="py-3 pr-4 font-semibold">{r.dateLabel}</td>
+                  <td className="py-3 pr-4 font-semibold">{displayDate(r.dateLabel)}</td>
                   <td className="py-3 pr-4 uppercase text-cyan-400">{r.platform}</td>
-                  <td className="py-3 pr-4">{r.postType}</td>
-                  <td className="py-3 pr-4 font-bold">{r.impressions.toLocaleString()}</td>
-                  <td className="py-3 pr-4 text-emerald-400">{r.engagements.toLocaleString()}</td>
-                  <td className="py-3 pr-4">{r.clicks.toLocaleString()}</td>
-                  <td className="py-3">{r.followers.toLocaleString()}</td>
+                  <td className="py-3 pr-4">{displayPostType(r.postType)}</td>
+                  <td className="py-3 pr-4 font-bold">{formatNumber(r.impressions)}</td>
+                  <td className="py-3 pr-4 text-emerald-400">{formatNumber(r.engagements)}</td>
+                  <td className="py-3 pr-4">{formatNumber(r.clicks)}</td>
+                  <td className="py-3">{formatNumber(r.followers)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
@@ -7,6 +8,8 @@ import { getWorkspacePublishing } from "@/lib/workspace-publishing";
 export const dynamic = "force-dynamic";
 
 export default async function AIContentStudioPage() {
+  const { t } = await getServerI18n();
+
   const ctx = await getAuthContext();
   if (!ctx || !ctx.workspace) {
     redirect("/login");
@@ -17,11 +20,10 @@ export default async function AIContentStudioPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          AI Content Studio
+          {t("customer.text.102")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Generate, refine, preview, and schedule platform-native social content from a single
-          creative brief.
+          {t("customer.text.103")}
         </p>
       </div>
 

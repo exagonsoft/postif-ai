@@ -1,10 +1,13 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
+
 import React, { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandLogo } from "./BrandLogo";
 import { useTheme } from "./ThemeProvider";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import {
   Sun,
   Moon,
@@ -17,6 +20,7 @@ import {
 } from "lucide-react";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
+  const { t } = useAppLanguage();
   const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [solutionsOpen, setSolutionsOpen] = useState(false);
@@ -29,13 +33,11 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <BrandLogo href="/" showByline />
 
           {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-7 lg:flex" aria-label="Main Navigation">
+          <nav className="hidden items-center gap-7 lg:flex" aria-label={t("public.publicShell.text01")}>
             <Link
               href="/features"
               className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              Features
-            </Link>
+            >{t("public.publicShell.text02")}</Link>
 
             <div
               className="relative"
@@ -46,9 +48,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={() => setSolutionsOpen((v) => !v)}
                 className="inline-flex items-center gap-1 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-              >
-                Solutions
-                <motion.span
+              >{t("public.publicShell.text03")}<motion.span
                   animate={{ rotate: solutionsOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
@@ -68,28 +68,22 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                       href="/solutions/creators"
                       className="block rounded-xl px-3.5 py-2.5 transition-colors hover:bg-violet-500/10"
                     >
-                      <div className="text-sm font-semibold">For Creators</div>
-                      <div className="text-xs text-[var(--text-secondary)]">
-                        Turn ideas into daily multi-channel posts
-                      </div>
+                      <div className="text-sm font-semibold">{t("public.publicShell.text04")}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{t("public.publicShell.text05")}</div>
                     </Link>
                     <Link
                       href="/solutions/small-businesses"
                       className="block rounded-xl px-3.5 py-2.5 transition-colors hover:bg-violet-500/10"
                     >
-                      <div className="text-sm font-semibold">For Small Businesses</div>
-                      <div className="text-xs text-[var(--text-secondary)]">
-                        Consistent growth without hiring an agency
-                      </div>
+                      <div className="text-sm font-semibold">{t("public.publicShell.text06")}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{t("public.publicShell.text07")}</div>
                     </Link>
                     <Link
                       href="/solutions/agencies"
                       className="block rounded-xl px-3.5 py-2.5 transition-colors hover:bg-violet-500/10"
                     >
-                      <div className="text-sm font-semibold">For Agencies</div>
-                      <div className="text-xs text-[var(--text-secondary)]">
-                        Multi-brand workspaces & client approvals
-                      </div>
+                      <div className="text-sm font-semibold">{t("public.publicShell.text08")}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{t("public.publicShell.text09")}</div>
                     </Link>
                   </motion.div>
                 )}
@@ -99,54 +93,48 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/pricing"
               className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              Pricing
-            </Link>
+            >{t("public.publicShell.text10")}</Link>
             <Link
               href="/about"
               className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              Resources & About
-            </Link>
+            >{t("public.publicShell.text11")}</Link>
           </nav>
 
           {/* Desktop Actions */}
           <div className="hidden items-center gap-3 lg:flex">
+            <LanguageSelector />
             <motion.button
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.94 }}
               type="button"
               onClick={toggleTheme}
               className="rounded-xl border border-[var(--border-subtle)] p-2 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-              aria-label="Toggle color theme"
-              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label={t("public.publicShell.text12")}
+              title={theme === "dark" ? t("public.publicShell.text13") : t("public.publicShell.text14")}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </motion.button>
             <Link
               href="/login"
               className="rounded-xl px-3.5 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              Login
-            </Link>
+            >{t("public.publicShell.text15")}</Link>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition-all hover:opacity-95"
               >
-                <Sparkles className="h-4 w-4" />
-                Get Started
-              </Link>
+                <Sparkles className="h-4 w-4" />{t("public.publicShell.text16")}</Link>
             </motion.div>
           </div>
 
           {/* Mobile Controls */}
           <div className="flex items-center gap-2 lg:hidden">
+            <LanguageSelector />
             <button
               type="button"
               onClick={toggleTheme}
               className="rounded-xl border border-[var(--border-subtle)] p-2 text-[var(--text-secondary)]"
-              aria-label="Toggle color theme"
+              aria-label={t("public.publicShell.text12")}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -154,7 +142,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
               className="rounded-xl border border-[var(--border-subtle)] p-2 text-[var(--text-primary)]"
-              aria-label="Toggle navigation menu"
+              aria-label={t("public.publicShell.text17")}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -175,59 +163,43 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                 href="/features"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                Features
-              </Link>
+              >{t("public.publicShell.text02")}</Link>
               <Link
                 href="/solutions/creators"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                Solutions: Creators
-              </Link>
+              >{t("public.publicShell.text18")}</Link>
               <Link
                 href="/solutions/small-businesses"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                Solutions: Small Businesses
-              </Link>
+              >{t("public.publicShell.text19")}</Link>
               <Link
                 href="/solutions/agencies"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                Solutions: Agencies
-              </Link>
+              >{t("public.publicShell.text20")}</Link>
               <Link
                 href="/pricing"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                Pricing
-              </Link>
+              >{t("public.publicShell.text10")}</Link>
               <Link
                 href="/about"
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-2 text-sm font-medium hover:bg-violet-500/10"
-              >
-                About & Resources
-              </Link>
+              >{t("public.publicShell.text21")}</Link>
               <div className="flex gap-2 pt-2">
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 rounded-xl border border-[var(--border-subtle)] py-2.5 text-center text-sm font-semibold"
-                >
-                  Login
-                </Link>
+                >{t("public.publicShell.text15")}</Link>
                 <Link
                   href="/register"
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-center text-sm font-semibold text-white"
-                >
-                  Create Free Account
-                </Link>
+                >{t("public.publicShell.text22")}</Link>
               </div>
             </motion.div>
           )}
@@ -242,112 +214,74 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
             <div className="lg:col-span-2">
               <BrandLogo href="/" showByline />
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-                Create Once. Publish Everywhere. Grow Automatically. The intelligent social media
-                command center and autonomous marketing agent built by{" "}
-                <span className="font-semibold text-[var(--text-primary)]">ExagonSoft</span>.
-              </p>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">{t("public.publicShell.text23")}{" "}
+                <span className="font-semibold text-[var(--text-primary)]">ExagonSoft</span>.</p>
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                AES-256-GCM BYOK Vault & Tenant-Isolated Workspaces
-              </div>
+                <ShieldCheck className="h-3.5 w-3.5" />{t("public.publicShell.text25")}</div>
             </div>
 
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Platform
-              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{t("public.publicShell.text26")}</h3>
               <ul className="mt-4 space-y-2.5 text-sm text-[var(--text-secondary)]">
                 <li>
-                  <Link href="/features" className="hover:text-[var(--text-primary)]">
-                    AI Content Studio
-                  </Link>
+                  <Link href="/features" className="hover:text-[var(--text-primary)]">{t("public.home.text12")}</Link>
                 </li>
                 <li>
-                  <Link href="/features#agent" className="hover:text-[var(--text-primary)]">
-                    Autonomous Marketing Agent
-                  </Link>
+                  <Link href="/features#agent" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text27")}</Link>
                 </li>
                 <li>
-                  <Link href="/features#calendar" className="hover:text-[var(--text-primary)]">
-                    Scheduling & Job Queue
-                  </Link>
+                  <Link href="/features#calendar" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text28")}</Link>
                 </li>
                 <li>
-                  <Link href="/pricing" className="hover:text-[var(--text-primary)]">
-                    BYOK vs Managed AI
-                  </Link>
+                  <Link href="/pricing" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text29")}</Link>
                 </li>
                 <li>
-                  <Link href="/app" className="inline-flex items-center gap-1 font-medium text-cyan-400 hover:underline">
-                    Interactive Command Center <ArrowRight className="h-3 w-3" />
+                  <Link href="/app" className="inline-flex items-center gap-1 font-medium text-cyan-400 hover:underline">{t("public.publicShell.text30")}{" "}<ArrowRight className="h-3 w-3" />
                   </Link>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Solutions
-              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{t("public.publicShell.text03")}</h3>
               <ul className="mt-4 space-y-2.5 text-sm text-[var(--text-secondary)]">
                 <li>
-                  <Link href="/solutions/creators" className="hover:text-[var(--text-primary)]">
-                    Creators & Educators
-                  </Link>
+                  <Link href="/solutions/creators" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text31")}</Link>
                 </li>
                 <li>
-                  <Link href="/solutions/small-businesses" className="hover:text-[var(--text-primary)]">
-                    Small Businesses
-                  </Link>
+                  <Link href="/solutions/small-businesses" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text32")}</Link>
                 </li>
                 <li>
-                  <Link href="/solutions/agencies" className="hover:text-[var(--text-primary)]">
-                    Agencies & Multi-Brand
-                  </Link>
+                  <Link href="/solutions/agencies" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text33")}</Link>
                 </li>
                 <li>
-                  <Link href="/register" className="hover:text-[var(--text-primary)]">
-                    Sign Up for Brand Setup
-                  </Link>
+                  <Link href="/register" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text34")}</Link>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Company & Legal
-              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{t("public.publicShell.text35")}</h3>
               <ul className="mt-4 space-y-2.5 text-sm text-[var(--text-secondary)]">
                 <li>
-                  <Link href="/about" className="hover:text-[var(--text-primary)]">
-                    About POSTIF-AI & ExagonSoft
-                  </Link>
+                  <Link href="/about" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text36")}</Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="hover:text-[var(--text-primary)]">
-                    Contact & Enterprise Sales
-                  </Link>
+                  <Link href="/contact" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text37")}</Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="hover:text-[var(--text-primary)]">
-                    Privacy Policy
-                  </Link>
+                  <Link href="/privacy" className="hover:text-[var(--text-primary)]">{t("public.privacy.text01")}</Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="hover:text-[var(--text-primary)]">
-                    Terms of Service
-                  </Link>
+                  <Link href="/terms" className="hover:text-[var(--text-primary)]">{t("public.terms.text01")}</Link>
                 </li>
               </ul>
             </div>
           </div>
 
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--border-subtle)] pt-8 text-xs text-[var(--text-muted)] sm:flex-row">
-            <p>© {new Date().getFullYear()} ExagonSoft. All rights reserved. POSTIF-AI is a product of ExagonSoft.</p>
-            <p>
-              Built on Next.js App Router, MongoDB & OpenAI Architecture. Connect your own social platform credentials.
-            </p>
+            <p>{t("public.footer.copyright", { year: new Date().getFullYear() })}</p>
+            <p>{t("public.publicShell.text38")}</p>
           </div>
         </div>
       </footer>

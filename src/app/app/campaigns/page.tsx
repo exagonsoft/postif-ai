@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -7,6 +8,8 @@ import { getAuthContext } from "@/lib/auth";
 import { CampaignsClient } from "@/components/CampaignsClient";
 export const dynamic = "force-dynamic";
 export default async function CampaignsPage() {
+  const { t } = await getServerI18n();
+
     const ctx = await getAuthContext();
     if (!ctx || !ctx.workspace) {
         redirect("/login");
@@ -18,11 +21,10 @@ export default async function CampaignsPage() {
     return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Marketing Campaigns
+          {t("customer.text.41")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Coordinate multi-week launches and generate AI campaign blueprints with linked draft
-          posts.
+          {t("customer.text.42")}
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import ts from "typescript";
 import "./register-ts.mjs";
 
@@ -68,7 +69,10 @@ export function collectEnvironmentReferences(text, filename = "source.ts") {
           loop.expression.elements.every(element => ts.isStringLiteralLike(element))) {
           for (const element of loop.expression.elements) names.add(element.text);
         } else {
-          dynamic.push({ expression: key, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 });
+          let owner = node.parent;
+          while (owner && !(ts.isFunctionDeclaration(owner) && owner.name)) owner = owner.parent;
+          const signature = owner ? createHash("sha256").update(ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed }).printNode(ts.EmitHint.Unspecified, owner, source)).digest("hex") : undefined;
+          dynamic.push({ expression: key, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, owner: owner?.name.text, signature });
         }
       }
     }
@@ -95,19 +99,13 @@ export async function auditAmplifyEnvironment() {
   const files = [...await sourceFiles(resolve(root, "src")), resolve(root, "next.config.ts")];
   const references = new Map();
   const unresolved = [];
-  const { billingPriceMap } = await import("../src/lib/stripe.ts");
   for (const filename of files) {
     const text = await readFile(filename, "utf8");
     const path = relative(root, filename).split(sep).join("/");
     const result = collectEnvironmentReferences(text, filename);
     const names = new Set(result.names);
     for (const access of result.dynamic) {
-      if (path === "src/lib/stripe.ts" && (access.expression === "name" || access.expression.startsWith("`STRIPE_PRICE_${"))) {
-        for (const entry of billingPriceMap({})) names.add(entry.envName);
-        for (const match of text.matchAll(/["']((?:BILLING|STRIPE)_[A-Z0-9_]+)["']/g)) names.add(match[1]);
-      } else {
-        unresolved.push(`${path}:${access.line}`);
-      }
+      unresolved.push(`${path}:${access.line}`);
     }
     for (const name of names) references.set(name, [...references.get(name) ?? [], path]);
   }

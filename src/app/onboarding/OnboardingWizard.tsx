@@ -1,11 +1,12 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useToast } from "@/components/ToastProvider";
-import { SUBSCRIPTION_PLANS } from "@/lib/plans";
+import type { PlanDefinition } from "@/lib/plans";
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import type { BrandsDocument } from "@/db/schema";
 import {
@@ -19,32 +20,49 @@ import {
   Loader2,
 } from "lucide-react";
 
-const STEPS = [
-  "1. Workspace",
-  "2. Brand Name",
-  "3. Website & AI Discovery",
-  "4. Industry",
-  "5. Products & Services",
-  "6. Target Audience",
-  "7. Communication Tone",
-  "8. Marketing Goals",
-  "9. Social Channels",
-  "10. AI Billing Mode",
-  "11. Subscription Plan",
-];
-
 type InitialBrand = Pick<BrandsDocument, "name" | "websiteUrl" | "industry" | "description" |
   "productsServices" | "targetAudience" | "brandVoice" | "tone" | "marketingGoals" |
   "contentPillars" | "suggestedHashtags">;
 
-export default function OnboardingWizard({ workspaceId, createWorkspace, initialWorkspaceName, initialBrand, initialAiBillingMode, allowedAiModes }: {
+export default function OnboardingWizard({ workspaceId, createWorkspace, initialWorkspaceName, initialBrand, initialAiBillingMode, allowedAiModes, catalogPlans, currentPlan }: {
   workspaceId: number;
   createWorkspace: boolean;
   initialWorkspaceName: string;
   initialBrand: InitialBrand | null;
   initialAiBillingMode: "managed" | "byok";
   allowedAiModes: ("managed" | "byok")[];
+  catalogPlans: PlanDefinition[];
+  currentPlan: PlanDefinition;
 }) {
+  const { t, formatNumber } = useAppLanguage();
+
+    const STEPS = [
+      t("customer.text.109"),
+      t("customer.text.110"),
+      t("customer.text.111"),
+      t("customer.text.112"),
+      t("customer.text.113"),
+      t("customer.text.114"),
+      t("customer.text.115"),
+      t("customer.text.116"),
+      t("customer.text.117"),
+      t("customer.text.118"),
+      t("customer.text.119"),
+    ];
+  const displayLabel = (value: string) => ({
+    "AI & Developer Infrastructure": t("customer.text.148"),
+    "B2B SaaS": t("customer.text.149"),
+    "E-Commerce & Consumer Brands": t("customer.text.150"),
+    "Health, Fitness & Wellness": t("customer.text.151"),
+    "Marketing Agency": t("customer.text.152"),
+    "FinTech & Financial Services": t("customer.text.153"),
+    "Innovative & Visionary": t("customer.text.158"),
+    "Authoritative & Executive": t("customer.text.159"),
+    "Friendly & Conversational": t("customer.text.160"),
+    "Educational & Practical": t("customer.text.161"),
+    "Bold & Provocative": t("customer.text.162"),
+    "Empathetic & Community-First": t("customer.text.163")
+  } as Record<string, string>)[value] ?? value;
   const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState(0);
@@ -88,7 +106,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Brand discovery failed", data.error || "Configure your AI provider or enter your brand details manually.", "error");
+        toast(t("customer.text.121"), data.error || t("customer.text.122"), "error");
         return;
       }
       const d = data.discovery;
@@ -102,11 +120,11 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
       setSuggestedHashtags(d.suggestedHashtags || []);
       setInitialStrategy(d.initialStrategy || "");
       toast(
-        "AI Brand Discovery complete",
-        `Generated suggestions from your brief (${data.meta?.executionSource}). Review and verify them below.`
+        t("customer.text.123"),
+        t("customer.discoverySuggestions", { source: data.meta?.executionSource ?? "" })
       );
     } catch (error) {
-      toast("Brand discovery interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
+      toast(t("customer.text.124"), error instanceof Error ? error.message : t("customer.text.60"), "error");
     } finally {
       setDiscovering(false);
     }
@@ -154,10 +172,10 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Setup error", data.error || "Could not finalize workspace.", "error");
+        toast(t("customer.text.126"), data.error || t("customer.text.127"), "error");
         return;
       }
-      toast("Workspace configured!", `${brandName} is ready in your POSTIF-AI Command Center.`);
+      toast(t("customer.text.128"), t("customer.brandReady", { name: brandName }));
       router.push("/app");
       router.refresh();
     } finally {
@@ -171,7 +189,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
         <div className="flex flex-wrap items-center justify-between gap-4">
           <BrandLogo href="/" showByline />
           <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1 text-xs font-bold text-violet-300">
-            Step {step + 1} of {STEPS.length}: {STEPS[step]}
+            {t("customer.stepOf", { step: formatNumber(step + 1), total: formatNumber(STEPS.length), title: STEPS[step] })}
           </span>
         </div>
 
@@ -207,16 +225,16 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
         <div className="surface-card mt-6 rounded-3xl p-6 shadow-2xl sm:p-10">
           {step === 0 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">1. {createWorkspace ? "Create" : "Configure"} Your Workspace</h1>
+              <h1 className="text-2xl font-extrabold">{createWorkspace ? t("customer.createWorkspace") : t("customer.configureWorkspace")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">
                 {createWorkspace
-                  ? "Create an additional workspace with its own brand, team roles, social tokens, and AI billing settings."
-                  : "Your account and workspace are ready. Confirm the workspace name before setting up your brand."}
+                  ? t("customer.text.135")
+                  : t("customer.text.136")}
               </p>
               <input
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
-                placeholder="Your workspace name"
+                placeholder={t("customer.text.137")}
                 className="elevated-card w-full rounded-2xl px-4 py-3 text-base font-semibold focus:border-violet-500 focus:outline-none"
               />
             </div>
@@ -224,14 +242,14 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 1 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">2. Enter Company or Brand Name</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.138")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">
-                You can add additional client or sub-brands anytime from Brands & Workspaces.
+                {t("customer.text.139")}
               </p>
               <input
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
-                placeholder="Your brand name"
+                placeholder={t("customer.text.140")}
                 className="elevated-card w-full rounded-2xl px-4 py-3 text-base font-semibold focus:border-violet-500 focus:outline-none"
               />
             </div>
@@ -241,10 +259,9 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl font-extrabold">3. Website URL & AI Brand Discovery</h1>
+                  <h1 className="text-2xl font-extrabold">{t("customer.text.141")}</h1>
                   <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                    Let POSTIF-AI analyze your brand profile and propose content pillars, audience
-                    segments, voice, and hashtags for your review.
+                    {t("customer.text.142")}
                   </p>
                 </div>
                 <button
@@ -258,7 +275,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  Run AI Brand Discovery
+                  {t("customer.text.143")}
                 </button>
               </div>
 
@@ -275,10 +292,10 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
               {initialStrategy && (
                 <div className="elevated-card space-y-3 rounded-2xl border border-cyan-500/30 p-5">
                   <div className="text-xs font-bold uppercase tracking-wider text-cyan-400">
-                    AI Proposed Brand Intelligence (Review & Approve)
+                    {t("customer.text.144")}
                   </div>
                   <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    <strong>Initial Strategy:</strong> {initialStrategy}
+                    <strong>{t("customer.text.145")}</strong> {initialStrategy}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {contentPillars.map((p) => (
@@ -286,7 +303,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                         key={p}
                         className="rounded-lg bg-violet-500/15 px-2.5 py-1 text-xs font-semibold text-violet-300"
                       >
-                        Pillar: {p}
+                        {t("customer.text.146")}{" "} {p}
                       </span>
                     ))}
                   </div>
@@ -307,7 +324,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 3 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">4. Select Industry</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.147")}</h1>
               <input
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
@@ -330,7 +347,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                       industry === ind ? "bg-violet-600 text-white" : "elevated-card"
                     }`}
                   >
-                    {ind}
+                    {displayLabel(ind)}
                   </button>
                 ))}
               </div>
@@ -339,7 +356,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 4 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">5. Describe Products or Services</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.154")}</h1>
               <textarea
                 rows={4}
                 value={productsServices}
@@ -350,7 +367,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Company positioning summary"
+                placeholder={t("customer.text.155")}
                 className="elevated-card w-full rounded-2xl p-4 text-sm"
               />
             </div>
@@ -358,7 +375,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 5 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">6. Define Target Audience</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.156")}</h1>
               <textarea
                 rows={3}
                 value={targetAudience}
@@ -370,7 +387,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 6 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">7. Choose Communication Tone & Voice</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.157")}</h1>
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
                   "Innovative & Visionary",
@@ -390,14 +407,14 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                         : "elevated-card hover:border-violet-500/40"
                     }`}
                   >
-                    {t}
+                    {displayLabel(t)}
                   </button>
                 ))}
               </div>
               <input
                 value={brandVoice}
                 onChange={(e) => setBrandVoice(e.target.value)}
-                placeholder="Custom brand voice notes"
+                placeholder={t("customer.text.165")}
                 className="elevated-card w-full rounded-xl px-4 py-2.5 text-sm"
               />
             </div>
@@ -405,12 +422,12 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 7 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">8. Select Marketing Goals</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.166")}</h1>
               <div className="flex gap-2">
                 <input
                   value={goalInput}
                   onChange={(e) => setGoalInput(e.target.value)}
-                  placeholder="Add a custom goal..."
+                  placeholder={t("customer.text.167")}
                   className="elevated-card flex-1 rounded-xl px-4 py-2.5 text-sm"
                 />
                 <button
@@ -418,7 +435,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   onClick={addGoal}
                   className="rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white"
                 >
-                  Add
+                  {t("customer.text.168")}
                 </button>
               </div>
               <div className="space-y-2">
@@ -435,7 +452,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                       }
                       className="text-xs text-rose-400 hover:underline"
                     >
-                      Remove
+                      {t("customer.text.169")}
                     </button>
                   </div>
                 ))}
@@ -445,9 +462,9 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 8 && (
             <div className="space-y-4">
-              <h1 className="text-2xl font-extrabold">9. Connect Social Media Channels</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.170")}</h1>
               <p className="text-xs text-[var(--text-secondary)]">
-                Select the channels you plan to use. No connection is created until you add and verify your own credentials in Social Media Integrations.
+                {t("customer.text.171")}
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => {
@@ -474,7 +491,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 9 && (
             <div className="space-y-5">
-              <h1 className="text-2xl font-extrabold">10. Select BYOK or Managed AI</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.174")}</h1>
               <div className="grid gap-4 sm:grid-cols-2">
                 <button
                   type="button"
@@ -487,9 +504,9 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   }`}
                 >
                   <Cpu className="h-6 w-6 text-cyan-400" />
-                  <div className="mt-3 text-base font-extrabold">Managed AI Credits</div>
+                  <div className="mt-3 text-base font-extrabold">{t("customer.text.175")}</div>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    Included with a paid AI plan. Free uses your own OpenAI key.
+                    {t("customer.text.176")}
                   </p>
                 </button>
 
@@ -504,9 +521,9 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                   }`}
                 >
                   <KeyRound className="h-6 w-6 text-violet-400" />
-                  <div className="mt-3 text-base font-extrabold">Bring Your Own Key (BYOK)</div>
+                  <div className="mt-3 text-base font-extrabold">{t("customer.text.177")}</div>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    Supply your OpenAI API key (`sk-...`). Stored encrypted with AES-256-GCM.
+                    {t("customer.text.178")}
                   </p>
                 </button>
               </div>
@@ -514,7 +531,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
               {aiBillingMode === "byok" && (
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Optional OpenAI API Key (can also be added later in Billing & AI)
+                    {t("customer.text.179")}
                   </label>
                   <input
                     type="password"
@@ -530,9 +547,10 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
 
           {step === 10 && (
             <div className="space-y-5">
-              <h1 className="text-2xl font-extrabold">11. Select Subscription Plan</h1>
+              <h1 className="text-2xl font-extrabold">{t("customer.text.180")}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">{t("customer.text.181")}{" "} {currentPlan.name} · {formatNumber(currentPlan.maxBrands)} {t("customer.text.182")}{" "} {formatNumber(currentPlan.maxChannels)} {t("customer.text.183")}{" "} {formatNumber(currentPlan.maxPostsPerMonth)} {t("customer.text.184")}{" "} {formatNumber(currentPlan.includedMonthlyCredits)} {t("customer.text.185")}</p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
+                {catalogPlans.map((plan) => (
                   <button
                     key={plan.slug}
                     type="button"
@@ -547,14 +565,15 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-extrabold">{plan.name}</span>
                       <span className="text-base font-extrabold text-cyan-400">
-                        ${plan.monthlyPrice}/mo
+                        {formatNumber(plan.monthlyPrice, { style: "currency", currency: "USD", maximumFractionDigits: 0 })}{t("customer.text.186")}
                       </span>
                     </div>
                     <p className="mt-1.5 text-xs text-[var(--text-secondary)]">{plan.tagline}</p>
+                    {plan.slug !== "free" && <p className="mt-2 text-xs">{plan.purchasable ? t("customer.text.187") : t("customer.text.188")}</p>}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[var(--text-muted)]">New workspaces start on Free with BYOK and no included credits. Upgrade securely through Billing after setup.</p>
+              <p className="text-xs text-[var(--text-muted)]">{t("customer.text.189")}</p>
             </div>
           )}
 
@@ -566,7 +585,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               className="elevated-card inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold disabled:opacity-40"
             >
-              <ArrowLeft className="h-4 w-4" /> Previous
+              <ArrowLeft className="h-4 w-4" /> {t("customer.text.190")}
             </button>
 
             {step < STEPS.length - 1 ? (
@@ -575,7 +594,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                 onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
                 className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-xs font-bold text-white"
               >
-                Next Step <ArrowRight className="h-4 w-4" />
+                {t("customer.text.191")}{" "} <ArrowRight className="h-4 w-4" />
               </button>
             ) : (
               <button
@@ -589,7 +608,7 @@ export default function OnboardingWizard({ workspaceId, createWorkspace, initial
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                Launch My Workspace
+                {t("customer.text.192")}
               </button>
             )}
           </div>

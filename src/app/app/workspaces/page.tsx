@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -8,6 +9,8 @@ import { getWorkspaceEntitlements } from "@/lib/entitlements";
 import { WorkspacesClient } from "@/components/WorkspacesClient";
 export const dynamic = "force-dynamic";
 export default async function BrandsWorkspacesPage() {
+  const { t } = await getServerI18n();
+
     const ctx = await getAuthContext();
     if (!ctx || !ctx.workspace) {
         redirect("/login");
@@ -19,10 +22,10 @@ export default async function BrandsWorkspacesPage() {
     return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Brands, Agencies & Team Governance
+          {t("customer.text.105")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Manage multi-brand profiles, role-based access control, and tenant data exports.
+          {t("customer.text.106")}
         </p>
       </div>
 
@@ -40,6 +43,6 @@ export default async function BrandsWorkspacesPage() {
             role: m.role,
             status: m.status,
         }))} maxBrands={plan.maxBrands} planName={plan.name} currentRole={ctx.memberRole} teamEnabled={features.team}
-        invitations={invites.map(invite => ({ id: invite.id, workspaceName: invitedWorkspaces.find(workspace => workspace.id === invite.workspaceId)?.name || "Workspace", role: invite.role }))}/>
+        invitations={invites.map(invite => ({ id: invite.id, workspaceName: invitedWorkspaces.find(workspace => workspace.id === invite.workspaceId)?.name || t("customer.text.15"), role: invite.role }))}/>
     </div>);
 }

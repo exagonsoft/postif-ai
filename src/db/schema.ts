@@ -2,6 +2,7 @@ import { defineCollection } from "./model";
 import { entitlementCollections } from "./entitlement-schema";
 import { accountCollections } from "./account-schema";
 import { billingCollections } from "./billing-schema";
+import { catalogCollections } from "./catalog-schema";
 import { socialLifecycleCollections } from "./social-lifecycle-schema";
 import { workerCollections } from "./worker-schema";
 import { mediaUploadCollections } from "./media-upload-schema";
@@ -70,19 +71,18 @@ export interface WorkspacesDocument {
   aiCreditsBalance: number;
   aiCreditsMonthlyAllowance: number;
   postsPublishedThisMonth: number;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  paypalSubscriptionId: string | null;
   subscriptionStatus: string;
   createdAt: Date;
 }
 export const workspaces = defineCollection<WorkspacesDocument>("workspaces", {
-  defaults: () => ({ planSlug: "free", billingCycle: "monthly", aiBillingMode: "byok", aiCreditsBalance: 0, aiCreditsMonthlyAllowance: 0, postsPublishedThisMonth: 0, stripeCustomerId: null, stripeSubscriptionId: null, subscriptionStatus: "inactive", createdAt: new Date() }),
+  defaults: () => ({ planSlug: "free", billingCycle: "monthly", aiBillingMode: "byok", aiCreditsBalance: 0, aiCreditsMonthlyAllowance: 0, postsPublishedThisMonth: 0, paypalSubscriptionId: null, subscriptionStatus: "inactive", createdAt: new Date() }),
   primaryKey: "id",
   autoId: true,
   unique: ["id","slug"],
   indexes: [],
   references: [{"target":"users","field":"ownerId","onDelete":"cascade"}],
-  validator: {"bsonType":"object","required":["id","name","slug","ownerId","planSlug","billingCycle","aiBillingMode","aiCreditsBalance","aiCreditsMonthlyAllowance","postsPublishedThisMonth","stripeCustomerId","stripeSubscriptionId","subscriptionStatus","createdAt"],"properties":{"id":{"bsonType":["int","long","double"]},"name":{"bsonType":"string"},"slug":{"bsonType":"string"},"ownerId":{"bsonType":["int","long","double"]},"planSlug":{"bsonType":"string"},"billingCycle":{"bsonType":"string"},"aiBillingMode":{"bsonType":"string"},"aiCreditsBalance":{"bsonType":["int","long","double"]},"aiCreditsMonthlyAllowance":{"bsonType":["int","long","double"]},"postsPublishedThisMonth":{"bsonType":["int","long","double"]},"stripeCustomerId":{"bsonType":["string","null"]},"stripeSubscriptionId":{"bsonType":["string","null"]},"subscriptionStatus":{"bsonType":"string"},"createdAt":{"bsonType":"date"}}},
+  validator: {"bsonType":"object","required":["id","name","slug","ownerId","planSlug","billingCycle","aiBillingMode","aiCreditsBalance","aiCreditsMonthlyAllowance","postsPublishedThisMonth","subscriptionStatus","createdAt"],"properties":{"id":{"bsonType":["int","long","double"]},"name":{"bsonType":"string"},"slug":{"bsonType":"string"},"ownerId":{"bsonType":["int","long","double"]},"planSlug":{"bsonType":"string"},"billingCycle":{"bsonType":"string"},"aiBillingMode":{"bsonType":"string"},"aiCreditsBalance":{"bsonType":["int","long","double"]},"aiCreditsMonthlyAllowance":{"bsonType":["int","long","double"]},"postsPublishedThisMonth":{"bsonType":["int","long","double"]},"paypalSubscriptionId":{"bsonType":["string","null"]},"subscriptionStatus":{"bsonType":"string"},"createdAt":{"bsonType":"date"}}},
 });
 
 export interface WorkspaceMembersDocument {
@@ -556,4 +556,4 @@ export const socialCredentials = defineCollection<SocialCredentialsDocument>("so
   validator: { bsonType: "object", required: ["socialAccountId", "workspaceId", "encryptedCredentials", "verifiedAt", "expiresAt"], properties: { socialAccountId: { bsonType: ["int", "long", "double"] }, workspaceId: { bsonType: ["int", "long", "double"] }, encryptedCredentials: { bsonType: "string" }, verifiedAt: { bsonType: "date" }, expiresAt: { bsonType: ["date", "null"] } } },
 });
 
-export const collections = [users, sessions, workspaces, workspaceMembers, brands, socialAccounts, aiConfigurations, aiUsageRecords, posts, publishingJobs, campaigns, mediaAssets, agentConfigurations, agentActions, analyticsSnapshots, notifications, auditLogs, featureFlags, notificationPreferences, pushSubscriptions, notificationDeliveries, socialCredentials, ...entitlementCollections, ...accountCollections, ...billingCollections, ...socialLifecycleCollections, ...workerCollections, ...mediaUploadCollections];
+export const collections = [users, sessions, workspaces, workspaceMembers, brands, socialAccounts, aiConfigurations, aiUsageRecords, posts, publishingJobs, campaigns, mediaAssets, agentConfigurations, agentActions, analyticsSnapshots, notifications, auditLogs, featureFlags, notificationPreferences, pushSubscriptions, notificationDeliveries, socialCredentials, ...entitlementCollections, ...accountCollections, ...billingCollections, ...catalogCollections, ...socialLifecycleCollections, ...workerCollections, ...mediaUploadCollections];

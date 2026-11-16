@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import type { generateCampaignBlueprint } from "@/lib/ai-engine";
@@ -33,11 +34,14 @@ interface CampaignDTO {
 }
 
 export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
+  const { t, formatDate, formatNumber } = useAppLanguage();
+  const displayStatus = (value: string) => ["draft","active","paused","completed","archived"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const router = useRouter();
   const { toast } = useToast();
 
   const [prompt, setPrompt] = useState("");
-  const [objective, setObjective] = useState("Product Launch & Qualified Signups");
+  const [objective, setObjective] = useState(t("customer.text.338"));
   const [platforms, setPlatforms] = useState<string[]>(["linkedin", "x", "instagram"]);
   const [generating, setGenerating] = useState(false);
   const [requestAi] = useState(createIdempotentFetcher);
@@ -68,12 +72,12 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
       });
       const aiData = await aiRes.json();
       if (!aiRes.ok) {
-        toast("Campaign AI error", aiData.error || "Could not generate blueprint.", "error");
+        toast(t("customer.text.339"), aiData.error || t("customer.text.340"), "error");
         return;
       }
 
       bp = aiData.blueprint;
-      if (!bp) throw new Error("The generated campaign was empty.");
+      if (!bp) throw new Error(t("customer.text.341"));
       setPendingBlueprint({ signature, blueprint: bp });
       }
       const createRes = await requestAi("/api/campaigns", {
@@ -95,16 +99,16 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
       if (createRes.ok) {
         setPendingBlueprint(null);
         toast(
-          "4-Week Campaign Created!",
-          `Generated strategy themes and ${bp.samplePosts?.length || 0} starter draft posts.`
+          t("customer.text.342"),
+          t("customer.generatedCampaign", { count: formatNumber(bp.samplePosts?.length || 0) })
         );
         router.refresh();
       } else {
         const result = await createRes.json();
-        throw new Error(result.error || "Generated campaign could not be saved. Retry to save without another AI request.");
+        throw new Error(result.error || t("customer.text.343"));
       }
     } catch (error) {
-      toast("Campaign request failed", error instanceof Error ? error.message : "Try again to resume the same request.", "error");
+      toast(t("customer.text.344"), error instanceof Error ? error.message : t("customer.text.345"), "error");
     } finally {
       setGenerating(false);
     }
@@ -117,7 +121,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
       body: JSON.stringify({ action: "update_status", campaignId, status }),
     });
     if (res.ok) {
-      toast("Campaign updated", `Status set to ${status}.`);
+      toast(t("customer.text.346"), t("customer.statusSet", { status: displayStatus(status) }));
       router.refresh();
     }
   };
@@ -129,7 +133,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
       body: JSON.stringify({ action: "delete", campaignId }),
     });
     if (res.ok) {
-      toast("Campaign deleted");
+      toast(t("customer.text.347"));
       router.refresh();
     }
   };
@@ -141,18 +145,17 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
         <div className="flex items-center gap-2 text-cyan-400">
           <Sparkles className="h-5 w-5" />
           <h2 className="text-base font-extrabold text-[var(--text-primary)]">
-            AI Campaign Architect
+            {t("customer.text.348")}
           </h2>
         </div>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          Describe your campaign goal and POSTIF-AI will propose content themes, weekly cadence,
-          messaging strategy, and starter draft posts.
+          {t("customer.text.349")}
         </p>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-12">
           <div className="lg:col-span-6">
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Campaign Brief
+              {t("customer.text.350")}
             </label>
             <textarea
               rows={3}
@@ -165,7 +168,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
           <div className="space-y-3 lg:col-span-6">
             <div>
               <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                Primary Objective
+                {t("customer.text.351")}
               </label>
               <input
                 value={objective}
@@ -176,7 +179,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
 
             <div>
               <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                Target Channels
+                {t("customer.text.76")}
               </label>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => (
@@ -209,7 +212,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
           ) : (
             <Megaphone className="h-4 w-4" />
           )}
-          {pendingBlueprint?.signature === JSON.stringify({ prompt, objective, platforms }) ? "Retry Saving Generated Campaign" : "Generate 4-Week Campaign & Starter Posts"}
+          {pendingBlueprint?.signature === JSON.stringify({ prompt, objective, platforms }) ? t("customer.text.354") : t("customer.text.355")}
         </button>
       </div>
 
@@ -220,11 +223,11 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-400">
-                  {camp.status}
+                  {displayStatus(camp.status)}
                 </span>
                 {camp.isSampleData && (
                   <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-300">
-                    Sample Campaign
+                    {t("customer.text.356")}
                   </span>
                 )}
               </div>
@@ -235,10 +238,10 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
               <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[var(--text-muted)]">
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5 text-cyan-400" />
-                  {camp.startDate} → {camp.endDate}
+                  {camp.startDate && !Number.isNaN(Date.parse(camp.startDate)) ? formatDate(camp.startDate, { dateStyle: "medium", timeZone: "UTC" }) : camp.startDate} → {camp.endDate && !Number.isNaN(Date.parse(camp.endDate)) ? formatDate(camp.endDate, { dateStyle: "medium", timeZone: "UTC" }) : camp.endDate}
                 </span>
-                <span>• {camp.weeklyCadence} posts/wk</span>
-                <span>• {camp.linkedPostCount} linked post(s)</span>
+                <span>• {formatNumber(camp.weeklyCadence)} {t("customer.text.357")}</span>
+                <span>• {formatNumber(camp.linkedPostCount)} {t("customer.text.358")}</span>
               </div>
 
               {camp.strategySummary && (
@@ -269,7 +272,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
                     onClick={() => handleStatusChange(camp.id, "active")}
                     className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-300"
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Activate
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {t("customer.text.359")}
                   </button>
                 )}
                 {camp.status === "active" && (
@@ -278,7 +281,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
                     onClick={() => handleStatusChange(camp.id, "paused")}
                     className="elevated-card rounded-xl px-3 py-1.5 text-xs font-semibold"
                   >
-                    Pause
+                    {t("customer.text.360")}
                   </button>
                 )}
               </div>
@@ -287,7 +290,7 @@ export function CampaignsClient({ campaigns }: { campaigns: CampaignDTO[] }) {
                 type="button"
                 onClick={() => handleDelete(camp.id)}
                 className="rounded-xl p-2 text-rose-400 hover:bg-rose-500/10"
-                title="Delete campaign"
+                title={t("customer.text.361")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>

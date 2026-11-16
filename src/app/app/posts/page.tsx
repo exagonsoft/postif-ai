@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -10,6 +11,8 @@ import { Wand2 } from "lucide-react";
 import { getWorkspacePublishing } from "@/lib/workspace-publishing";
 export const dynamic = "force-dynamic";
 export default async function PostsPage() {
+  const { t } = await getServerI18n();
+
     const ctx = await getAuthContext();
     if (!ctx || !ctx.workspace) {
         redirect("/login");
@@ -21,14 +24,14 @@ export default async function PostsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {isTeamWorkspace ? "Posts & Team Approvals" : "Your Posts"}
+            {isTeamWorkspace ? t("customer.text.47") : t("customer.text.48")}
           </h1>
           <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-            {isTeamWorkspace ? "Create, review, and schedule posts with your team." : "Generate, schedule, and publish. Review first only when you choose to."}
+            {isTeamWorkspace ? t("customer.text.49") : t("customer.text.50")}
           </p>
         </div>
         <Link href="/app/studio" className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg">
-          <Wand2 className="h-4 w-4"/> Create New Post
+          <Wand2 className="h-4 w-4"/> {t("customer.text.51")}
         </Link>
       </div>
 

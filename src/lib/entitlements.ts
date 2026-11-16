@@ -2,7 +2,8 @@ import { db } from "@/db";
 import { brands, posts, socialAccounts, publishingJobs, workspaces, type PostsDocument } from "@/db/schema";
 import { billingSubscriptions } from "@/db/billing-schema";
 import { publishingReservations } from "@/db/entitlement-schema";
-import { getPlanDefinition } from "./plans";
+import { getFreePlan } from "./billing-catalog";
+import { getPayPalEnvironment } from "./paypal";
 import { WorkflowError } from "./post-policy";
 
 type Connection = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -14,10 +15,10 @@ export function usagePeriod(now = new Date()) {
 
 export async function getWorkspaceEntitlements(workspaceId: number, connection: Connection = db) {
   const [subscription] = await connection.find(billingSubscriptions, { workspaceId });
-  const candidate = getPlanDefinition(subscription?.planSlug || "free");
-  const paid = candidate.slug !== "free" && subscription?.paidThrough instanceof Date &&
+  const candidate = subscription?.planSnapshot;
+  const paid = !!candidate && candidate.slug !== "free" && subscription?.environment === getPayPalEnvironment() && subscription?.paidThrough instanceof Date &&
     subscription.paidThrough.getTime() > Date.now();
-  const plan = paid ? candidate : getPlanDefinition("free");
+  const plan = paid && candidate ? candidate : await getFreePlan(connection);
   return {
     plan,
     paid,

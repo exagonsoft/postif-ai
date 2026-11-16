@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
@@ -9,6 +10,15 @@ import { PlatformVariant } from "@/db/schema";
 import { Repeat, Sparkles, Save, Loader2, ShieldCheck } from "lucide-react";
 
 export default function SmartRepurposePage() {
+  const { t, formatNumber } = useAppLanguage();
+
+  const displayLabel = (value: string) => ({
+    "Blog Post": t("customer.text.66"),
+    "Product Description": t("customer.text.67"),
+    "Long-Form Article": t("customer.text.68"),
+    "Existing Post Refresh": t("customer.text.69"),
+    "Business Announcement": t("customer.text.70")
+  } as Record<string, string>)[value] ?? value;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -35,7 +45,7 @@ export default function SmartRepurposePage() {
 
   const handleRepurpose = async () => {
     if (!sourceText.trim() || platforms.length === 0) {
-      toast("Missing inputs", "Provide source text and select at least one channel.", "error");
+      toast(t("customer.text.54"), t("customer.text.55"), "error");
       return;
     }
     setLoading(true);
@@ -55,17 +65,17 @@ export default function SmartRepurposePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Repurpose error", data.error || "Could not repurpose content.", "error");
+        toast(t("customer.text.56"), data.error || t("customer.text.57"), "error");
         return;
       }
       setVariants(data.variants);
       toast(
-        "Content repurposed!",
-        `Generated ${Object.keys(data.variants).length} distinct channel adaptations.`
+        t("customer.text.58"),
+        t("customer.generatedAdaptations", { count: formatNumber(Object.keys(data.variants).length) })
       );
       router.refresh();
     } catch (error) {
-      toast("Repurposing interrupted", error instanceof Error ? error.message : "Retry to resume this request.", "error");
+      toast(t("customer.text.59"), error instanceof Error ? error.message : t("customer.text.60"), "error");
     } finally {
       setLoading(false);
     }
@@ -79,8 +89,8 @@ export default function SmartRepurposePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "create",
-        title: `Repurposed ${sourceType}: ${sourceText.slice(0, 42)}...`,
-        topic: `Repurposed ${sourceType}`,
+        title: t("customer.repurposedTitle", { type: displayLabel(sourceType), text: sourceText.slice(0, 42) }),
+        topic: t("customer.repurposedTopic", { type: displayLabel(sourceType) }),
         baseContent: primary?.content || sourceText,
         contentType: `Repurposed ${sourceType}`,
         tone,
@@ -90,7 +100,7 @@ export default function SmartRepurposePage() {
       }),
     });
     if (res.ok) {
-      toast("Saved to Drafts", "Multi-platform repurposed post saved to your Posts queue.");
+      toast(t("customer.text.61"), t("customer.text.62"));
       router.push("/app/posts");
       router.refresh();
     }
@@ -100,11 +110,10 @@ export default function SmartRepurposePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Smart Content Repurposing
+          {t("customer.text.63")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Transform blog articles, product descriptions, announcements, or top posts into native
-          multi-channel campaigns while preserving brand voice.
+          {t("customer.text.64")}
         </p>
       </div>
 
@@ -112,7 +121,7 @@ export default function SmartRepurposePage() {
         <div className="surface-card space-y-5 rounded-3xl p-6 lg:col-span-5">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Source Material Type
+              {t("customer.text.65")}
             </label>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {[
@@ -132,7 +141,7 @@ export default function SmartRepurposePage() {
                       : "elevated-card text-[var(--text-secondary)]"
                   }`}
                 >
-                  {type}
+                  {displayLabel(type)}
                 </button>
               ))}
             </div>
@@ -140,7 +149,7 @@ export default function SmartRepurposePage() {
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Source Text / URL Summary
+              {t("customer.text.72")}
             </label>
             <textarea
               rows={7}
@@ -152,7 +161,7 @@ export default function SmartRepurposePage() {
 
           <div className="space-y-2.5 rounded-2xl border border-[var(--border-subtle)] p-4">
             <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-400">
-              <ShieldCheck className="h-4 w-4" /> Semantic & Voice Guardrails
+              <ShieldCheck className="h-4 w-4" /> {t("customer.text.73")}
             </div>
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -161,7 +170,7 @@ export default function SmartRepurposePage() {
                 onChange={(e) => setPreserveMeaning(e.target.checked)}
                 className="accent-violet-600"
               />
-              Preserve factual metrics & core thesis
+              {t("customer.text.74")}
             </label>
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -170,13 +179,13 @@ export default function SmartRepurposePage() {
                 onChange={(e) => setAvoidRepetition(e.target.checked)}
                 className="accent-violet-600"
               />
-              Vary hooks & angle per platform to avoid duplicate copy
+              {t("customer.text.75")}
             </label>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Target Channels
+              {t("customer.text.76")}
             </label>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => (
@@ -207,7 +216,7 @@ export default function SmartRepurposePage() {
             ) : (
               <Repeat className="h-4 w-4" />
             )}
-            Repurpose Across Selected Channels
+            {t("customer.text.78")}
           </button>
         </div>
 
@@ -215,24 +224,23 @@ export default function SmartRepurposePage() {
           {!variants ? (
             <div className="surface-card flex h-full min-h-[380px] flex-col items-center justify-center rounded-3xl p-8 text-center">
               <Sparkles className="h-10 w-10 text-violet-400" />
-              <h2 className="mt-4 text-lg font-extrabold">Ready to Multiply Your Content</h2>
+              <h2 className="mt-4 text-lg font-extrabold">{t("customer.text.79")}</h2>
               <p className="mt-1 max-w-md text-xs text-[var(--text-secondary)]">
-                Paste any long-form article, changelog, or product description on the left and
-                generate distinct platform-native posts in one click.
+                {t("customer.text.80")}
               </p>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-extrabold">
-                  Generated Channel Adaptations ({Object.keys(variants).length})
+                  {t("customer.text.81")}{formatNumber(Object.keys(variants).length)})
                 </h2>
                 <button
                   type="button"
                   onClick={saveAllAsDraft}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white"
                 >
-                  <Save className="h-3.5 w-3.5" /> Save Multi-Platform Draft
+                  <Save className="h-3.5 w-3.5" /> {t("customer.text.82")}
                 </button>
               </div>
 
@@ -245,7 +253,7 @@ export default function SmartRepurposePage() {
                         {spec?.name || platId} • {v.formatLabel}
                       </span>
                       <span className="text-[11px] text-[var(--text-muted)]">
-                        {v.content.length} chars
+                        {formatNumber(v.content.length)} {t("customer.text.83")}
                       </span>
                     </div>
                     <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-relaxed">

@@ -3,13 +3,14 @@
 ENCRYPTION_SECRET=
 WORKER_SECRET=
 # In-app worker sweep limit; optional, 5000-25000 milliseconds.
-WORKER_BUDGET_MS=24000
+# WORKER_BUDGET_MS=24000
 
 # Required: MongoDB Atlas or a replica set, plus an explicit database name.
 MONGODB_URI=
 MONGODB_DB=
 
-# Required: public HTTPS origin. Loopback HTTP is allowed for local testing only.
+# Required: public HTTPS origin, also used for SEO canonical URLs, sitemap and social images.
+# Set the canonical production domain on deployment; loopback HTTP is for local testing only.
 APP_URL=
 # Production on Amplify: SDK default credential chain uses the SSR Compute role.
 MEDIA_STORAGE_PROVIDER=s3
@@ -18,33 +19,25 @@ S3_MEDIA_BUCKET=
 S3_MEDIA_PREFIX=media/
 # Local development: select local and optionally set an absolute directory.
 # Not required for S3; never use Amplify's ephemeral disk for permanent storage.
-MEDIA_STORAGE_DIR=
+# MEDIA_STORAGE_DIR=
 
 # Optional Managed AI. Customers can configure encrypted OpenAI BYOK in their workspace.
 OPENAI_API_KEY=
-OPENAI_IMAGE_MODEL=gpt-image-1.5
+# OPENAI_IMAGE_MODEL=gpt-image-1.5
 # Text-capable orchestrator for durable background image-generation responses.
-OPENAI_IMAGE_RESPONSE_MODEL=gpt-5.2
+# OPENAI_IMAGE_RESPONSE_MODEL=gpt-5.2
 RUNWAY_API_KEY=
 # FFmpeg is required for GIF generation and PNG/WebP-to-JPEG conversion for Instagram.
-FFMPEG_PATH=
+# FFMPEG_PATH=
 
-# Enable only after configuring matching USD Prices, webhook and restricted Portal.
+# Sandbox first. Publish subscription products/plans in the operator admin panel.
+# Enable only after configuring PayPal credentials and a real app webhook.
 BILLING_ENABLED=false
 BILLING_APP_URL=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PORTAL_CONFIGURATION_ID=
-STRIPE_PRICE_STARTER_BYOK_MONTHLY=
-STRIPE_PRICE_STARTER_BYOK_ANNUAL=
-STRIPE_PRICE_STARTER_AI_MONTHLY=
-STRIPE_PRICE_STARTER_AI_ANNUAL=
-STRIPE_PRICE_PRO_BYOK_MONTHLY=
-STRIPE_PRICE_PRO_BYOK_ANNUAL=
-STRIPE_PRICE_PRO_AI_MONTHLY=
-STRIPE_PRICE_PRO_AI_ANNUAL=
-STRIPE_PRICE_AGENCY_MONTHLY=
-STRIPE_PRICE_AGENCY_ANNUAL=
+PAYPAL_ENVIRONMENT=sandbox
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_WEBHOOK_ID=
 
 # SMTP also enables email verification and password recovery.
 # Configure each optional notification group completely, or leave it empty.
@@ -56,3 +49,5 @@ VAPID_SUBJECT=
 
 # Social access tokens belong to customers and are added in Social Media Integrations.
 # No shared LinkedIn/X/Meta/TikTok/Pinterest/Google app keys are used by this credential flow.
+# Platform administrator access is a users.systemRole value, not an environment credential.
+# Run npm run admin:create for an account-only operator; no workspace or branding is created.

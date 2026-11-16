@@ -1,5 +1,5 @@
 import { getMediaStorageConfig } from "./media-storage-config";
-import { validateBillingConfig } from "./stripe";
+import { validateBillingConfig } from "./paypal";
 
 export function validateRuntimeConfig(env: NodeJS.ProcessEnv = process.env) {
   for (const key of ["MONGODB_URI", "MONGODB_DB", "ENCRYPTION_SECRET", "APP_URL", "WORKER_SECRET"]) {

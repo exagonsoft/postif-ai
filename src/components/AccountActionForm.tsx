@@ -1,9 +1,12 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 export function AccountActionForm({ purpose }: { purpose: "verify_email" | "reset_password" }) {
+  const { t } = useAppLanguage();
   const token = useRef("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -18,21 +21,21 @@ export function AccountActionForm({ purpose }: { purpose: "verify_email" | "rese
     try {
       const response = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: purpose, token: token.current, ...(purpose === "reset_password" ? { password } : {}) }) });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "This action failed.");
+      if (!response.ok) throw new Error(result.error || t("public.accountActionForm.text01"));
       token.current = "";
       setPassword("");
-      setMessage(purpose === "reset_password" ? "Password updated. Sign in with your new password." : "Email verified. You can now accept workspace invitations.");
+      setMessage(purpose === "reset_password" ? t("public.accountActionForm.text02") : t("public.accountActionForm.text03"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "This action failed.");
+      setMessage(error instanceof Error ? error.message : t("public.accountActionForm.text01"));
     } finally { setBusy(false); }
   }
   return <main className="mx-auto max-w-md space-y-5 px-4 py-16">
-    <h1 className="text-2xl font-bold">{purpose === "reset_password" ? "Reset password" : "Verify email"}</h1>
+    <h1 className="text-2xl font-bold">{purpose === "reset_password" ? t("public.accountActionForm.text04") : t("public.accountActionForm.text05")}</h1>
     <form onSubmit={submit} className="space-y-4">
-      {purpose === "reset_password" && <label className="block">New password<input required type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={password} onChange={event => setPassword(event.target.value)} className="elevated-card mt-2 w-full rounded-xl p-3" /></label>}
-      <button disabled={busy} className="rounded-xl bg-violet-600 px-5 py-3 font-bold">{busy ? "Submitting..." : "Confirm"}</button>
+      {purpose === "reset_password" && <label className="block">{t("public.accountActionForm.text06")}<input required type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={password} onChange={event => setPassword(event.target.value)} className="elevated-card mt-2 w-full rounded-xl p-3" /></label>}
+      <button disabled={busy} className="rounded-xl bg-violet-600 px-5 py-3 font-bold">{busy ? t("public.accountActionForm.text07") : t("public.accountActionForm.confirm")}</button>
     </form>
     {message && <p role="status">{message}</p>}
-    <Link href={purpose === "reset_password" ? "/login" : "/app/workspaces"} className="block text-cyan-400">Continue</Link>
+    <Link href={purpose === "reset_password" ? "/login" : "/app/workspaces"} className="block text-cyan-400">{t("public.accountActionForm.text08")}</Link>
   </main>;
 }

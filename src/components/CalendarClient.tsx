@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
@@ -45,6 +46,9 @@ export function CalendarClient({
   posts: CalendarPost[];
   jobs: PublishingJobItem[];
 }) {
+  const { t, formatDate, formatNumber } = useAppLanguage();
+  const displayStatus = (value: string) => ["draft","pending_approval","waiting_media","media_failed","approved","scheduled","publishing","published","failed","cancelled","blocked","queued","completed","pending","processing","uncertain","retrying"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -88,7 +92,7 @@ export function CalendarClient({
       }),
     });
     if (res.ok) {
-      toast("Schedule updated", `'${editTitle}' updated in calendar & job queue.`);
+      toast(t("customer.text.294"), t("customer.updatedCalendar", { title: editTitle }));
       setEditingPost(null);
       router.refresh();
     }
@@ -112,8 +116,8 @@ export function CalendarClient({
     setDraggedPostId(null);
     if (res.ok) {
       toast(
-        "Rescheduled via drag & drop",
-        `Moved post to ${targetDate.toLocaleDateString()} at 10:00 AM (${timezone}).`
+        t("customer.text.295"),
+        t("customer.movedPost", { date: formatDate(targetDate, { dateStyle: "medium" }), time: formatDate(targetDate, { hour: "numeric", minute: "2-digit" }), timezone })
       );
       router.refresh();
     }
@@ -126,7 +130,7 @@ export function CalendarClient({
       body: JSON.stringify({ action: "duplicate", postId }),
     });
     if (res.ok) {
-      toast("Post duplicated", "Created a draft copy for easy multi-day scheduling.");
+      toast(t("customer.text.296"), t("customer.text.297"));
       setEditingPost(null);
       router.refresh();
     }
@@ -139,7 +143,7 @@ export function CalendarClient({
       body: JSON.stringify({ action: "retry", jobId }),
     });
     if (res.ok) {
-      toast("Retry queued", `Publishing job #${jobId} will be checked by the worker.`);
+      toast(t("customer.text.298"), t("customer.retryJob", { id: jobId }));
       router.refresh();
     }
   };
@@ -153,8 +157,8 @@ export function CalendarClient({
     const data = await res.json();
     if (res.ok) {
       toast(
-        "Worker sweep completed",
-        `Processed ${data.processed} due publishing job(s).`
+        t("customer.text.299"),
+        t("customer.processedJobs", { count: formatNumber(data.processed) })
       );
       router.refresh();
     }
@@ -184,7 +188,7 @@ export function CalendarClient({
                   : "elevated-card text-[var(--text-secondary)]"
               }`}
             >
-              {mode} View
+              {t(`customer.calendar.${mode}View`)}
             </button>
           ))}
         </div>
@@ -195,12 +199,12 @@ export function CalendarClient({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="elevated-card rounded-xl px-3 py-2 text-xs font-semibold"
           >
-            <option value="all">All Statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="pending_approval">Pending Approval</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="failed">Failed</option>
+            <option value="all">{t("customer.text.302")}</option>
+            <option value="scheduled">{t("customer.text.303")}</option>
+            <option value="pending_approval">{t("customer.text.304")}</option>
+            <option value="published">{t("customer.text.305")}</option>
+            <option value="draft">{t("customer.text.306")}</option>
+            <option value="failed">{t("customer.text.307")}</option>
           </select>
 
           <select
@@ -221,10 +225,9 @@ export function CalendarClient({
         <div className="surface-card rounded-3xl p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-extrabold">
-              {now.toLocaleString("default", { month: "long", year: "numeric" })} — Drag posts to
-              reschedule
+              {formatDate(now, { month: "long", year: "numeric" })} {t("customer.text.312")}
             </h2>
-            <span className="text-xs text-[var(--text-muted)]">Click any post to edit</span>
+            <span className="text-xs text-[var(--text-muted)]">{t("customer.text.313")}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
@@ -249,11 +252,11 @@ export function CalendarClient({
                 >
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className={isToday ? "text-cyan-400" : "text-[var(--text-muted)]"}>
-                      {day}
+                      {formatNumber(day)}
                     </span>
                     {isToday && (
                       <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[9px] text-cyan-300">
-                        TODAY
+                        {t("customer.text.314")}
                       </span>
                     )}
                   </div>
@@ -282,7 +285,7 @@ export function CalendarClient({
       {/* Weekly / Daily / List Views */}
       {viewMode !== "monthly" && (
         <div className="surface-card space-y-3 rounded-3xl p-6">
-          <h2 className="text-base font-extrabold capitalize">{viewMode} Schedule Queue</h2>
+          <h2 className="text-base font-extrabold capitalize">{t(`customer.calendar.${viewMode}Queue`)}</h2>
           {filteredPosts.map((p) => (
             <div
               key={p.id}
@@ -293,14 +296,14 @@ export function CalendarClient({
                 <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                   <CalendarIcon className="h-3.5 w-3.5" />
                   {p.scheduledAt
-                    ? new Date(p.scheduledAt).toLocaleString()
-                    : "Unscheduled Draft"}{" "}
+                    ? formatDate(new Date(p.scheduledAt))
+                    : t("customer.text.316")}{" "}
                   • {p.platforms.map((pl) => pl.toUpperCase()).join(", ")}
                 </div>
                 <div className="mt-1 text-sm font-extrabold">{p.title}</div>
               </div>
               <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-bold uppercase text-violet-300">
-                {p.status.replace("_", " ")}
+                {displayStatus(p.status)}
               </span>
             </div>
           ))}
@@ -312,11 +315,10 @@ export function CalendarClient({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-extrabold">
-              Persistent Publishing Job Queue & Failure Telemetry
+              {t("customer.text.317")}
             </h2>
             <p className="text-xs text-[var(--text-secondary)]">
-              Idempotent server-side jobs persisted in MongoDB with retry counters and audit
-              trails.
+              {t("customer.text.318")}
             </p>
           </div>
           <button
@@ -324,7 +326,7 @@ export function CalendarClient({
             onClick={handleRunDueJobs}
             className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500 px-4 py-2 text-xs font-bold text-slate-950"
           >
-            <Play className="h-3.5 w-3.5" /> Execute Due Jobs Now
+            <Play className="h-3.5 w-3.5" /> {t("customer.text.319")}
           </button>
         </div>
 
@@ -344,15 +346,15 @@ export function CalendarClient({
                     <Clock className="h-4 w-4 text-cyan-400" />
                   )}
                   <span className="text-xs font-extrabold uppercase">
-                    Job #{job.id} • {job.platform}
+                    {t("customer.text.320")}{job.id} • {job.platform}
                   </span>
                   <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-slate-400">
-                    key: {job.idempotencyKey}
+                    {t("customer.text.321")}{" "} {job.idempotencyKey}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                  Scheduled: {new Date(job.scheduledFor).toLocaleString()} • Attempts:{" "}
-                  {job.attempts}/{job.maxAttempts}
+                  {t("customer.text.322")}{" "} {formatDate(new Date(job.scheduledFor))} {t("customer.text.323")}{" "}
+                  {formatNumber(job.attempts)}/{formatNumber(job.maxAttempts)}
                 </div>
                 {job.errorMessage && (
                   <p className="mt-1 text-xs font-medium text-rose-400">{job.errorMessage}</p>
@@ -369,7 +371,7 @@ export function CalendarClient({
                       : "bg-cyan-500/20 text-cyan-300"
                   }`}
                 >
-                  {job.status}
+                  {displayStatus(job.status)}
                 </span>
 
                 {["failed", "blocked"].includes(job.status) && (
@@ -378,7 +380,7 @@ export function CalendarClient({
                     onClick={() => handleRetryJob(job.id)}
                     className="inline-flex items-center gap-1 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-bold text-white"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" /> Retry Job
+                    <RotateCcw className="h-3.5 w-3.5" /> {t("customer.text.324")}
                   </button>
                 )}
               </div>
@@ -392,9 +394,10 @@ export function CalendarClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="surface-card w-full max-w-lg rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-              <h3 className="text-base font-extrabold">Edit Scheduled Post</h3>
+              <h3 className="text-base font-extrabold">{t("customer.text.325")}</h3>
               <button
                 type="button"
+                aria-label={t("customer.close")}
                 onClick={() => setEditingPost(null)}
                 className="rounded-lg p-1 text-[var(--text-muted)]"
               >
@@ -405,7 +408,7 @@ export function CalendarClient({
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                  Title
+                  {t("customer.text.326")}
                 </label>
                 <input
                   value={editTitle}
@@ -416,7 +419,7 @@ export function CalendarClient({
 
               <div>
                 <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                  Content
+                  {t("customer.text.327")}
                 </label>
                 <textarea
                   rows={4}
@@ -429,7 +432,7 @@ export function CalendarClient({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                    Scheduled Time ({timezone})
+                    {t("customer.text.328")}{timezone})
                   </label>
                   <input
                     type="datetime-local"
@@ -440,19 +443,19 @@ export function CalendarClient({
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                    Lifecycle Status
+                    {t("customer.text.329")}
                   </label>
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value)}
                     className="elevated-card mt-1 w-full rounded-xl px-3 py-2 text-xs font-semibold"
                   >
-                    <option value="draft">Draft</option>
-                    <option value="pending_approval">Pending Approval</option>
-                    <option value="approved">Approved</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="published">Published</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="draft">{t("customer.text.306")}</option>
+                    <option value="pending_approval">{t("customer.text.304")}</option>
+                    <option value="approved">{t("customer.text.332")}</option>
+                    <option value="scheduled">{t("customer.text.303")}</option>
+                    <option value="published">{t("customer.text.305")}</option>
+                    <option value="cancelled">{t("customer.text.335")}</option>
                   </select>
                 </div>
               </div>
@@ -464,14 +467,14 @@ export function CalendarClient({
                 onClick={() => handleDuplicate(editingPost.id)}
                 className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold"
               >
-                <Copy className="h-3.5 w-3.5" /> Duplicate
+                <Copy className="h-3.5 w-3.5" /> {t("customer.text.336")}
               </button>
               <button
                 type="button"
                 onClick={saveEditedPost}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-2 text-xs font-bold text-white"
               >
-                <Save className="h-3.5 w-3.5" /> Save Changes
+                <Save className="h-3.5 w-3.5" /> {t("customer.text.337")}
               </button>
             </div>
           </div>

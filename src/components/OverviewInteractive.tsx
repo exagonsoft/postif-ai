@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -65,7 +66,15 @@ export function OverviewInteractive({
   agentMode: string;
   agentPaused: boolean;
 }) {
+  const { t, formatDate, formatNumber } = useAppLanguage();
+  const displayStatus = (value: string) => ["draft","pending_approval","waiting_media","media_failed","approved","scheduled","publishing","published","failed","cancelled","proposed","rejected","executed","completed","manual","assisted","autopilot"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const router = useRouter();
+  const displayDate = (value: string) => {
+    const monthDay = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})$/.exec(value);
+    const date = monthDay ? new Date(Date.UTC(2000, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(monthDay[1]), Number(monthDay[2]))) : /^\d{4}-\d{2}-\d{2}/.test(value) ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? formatDate(date, { month: "short", day: "numeric", timeZone: "UTC" }) : value;
+  };
   const { toast } = useToast();
   const [platformFilter, setPlatformFilter] = useState<string>("all");
   const [generatingPlan, setGeneratingPlan] = useState(false);
@@ -93,8 +102,8 @@ export function OverviewInteractive({
       });
       if (res.ok) {
         toast(
-          "Weekly Content Plan Generated",
-          "AI Marketing Agent updated your 5-day multi-platform schedule."
+          t("customer.text.497"),
+          t("customer.text.498")
         );
         router.push("/app/agent");
         router.refresh();
@@ -119,8 +128,8 @@ export function OverviewInteractive({
                   <Wand2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-extrabold">Create Post</div>
-                  <div className="text-[11px] text-white/80">AI Multi-Platform Studio</div>
+                  <div className="text-sm font-extrabold">{t("customer.text.499")}</div>
+                  <div className="text-[11px] text-white/80">{t("customer.text.500")}</div>
                 </div>
               </div>
               <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -145,9 +154,9 @@ export function OverviewInteractive({
                   )}
                 </div>
                 <div>
-                  <div className="text-sm font-extrabold">Generate Weekly Content</div>
+                  <div className="text-sm font-extrabold">{t("customer.text.501")}</div>
                   <div className="text-[11px] text-[var(--text-secondary)]">
-                    AI Agent 5-Day Blueprint
+                    {t("customer.text.502")}
                   </div>
                 </div>
               </div>
@@ -167,9 +176,9 @@ export function OverviewInteractive({
                   <Megaphone className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-extrabold">Create Campaign</div>
+                  <div className="text-sm font-extrabold">{t("customer.text.503")}</div>
                   <div className="text-[11px] text-[var(--text-secondary)]">
-                    4-Week AI Campaign Plan
+                    {t("customer.text.504")}
                   </div>
                 </div>
               </div>
@@ -189,9 +198,9 @@ export function OverviewInteractive({
                   <Share2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-extrabold">Connect Social Account</div>
+                  <div className="text-sm font-extrabold">{t("customer.text.505")}</div>
                   <div className="text-[11px] text-[var(--text-secondary)]">
-                    8 Platform Adapters
+                    {t("customer.text.506")}
                   </div>
                 </div>
               </div>
@@ -208,14 +217,14 @@ export function OverviewInteractive({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-extrabold">
-                  Engagement & Reach Velocity
+                  {t("customer.text.507")}
                 </h2>
                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
-                  Recorded Analytics
+                  {t("customer.text.255")}
                 </span>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Stored engagement measurements. Live engagement ingestion must be configured separately.
+                {t("customer.text.509")}
               </p>
             </div>
 
@@ -257,8 +266,8 @@ export function OverviewInteractive({
                     className="group relative flex h-full flex-col items-center justify-end"
                   >
                     <div className="pointer-events-none absolute -top-10 z-10 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white shadow-lg group-hover:block">
-                      {m.platform.toUpperCase()}: {m.impressions.toLocaleString()} imp •{" "}
-                      {m.engagements} eng
+                      {m.platform.toUpperCase()}: {formatNumber(m.impressions)} {t("customer.text.511")}{" "}
+                      {formatNumber(m.engagements)} {t("customer.text.512")}
                     </div>
                     <div className="flex h-44 w-full max-w-[34px] items-end justify-center gap-1">
                       <motion.div
@@ -285,7 +294,7 @@ export function OverviewInteractive({
                       />
                     </div>
                     <span className="mt-2 text-[10px] font-medium text-[var(--text-muted)]">
-                      {m.dateLabel.replace("Apr ", "4/")}
+                      {displayDate(m.dateLabel)}
                     </span>
                   </div>
                 );
@@ -294,14 +303,14 @@ export function OverviewInteractive({
             <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-secondary)]">
               <div className="flex items-center gap-4">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-violet-500" /> Impressions
+                  <span className="h-2.5 w-2.5 rounded-sm bg-violet-500" /> {t("customer.text.280")}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-cyan-400" /> Weighted Engagements
+                  <span className="h-2.5 w-2.5 rounded-sm bg-cyan-400" /> {t("customer.text.515")}
                 </span>
               </div>
               <Link href="/app/analytics" className="font-semibold text-cyan-400 hover:underline">
-                Full Analytics & CSV Export →
+                {t("customer.text.516")}
               </Link>
             </div>
           </div>
@@ -313,7 +322,7 @@ export function OverviewInteractive({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-cyan-400" />
-                <h2 className="text-base font-extrabold">AI Marketing Agent</h2>
+                <h2 className="text-base font-extrabold">{t("customer.text.517")}</h2>
               </div>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
@@ -323,23 +332,22 @@ export function OverviewInteractive({
                 }`}
               >
                 <PulseStatusDot color={agentPaused ? "amber" : "emerald"} />
-                {agentPaused ? "Paused" : `${agentMode} Mode`}
+                {agentPaused ? t("customer.text.214") : t("customer.agentMode", { mode: displayStatus(agentMode) })}
               </span>
             </div>
 
             <div className="elevated-card mt-4 rounded-2xl p-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400">
-                Grounded AI Recommendation
+                {t("customer.text.519")}
               </div>
               <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-primary)]">
-                Educational posts generated <strong>4.9% engagement</strong> vs 2.7% for pure
-                product announcements over the past 14 days. Increase educational breakdowns to 3x/week.
+                {t("customer.text.520")}{" "} <strong>{t("customer.text.521")}</strong> {t("customer.text.522")}
               </p>
             </div>
 
             <div className="mt-4 space-y-2.5">
               <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Recent Agent Activity
+                {t("customer.text.523")}
               </div>
               {agentActions.slice(0, 3).map((act) => (
                 <motion.div
@@ -351,7 +359,7 @@ export function OverviewInteractive({
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-xs font-bold">{act.title}</span>
                     <span className="shrink-0 rounded-md bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-violet-300">
-                      {act.status}
+                      {displayStatus(act.status)}
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-[11px] text-[var(--text-secondary)]">
@@ -366,7 +374,7 @@ export function OverviewInteractive({
             href="/app/agent"
             className="mt-5 block rounded-xl bg-violet-600/20 py-2.5 text-center text-xs font-bold text-violet-300 transition-colors hover:bg-violet-600/30"
           >
-            Open Agent Command Workspace →
+            {t("customer.text.524")}
           </Link>
         </div>
       </div>
@@ -375,15 +383,15 @@ export function OverviewInteractive({
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="surface-card rounded-3xl p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold">Upcoming & Pending Approvals</h2>
+            <h2 className="text-base font-extrabold">{t("customer.text.525")}</h2>
             <Link href="/app/calendar" className="text-xs font-semibold text-cyan-400 hover:underline">
-              Open Calendar →
+              {t("customer.text.526")}
             </Link>
           </div>
           <div className="mt-4 space-y-3">
             {upcomingPosts.length === 0 ? (
               <p className="py-6 text-center text-xs text-[var(--text-muted)]">
-                No upcoming posts scheduled. Use AI Content Studio to draft your next post.
+                {t("customer.text.527")}
               </p>
             ) : (
               upcomingPosts.map((p) => (
@@ -404,7 +412,7 @@ export function OverviewInteractive({
                     </div>
                     <div className="mt-1 text-[11px] text-[var(--text-muted)]">
                       {p.platforms.map((pl) => pl.toUpperCase()).join(" • ")}{" "}
-                      {p.scheduledAt ? `• ${new Date(p.scheduledAt).toLocaleDateString()}` : ""}
+                      {p.scheduledAt ? `• ${formatDate(new Date(p.scheduledAt), { dateStyle: "medium" })}` : ""}
                     </div>
                   </div>
                   <span
@@ -414,7 +422,7 @@ export function OverviewInteractive({
                         : "bg-cyan-500/20 text-cyan-300"
                     }`}
                   >
-                    {p.status.replace("_", " ")}
+                    {displayStatus(p.status)}
                   </span>
                 </motion.div>
               ))
@@ -424,9 +432,9 @@ export function OverviewInteractive({
 
         <div className="surface-card rounded-3xl p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold">Recent Publications</h2>
+            <h2 className="text-base font-extrabold">{t("customer.text.528")}</h2>
             <Link href="/app/posts" className="text-xs font-semibold text-cyan-400 hover:underline">
-              All Posts →
+              {t("customer.text.529")}
             </Link>
           </div>
           <div className="mt-4 space-y-3">
@@ -443,11 +451,11 @@ export function OverviewInteractive({
                     <span className="truncate text-xs font-bold">{p.title}</span>
                   </div>
                   <div className="mt-1 text-[11px] text-[var(--text-muted)]">
-                    Published to {p.platforms.map((pl) => pl.toUpperCase()).join(", ")}
+                    {t("customer.text.530")}{" "} {p.platforms.map((pl) => pl.toUpperCase()).join(", ")}
                   </div>
                 </div>
                 <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-400">
-                  Published
+                  {t("customer.text.305")}
                 </span>
               </motion.div>
             ))}

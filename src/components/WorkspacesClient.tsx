@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
@@ -45,12 +46,15 @@ export function WorkspacesClient({
   teamEnabled: boolean;
   invitations: { id: number; workspaceName: string; role: string }[];
 }) {
+  const { t, locale, formatNumber } = useAppLanguage();
+  const displayStatus = (value: string) => ["owner","admin","editor","approver","viewer","invited","accepted","declined","active"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const router = useRouter();
   const { toast } = useToast();
 
   const [brandName, setBrandName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
-  const [industry, setIndustry] = useState("SaaS & Technology");
+  const [industry, setIndustry] = useState(t("customer.text.670"));
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("approver");
   const canManage = ["owner", "admin"].includes(currentRole);
@@ -58,11 +62,11 @@ export function WorkspacesClient({
     try {
       const response = await fetch("/api/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: accept ? "accept_invite" : "decline_invite", memberId }) });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Invitation could not be updated.");
-      toast(accept ? "Invitation accepted" : "Invitation declined", accept ? "Your active workspace has been updated." : "Invitation removed.");
+      if (!response.ok) throw new Error(result.error || t("customer.text.671"));
+      toast(accept ? t("customer.text.672") : t("customer.text.673"), accept ? t("customer.text.674") : t("customer.text.675"));
       router.refresh();
     } catch (error) {
-      toast("Invitation failed", error instanceof Error ? error.message : "Invitation could not be updated.", "error");
+      toast(t("customer.text.676"), error instanceof Error ? error.message : t("customer.text.671"), "error");
     }
   };
 
@@ -80,10 +84,10 @@ export function WorkspacesClient({
     });
     const data = await res.json();
     if (!res.ok) {
-      toast("Brand quota reached", data.error || "Upgrade plan to add more brands.", "error");
+      toast(t("customer.text.678"), data.error || t("customer.text.679"), "error");
       return;
     }
-    toast("Brand created", `${data.brand.name} added to this workspace.`);
+    toast(t("customer.text.680"), t("customer.brandAdded", { name: data.brand.name }));
     setBrandName("");
     setWebsiteUrl("");
     router.refresh();
@@ -102,10 +106,10 @@ export function WorkspacesClient({
     });
     const data = await res.json();
     if (!res.ok) {
-      toast("Invitation blocked", data.error || "Check your permissions.", "error");
+      toast(t("customer.text.681"), data.error || t("customer.text.682"), "error");
       return;
     }
-    toast("Invitation created", `Ask ${inviteEmail} to sign in and open Workspaces to accept. No email has been sent.`);
+    toast(t("customer.text.683"), t("customer.inviteInstructions", { email: inviteEmail }));
     setInviteEmail("");
     router.refresh();
   };
@@ -117,22 +121,22 @@ export function WorkspacesClient({
       body: JSON.stringify({ action: "update_member_role", memberId, role }),
     });
     if (res.ok) {
-      toast("Role updated", `Member role changed to ${role.toUpperCase()}.`);
+      toast(t("customer.text.684"), t("customer.roleChanged", { role: displayStatus(role).toLocaleUpperCase(locale) }));
       router.refresh();
     } else {
       const data = await res.json();
-      toast("Role update blocked", data.error || "Check your permissions.", "error");
+      toast(t("customer.text.685"), data.error || t("customer.text.682"), "error");
     }
   };
   const handleRemoveMember = async (memberId: number) => {
     try {
       const response = await fetch("/api/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove_member", memberId }) });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Access could not be revoked.");
-      toast("Access revoked", "The member or pending invitation has been removed.");
+      if (!response.ok) throw new Error(result.error || t("customer.text.687"));
+      toast(t("customer.text.688"), t("customer.text.689"));
       router.refresh();
     } catch (error) {
-      toast("Removal blocked", error instanceof Error ? error.message : "Try again later.", "error");
+      toast(t("customer.text.690"), error instanceof Error ? error.message : t("customer.text.691"), "error");
     }
   };
 
@@ -153,17 +157,17 @@ export function WorkspacesClient({
       a.download = "postif-ai-workspace-export.json";
       a.click();
       URL.revokeObjectURL(url);
-      toast("Workspace data exported", "Downloaded complete JSON archive.");
+      toast(t("customer.text.692"), t("customer.text.693"));
     }
   };
 
   return (
     <div className="space-y-8">
       {invitations.length > 0 && <div className="surface-card space-y-3 rounded-3xl p-6">
-        <h2 className="font-bold">Workspace invitations</h2>
+        <h2 className="font-bold">{t("customer.text.694")}</h2>
         {invitations.map(invite => <div key={invite.id} className="flex flex-wrap items-center justify-between gap-3">
-          <span>{invite.workspaceName} &mdash; {invite.role}</span>
-          <div className="flex gap-3"><button type="button" onClick={() => respondToInvitation(invite.id, true)}>Accept</button><button type="button" onClick={() => respondToInvitation(invite.id, false)}>Decline</button></div>
+          <span>{invite.workspaceName} &mdash; {displayStatus(invite.role)}</span>
+          <div className="flex gap-3"><button type="button" onClick={() => respondToInvitation(invite.id, true)}>{t("customer.text.696")}</button><button type="button" onClick={() => respondToInvitation(invite.id, false)}>{t("customer.text.697")}</button></div>
         </div>)}
       </div>}
       {/* Brand Profiles Section */}
@@ -172,7 +176,7 @@ export function WorkspacesClient({
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-cyan-400" />
             <h2 className="text-base font-extrabold">
-              Managed Brands ({brands.length} / {maxBrands} on {planName})
+              {t("customer.text.698")}{formatNumber(brands.length)} / {formatNumber(maxBrands)} {t("customer.text.699")}{" "} {planName})
             </h2>
           </div>
 
@@ -181,7 +185,7 @@ export function WorkspacesClient({
             onClick={handleExportJson}
             className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold hover:border-cyan-500/40"
           >
-            <Download className="h-3.5 w-3.5 text-cyan-400" /> Export Workspace JSON
+            <Download className="h-3.5 w-3.5 text-cyan-400" /> {t("customer.text.700")}
           </button>
         </div>
 
@@ -198,7 +202,7 @@ export function WorkspacesClient({
                 <p className="mt-1 text-xs text-cyan-400">{brand.websiteUrl}</p>
               )}
               <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                Voice & Tone: {brand.tone}
+                {t("customer.text.701")}{" "} {brand.tone}
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {brand.contentPillars.map((p) => (
@@ -220,19 +224,19 @@ export function WorkspacesClient({
         >
           <div>
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              New Brand Name
+              {t("customer.text.702")}
             </label>
             <input
               required
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
-              placeholder="Client or Sub-Brand"
+              placeholder={t("customer.text.703")}
               className="elevated-card mt-1 w-full rounded-xl px-3.5 py-2 text-xs"
             />
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Website URL
+              {t("customer.text.704")}
             </label>
             <input
               value={websiteUrl}
@@ -243,7 +247,7 @@ export function WorkspacesClient({
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Industry
+              {t("customer.text.705")}
             </label>
             <input
               value={industry}
@@ -256,7 +260,7 @@ export function WorkspacesClient({
             disabled={!canManage || brands.length >= maxBrands}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 py-2.5 text-xs font-bold text-white"
           >
-            <Plus className="h-4 w-4" /> Add Brand
+            <Plus className="h-4 w-4" /> {t("customer.text.706")}
           </button>
         </form>
       </div>
@@ -266,23 +270,23 @@ export function WorkspacesClient({
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-violet-400" />
           <h2 className="text-base font-extrabold">
-            Team Collaboration & Client Approval Roles (Your Role: {currentRole.toUpperCase()})
+            {t("customer.text.707")}{" "} {displayStatus(currentRole).toLocaleUpperCase(locale)})
           </h2>
         </div>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          Assign granular RBAC roles: <strong>Owner</strong>, <strong>Administrator</strong>,{" "}
-          <strong>Editor</strong>, <strong>Approver</strong> (client sign-off), and{" "}
-          <strong>Viewer</strong>.
+          {t("customer.text.708")}{" "} <strong>{t("customer.text.709")}</strong>, <strong>{t("customer.text.710")}</strong>,{" "}
+          <strong>{t("customer.text.711")}</strong>, <strong>{t("customer.text.712")}</strong> {t("customer.text.713")}{" "}
+          <strong>{t("customer.text.714")}</strong>.
         </p>
 
         <form
           onSubmit={handleInviteMember}
           className="mt-5 grid gap-3 sm:grid-cols-12 sm:items-end"
         >
-          {!teamEnabled && <p className="text-xs text-amber-300 sm:col-span-12">A Pro or Agency subscription is required to invite or edit team members. Existing data remains available.</p>}
+          {!teamEnabled && <p className="text-xs text-amber-300 sm:col-span-12">{t("customer.text.715")}</p>}
           <div className="sm:col-span-6">
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Team Member or Client Email
+              {t("customer.text.716")}
             </label>
             <input
               required
@@ -295,17 +299,17 @@ export function WorkspacesClient({
           </div>
           <div className="sm:col-span-3">
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              RBAC Role
+              {t("customer.text.717")}
             </label>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
               className="elevated-card mt-1 w-full rounded-xl px-3 py-2 text-xs font-bold"
             >
-              {currentRole === "owner" && <option value="admin">Administrator</option>}
-              <option value="editor">Editor</option>
-              <option value="approver">Approver (Client Sign-off)</option>
-              <option value="viewer">Viewer (Read-Only)</option>
+              {currentRole === "owner" && <option value="admin">{t("customer.text.710")}</option>}
+              <option value="editor">{t("customer.text.711")}</option>
+              <option value="approver">{t("customer.text.720")}</option>
+              <option value="viewer">{t("customer.text.721")}</option>
             </select>
           </div>
           <div className="sm:col-span-3">
@@ -314,7 +318,7 @@ export function WorkspacesClient({
               disabled={!teamEnabled || !canManage}
               className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-xs font-bold text-white"
             >
-              <UserPlus className="h-4 w-4" /> Create Invitation
+              <UserPlus className="h-4 w-4" /> {t("customer.text.722")}
             </button>
           </div>
         </form>
@@ -328,7 +332,7 @@ export function WorkspacesClient({
               <div>
                 <div className="text-sm font-bold">{m.memberName}</div>
                 <div className="text-xs text-[var(--text-muted)]">
-                  {m.invitedEmail} • <span className="capitalize">{m.status}</span>
+                  {m.invitedEmail} • <span className="capitalize">{displayStatus(m.status)}</span>
                 </div>
               </div>
 
@@ -338,13 +342,13 @@ export function WorkspacesClient({
                 onChange={(e) => handleRoleUpdate(m.id, e.target.value)}
                 className="surface-card rounded-xl px-3 py-1.5 text-xs font-bold uppercase"
               >
-                {m.role === "owner" && <option value="owner">Owner</option>}
-                <option value="admin" disabled={currentRole !== "owner"}>Administrator</option>
-                <option value="editor">Editor</option>
-                <option value="approver">Approver</option>
-                <option value="viewer">Viewer</option>
+                {m.role === "owner" && <option value="owner">{t("customer.text.709")}</option>}
+                <option value="admin" disabled={currentRole !== "owner"}>{t("customer.text.710")}</option>
+                <option value="editor">{t("customer.text.711")}</option>
+                <option value="approver">{t("customer.text.712")}</option>
+                <option value="viewer">{t("customer.text.714")}</option>
               </select>
-              {canManage && m.role !== "owner" && (currentRole === "owner" || m.role !== "admin") && m.status !== "revoked" && <button type="button" onClick={() => handleRemoveMember(m.id)} className="text-xs text-red-300">Revoke access</button>}</div>
+              {canManage && m.role !== "owner" && (currentRole === "owner" || m.role !== "admin") && m.status !== "revoked" && <button type="button" onClick={() => handleRemoveMember(m.id)} className="text-xs text-red-300">{t("customer.text.728")}</button>}</div>
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
 import { createBillingPortal } from "@/lib/subscriptions";
-import { BillingError } from "@/lib/stripe";
+import { BillingError } from "@/lib/paypal";
 export const runtime = "nodejs";
 export async function POST() {
   try {

@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -10,6 +11,8 @@ import { oauthCallbackUrl } from "@/lib/social-oauth-provider";
 import { SocialAccountsClient } from "@/components/SocialAccountsClient";
 export const dynamic = "force-dynamic";
 export default async function SocialAccountsPage() {
+  const { t } = await getServerI18n();
+
     const ctx = await getAuthContext();
     if (!ctx || !ctx.workspace) {
         redirect("/login");
@@ -22,10 +25,10 @@ export default async function SocialAccountsPage() {
     return (<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Social Media Integrations
+          {t("customer.text.100")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Connect your own accounts with encrypted, workspace-scoped platform credentials.
+          {t("customer.text.101")}
         </p>
       </div>
 

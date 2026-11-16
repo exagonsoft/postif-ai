@@ -32,8 +32,7 @@ export async function ensureSeeded(force = false): Promise<void> {
                 aiCreditsBalance: 842,
                 aiCreditsMonthlyAllowance: 1000,
                 postsPublishedThisMonth: 19,
-                stripeCustomerId: "cus_demo_nebula_01",
-                stripeSubscriptionId: "sub_demo_proai_01",
+                paypalSubscriptionId: null,
                 subscriptionStatus: "active",
             });
             const [agencyWorkspace] = await tx.insert(workspaces, {
@@ -46,8 +45,7 @@ export async function ensureSeeded(force = false): Promise<void> {
                 aiCreditsBalance: 3500,
                 aiCreditsMonthlyAllowance: 3500,
                 postsPublishedThisMonth: 47,
-                stripeCustomerId: "cus_demo_agency_02",
-                stripeSubscriptionId: "sub_demo_agency_02",
+                paypalSubscriptionId: null,
                 subscriptionStatus: "active",
             });
             await tx.insert(workspaceMembers, [

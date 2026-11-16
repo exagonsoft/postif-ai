@@ -1,6 +1,8 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import Link from "next/link";
 import { PublicShell } from "@/components/PublicShell";
+import { publicPageMetadata } from "@/lib/seo";
 import {
   Wand2,
   Bot,
@@ -13,82 +15,84 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-export const metadata = {
-  title: "Features — AI Content Studio, Planning & Multi-Channel Scheduling",
-};
+export async function generateMetadata() {
+  const { locale } = await getServerI18n();
+  return publicPageMetadata("features", locale);
+}
 
-export default function FeaturesPage() {
+export default async function FeaturesPage() {
+  const { t } = await getServerI18n();
   const modules = [
     {
       id: "studio",
-      badge: "AI Content Studio",
+      badge: t("public.home.text12"),
       icon: Wand2,
-      title: "Generate Native Posts for 8 Social Networks Simultaneously",
-      desc: "Input your brand voice, topic, audience, and objective once. POSTIF-AI produces tailored versions optimized for LinkedIn thought leadership, X threads, Instagram carousels, TikTok video scripts, YouTube Shorts, Threads, Facebook, and Pinterest.",
+      title: t("public.features.text01"),
+      desc: t("public.features.text02"),
       bullets: [
-        "12+ editorial transformations: Rewrite, Improve, Shorten, Expand, Translate, Change Tone, Hashtags & CTAs",
-        "Realistic platform previews with live character limit counters",
-        "Full editorial lifecycle: Draft → Pending Approval → Approved → Scheduled → Published",
+        t("public.features.text03"),
+        t("public.features.text04"),
+        t("public.features.text05"),
       ],
     },
     {
       id: "agent",
-      badge: "Competitive Differentiator",
+      badge: t("public.features.text06"),
       icon: Bot,
-      title: "AI-Assisted Weekly Content Planning",
-      desc: "Generate weekly plan suggestions from your brand brief and objectives using your configured OpenAI provider. Review the suggestions before creating posts.",
+      title: t("public.features.text07"),
+      desc: t("public.features.text08"),
       bullets: [
-        "On-demand plans use configured platforms and weekly slot limits",
-        "Recurring autonomous planning is not available",
-        "Human approval workflow and recorded publishing actions",
+        t("public.features.text09"),
+        t("public.features.text10"),
+        t("public.features.text11"),
       ],
     },
     {
       id: "calendar",
-      badge: "Durable Job Infrastructure",
+      badge: t("public.features.text12"),
       icon: CalendarClock,
-      title: "Multi-View Content Calendar & Idempotent Publishing Queue",
-      desc: "Plan visually across Monthly, Weekly, Daily, and List views backed by persistent MongoDB publishing jobs—never fragile browser timers.",
+      title: t("public.features.text13"),
+      desc: t("public.features.text14"),
       bullets: [
-        "Timezone-aware scheduling, post duplication, and campaign grouping",
-        "Persisted provider checkpoints; uncertain sends require verification",
-        "Retries for eligible failures, never blind retries of uncertain sends",
+        t("public.features.text15"),
+        t("public.features.text16"),
+        t("public.features.text17"),
       ],
     },
     {
       id: "repurpose",
-      badge: "Content Multiplication",
+      badge: t("public.features.text18"),
       icon: Repeat,
-      title: "Smart Content Repurposing Engine",
-      desc: "Feed a blog post, product changelog, or press announcement into POSTIF-AI and extract a cohesive multi-day social campaign while preserving brand voice.",
+      title: t("public.features.text19"),
+      desc: t("public.features.text20"),
       bullets: [
-        "Blog-to-thread, announcement-to-carousel, and evergreen post refreshers",
-        "Brand voice preservation & anti-repetition controls",
-        "Direct export into drafts or scheduled calendar slots",
+        t("public.features.text21"),
+        t("public.features.text22"),
+        t("public.features.text23"),
       ],
     },
     {
       id: "media",
-      badge: "Visual & Asset Studio",
+      badge: t("public.features.text24"),
       icon: ImageIcon,
-      title: "Media Uploads and Provider-Backed Generation",
-      desc: "Upload stored images and videos or queue image/video generation with configured providers. Completed files can be attached to posts.",
+      title: t("public.features.text25"),
+      desc: t("public.features.text26"),
       bullets: [
-        "OpenAI image and Runway video generation require real provider access",
-        "GIF encoding requires FFmpeg",
-        "Persistent shared media storage is required in production",
+        t("public.features.text27"),
+        t("public.features.text28"),
+        t("public.features.text29"),
       ],
     },
     {
       id: "analytics",
-      badge: "Grounded Intelligence",
+      badge: t("public.features.text30"),
       icon: BarChart3,
-      title: "Performance Intelligence & Multi-Brand Governance",
-      desc: "View recorded workspace metrics and export reports. Live social analytics ingestion is not implemented; empty workspaces show no fabricated statistics.",
+      title: t("public.features.text31"),
+      desc: t("public.features.text32"),
       bullets: [
-        "Role-based permissions: Owner, Administrator, Editor, Approver, Viewer",
-        "Encrypted BYOK OpenAI Vault (AES-256-GCM) or Managed AI Credits",
-        "Operator Admin Console with feature flags and system audit trails",
+        t("public.features.text33"),
+        t("public.features.text34"),
+        t("public.features.text35"),
       ],
     },
   ];
@@ -98,22 +102,14 @@ export default function FeaturesPage() {
       <section className="border-b border-[var(--border-subtle)] py-20">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1 text-xs font-semibold text-violet-300">
-            <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
-            Built by ExagonSoft on Next.js App Router & MongoDB
-          </span>
-          <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Content Creation, Review, and Scheduling
-          </h1>
-          <p className="mt-4 text-base text-[var(--text-secondary)] sm:text-lg">
-            Explore the full suite of AI creation, scheduling, approval governance, and analytics
-            tools inside POSTIF-AI.
-          </p>
+            <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />{t("public.features.text36")}</span>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">{t("public.features.text37")}</h1>
+          <p className="mt-4 text-base text-[var(--text-secondary)] sm:text-lg">{t("public.features.text38")}</p>
           <div className="mt-8 flex justify-center gap-4">
             <Link
               href="/app"
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg"
-            >
-              Try Live Interactive Studio <ArrowRight className="h-4 w-4" />
+            >{t("public.features.text39")}{" "}<ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

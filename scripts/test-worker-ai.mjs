@@ -15,11 +15,16 @@ const { processDuePosts } = await import("../src/lib/publishing-worker.ts");
 const { deliverNotifications } = await import("../src/lib/notification-service.ts");
 const { backgroundImageResult } = await import("../src/lib/openai-background-images.ts");
 const { getWorkerDeadline } = await import("../src/lib/worker-network.ts");
+const { getPlanDefinition } = await import("../src/lib/plans.ts");
 
 process.env.ENCRYPTION_SECRET = "test-encryption-secret-not-for-production";
 process.env.OPENAI_API_KEY = "test-managed-key";
 process.env.RUNWAY_API_KEY = "test-runway-key";
 process.env.BILLING_ENABLED = "false";
+process.env.PAYPAL_ENVIRONMENT = "sandbox";
+process.env.PAYPAL_CLIENT_ID = "";
+process.env.PAYPAL_CLIENT_SECRET = "";
+process.env.PAYPAL_WEBHOOK_ID = "";
 const originals = Object.fromEntries(["find", "insert", "update", "upsert", "transaction", "withLease"].map(key => [key, db[key]]));
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -96,7 +101,7 @@ function fakeDatabase() {
   };
   Object.assign(db, repo);
   rows("workspaces").push({ id: 1, ownerId: 7, aiBillingMode: "managed", aiCreditsBalance: 1000, postsPublishedThisMonth: 0 });
-  rows("billing_subscriptions").push({ id: 1, workspaceId: 1, planSlug: "pro_ai", paidThrough: new Date(Date.now() + 86400000 * 30) });
+  rows("paypal_subscriptions").push({ id: 1, workspaceId: 1, environment: "sandbox", planSlug: "pro_ai", planSnapshot: getPlanDefinition("pro_ai"), creditEpoch: "initial", paidThrough: new Date(Date.now() + 86400000 * 30) });
   rows("brands").push({ id: 3, workspaceId: 1, name: "Test Brand", description: "Only supplied facts", targetAudience: "Readers", tone: "Professional", contentPillars: ["Education"] });
   return { repo, rows };
 }
@@ -165,7 +170,7 @@ test("delayed AI and media refunds cannot recreate credits after an allowance re
   globalThis.fetch = async () => { await pending; throw new Error("Uncertain provider response"); };
   const generation = generateMultiPlatformPosts(input);
   while (!rows("ai_requests").length || rows("ai_requests")[0].status !== "sending") await new Promise(resolve => setImmediate(resolve));
-  rows("billing_subscriptions")[0].creditEpoch = "next-allowance";
+  rows("paypal_subscriptions")[0].creditEpoch = "next-allowance";
   rows("workspaces")[0].aiCreditsBalance = 1000;
   release();
   await assert.rejects(generation, /Uncertain/);
@@ -268,7 +273,7 @@ test("background images persist a response ID, poll without repeating generation
 for (const mode of ["managed", "byok"]) test(`${mode} background images finish from a durable response without resubmission`, async () => {
   const { rows } = fakeDatabase();
   if (mode === "byok") {
-    rows("billing_subscriptions")[0].paidThrough = new Date(Date.now() - 1000);
+    rows("paypal_subscriptions")[0].paidThrough = new Date(Date.now() - 1000);
     rows("workspaces")[0].aiCreditsBalance = 0;
     rows("ai_configurations").push({ id: 8, workspaceId: 1, mode: "byok", encryptedApiKey: encryptSecret("test-customer-image-key") });
   }
@@ -371,6 +376,9 @@ test("phase failure is persisted without stopping other worker phases", async ()
   assert.equal(result.phases.notifications.status, "failed");
   assert.equal(result.phases.media.status, "completed");
   assert.equal(result.phases.media_upload_cleanup.status, "completed");
+  assert.equal(result.phases.catalog_sync, undefined, "Scheduled workers must not synchronize the PayPal catalog.");
+  assert.equal(result.phases.catalog_publications, undefined, "Scheduled workers must not publish PayPal plans.");
+  assert.equal(rows("worker_states").some(row => ["phase:catalog_sync", "phase:catalog_publications"].includes(row.key)), false);
   assert.equal(rows("worker_states").find(row => row.key === "phase:media_upload_cleanup").status, "completed");
   assert.equal(rows("worker_states").find(row => row.key === "sweep").status, "degraded");
 });
@@ -427,7 +435,7 @@ test("direct publishing invocations share one bounded network deadline and claim
 
 test("expired subscriptions prevent recurring AI spending without removing drafts", async () => {
   const { rows } = fakeDatabase();
-  rows("billing_subscriptions")[0].paidThrough = new Date(Date.now() - 1000);
+  rows("paypal_subscriptions")[0].paidThrough = new Date(Date.now() - 1000);
   rows("agent_configurations").push({ id: 9, workspaceId: 1, brandId: 3, mode: "autopilot", isPaused: false, maxPostsPerWeek: 2, allowedPlatforms: ["linkedin"], objectives: [], currentStrategy: "" });
   rows("planning_schedules").push({ id: 11, workspaceId: 1, enabled: true, enabledBy: 7, intervalDays: 7, nextRunAt: new Date(0), updatedAt: new Date(0) });
   rows("posts").push({ id: 4, workspaceId: 1, status: "draft", baseContent: "Retain me" });

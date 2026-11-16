@@ -14,16 +14,25 @@ export function allowanceWindow(start: Date, end: Date, now: Date) {
   return { start: anniversary(index), end: new Date(Math.min(anniversary(index + 1).getTime(), end.getTime())) };
 }
 
-export function invoicePaymentVerified(invoice: {
-  status: string | null; paid_out_of_band?: boolean; amount_due: number; amount_paid: number;
-  total: number; subtotal: number; starting_balance: number; currency: string;
-  total_discount_amounts?: unknown[] | null;
-}, catalogAmount: number) {
-  if (invoice.status !== "paid" || invoice.paid_out_of_band || invoice.currency !== "usd" ||
-    invoice.subtotal !== catalogAmount || invoice.total < catalogAmount || invoice.total_discount_amounts?.length) return false;
-  if (invoice.amount_due > 0) return invoice.amount_paid >= invoice.amount_due;
-  // Fully applied existing Stripe customer cash/credit balance is valid settlement.
-  // Free/discounted invoices, manual out-of-band settlement, and trials are not activation.
-  return invoice.amount_due === 0 && invoice.total > 0 &&
-    invoice.starting_balance < 0 && invoice.total + invoice.starting_balance <= 0;
+export function billingAnniversary(anchor: Date, offset: number, interval: "month" | "year") {
+  const result = new Date(anchor);
+  result.setUTCDate(1);
+  result.setUTCMonth(anchor.getUTCMonth() + offset * (interval === "year" ? 12 : 1));
+  const last = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(anchor.getUTCDate(), last));
+  return result;
+}
+export function paidTransactionWindow(anchor: Date, paymentTime: Date, interval: "month" | "year", nextBilling?: Date) {
+  if (!Number.isFinite(anchor.getTime()) || !Number.isFinite(paymentTime.getTime()) || paymentTime < anchor) return null;
+  const months = (paymentTime.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + paymentTime.getUTCMonth() - anchor.getUTCMonth();
+  let offset = Math.floor(months / (interval === "year" ? 12 : 1));
+  if (billingAnniversary(anchor, offset, interval) > paymentTime) offset--;
+  const start = billingAnniversary(anchor, offset, interval);
+  let end = billingAnniversary(anchor, offset + 1, interval);
+  if (nextBilling) {
+    if (!Number.isFinite(nextBilling.getTime()) || nextBilling <= paymentTime ||
+      nextBilling.getTime() - paymentTime.getTime() > (interval === "year" ? 366 : 31) * 86400000) return null;
+    end = nextBilling;
+  }
+  return start <= paymentTime && paymentTime < end ? { start, end } : null;
 }

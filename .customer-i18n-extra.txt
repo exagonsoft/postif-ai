@@ -1,0 +1,187 @@
+followers|{count} combined followers|{count} seguidores en total|{count} Follower insgesamt|{count} seguidores no total
+successRate|{rate} job publishing success rate|{rate} de éxito en tareas de publicación|{rate} Erfolgsquote bei Veröffentlichungsaufträgen|{rate} de sucesso nas tarefas de publicação
+queuedReview|{queued} queued • {review} review|{queued} en cola • {review} en revisión|{queued} eingereiht • {review} zur Prüfung|{queued} na fila • {review} em revisão
+credits|{count} credits|{count} créditos|{count} Guthaben|{count} créditos
+generatedAdaptations|Generated {count} distinct channel adaptations.|Se generaron {count} adaptaciones distintas por canal.|{count} individuelle Kanalanpassungen erstellt.|Foram geradas {count} adaptações distintas por canal.
+repurposedTitle|Repurposed {type}: {text}...|Reutilizado {type}: {text}...|Wiederverwendet {type}: {text}...|Reutilizado {type}: {text}...
+repurposedTopic|Repurposed {type}|Reutilizado {type}|Wiederverwendet {type}|Reutilizado {type}
+discoverySuggestions|Generated suggestions from your brief ({source}). Review and verify them below.|Se generaron sugerencias a partir de tu resumen ({source}). Revísalas y verifícalas a continuación.|Vorschläge aus deinem Briefing erstellt ({source}). Prüfe und bestätige sie unten.|Sugestões geradas a partir do seu resumo ({source}). Revise e confira abaixo.
+brandReady|{name} is ready in your POSTIF-AI Command Center.|{name} está lista en tu centro de control de POSTIF-AI.|{name} ist in deiner POSTIF-AI-Steuerzentrale bereit.|{name} está pronta na sua central de controle do POSTIF-AI.
+stepOf|Step {step} of {total}: {title}|Paso {step} de {total}: {title}|Schritt {step} von {total}: {title}|Etapa {step} de {total}: {title}
+createWorkspace|1. Create Your Workspace|1. Crea tu espacio de trabajo|1. Erstelle deinen Arbeitsbereich|1. Crie seu espaço de trabalho
+configureWorkspace|1. Configure Your Workspace|1. Configura tu espacio de trabajo|1. Konfiguriere deinen Arbeitsbereich|1. Configure seu espaço de trabalho
+agentOperating|Operating in {mode} mode with updated guardrails.|Funcionando en modo {mode} con límites actualizados.|Betrieb im Modus {mode} mit aktualisierten Schutzregeln.|Operando no modo {mode} com limites atualizados.
+modeActive|{mode} Mode Active|Modo {mode} activo|Modus {mode} aktiv|Modo {mode} ativo
+agentLimits|Max {posts} posts/week • {channels} authorized channel(s) • All actions logged|Máx. {posts} publicaciones/semana • {channels} canales autorizados • Todas las acciones registradas|Max. {posts} Beiträge/Woche • {channels} autorisierte Kanäle • Alle Aktionen protokolliert|Máx. {posts} publicações/semana • {channels} canais autorizados • Todas as ações registradas
+agentMode|{mode} Mode|Modo {mode}|Modus {mode}|Modo {mode}
+downloadedRows|Downloaded {count} analytics rows.|Se descargaron {count} filas de analítica.|{count} Analysezeilen heruntergeladen.|Foram baixadas {count} linhas de análises.
+comparedTo| compared to {rate}% for {type}| frente al {rate}% de {type}| gegenüber {rate}% bei {type}| em comparação com {rate}% de {type}
+chartImpressions|{date} ({platform}): {count} impressions|{date} ({platform}): {count} impresiones|{date} ({platform}): {count} Impressionen|{date} ({platform}): {count} impressões
+updatedCalendar|'{title}' updated in calendar & job queue.|Se actualizó '{title}' en el calendario y la cola de tareas.|„{title}“ im Kalender und in der Auftragswarteschlange aktualisiert.|'{title}' atualizado no calendário e na fila de tarefas.
+movedPost|Moved post to {date} at {time} ({timezone}).|Publicación movida al {date} a las {time} ({timezone}).|Beitrag auf {date} um {time} ({timezone}) verschoben.|Publicação movida para {date} às {time} ({timezone}).
+retryJob|Publishing job #{id} will be checked by the worker.|El proceso revisará la tarea de publicación n.º {id}.|Der Hintergrundprozess prüft den Veröffentlichungsauftrag Nr. {id}.|O processo verificará a tarefa de publicação nº {id}.
+processedJobs|Processed {count} due publishing job(s).|Se procesaron {count} tareas de publicación pendientes.|{count} fällige Veröffentlichungsaufträge verarbeitet.|Foram processadas {count} tarefas de publicação pendentes.
+generatedCampaign|Generated strategy themes and {count} starter draft posts.|Se generaron temas estratégicos y {count} borradores iniciales.|Strategiethemen und {count} erste Beitragsentwürfe erstellt.|Foram gerados temas estratégicos e {count} rascunhos iniciais.
+statusSet|Status set to {status}.|Estado cambiado a {status}.|Status auf {status} gesetzt.|Status definido como {status}.
+executionBadge|{source} • {model} ({count} credits)|{source} • {model} ({count} créditos)|{source} • {model} ({count} Guthaben)|{source} • {model} ({count} créditos)
+tailoredCopy|Created tailored copy for {count} channel(s).|Se crearon textos adaptados para {count} canales.|Individuelle Texte für {count} Kanäle erstellt.|Foram criados textos adaptados para {count} canais.
+appliedAction|Applied '{action}' to {platform}|Se aplicó '{action}' a {platform}|„{action}“ auf {platform} angewendet|'{action}' aplicado a {platform}
+generationStatus|Generation {status}…|Generación {status}…|Erstellung {status}…|Geração {status}…
+deleteMedia|Delete "{title}" from the media library and storage?|¿Eliminar "{title}" de la biblioteca de medios y del almacenamiento?|„{title}“ aus der Medienbibliothek und dem Speicher löschen?|Excluir "{title}" da biblioteca de mídia e do armazenamento?
+generateKind|Generate {kind}|Generar {kind}|{kind} erstellen|Gerar {kind}
+syncResult|{processed} accounts synchronized; {skipped} skipped.|{processed} cuentas sincronizadas; {skipped} omitidas.|{processed} Konten synchronisiert; {skipped} übersprungen.|{processed} contas sincronizadas; {skipped} ignoradas.
+registerCallback|Register this exact callback in your app: {url}.|Registra esta URL de retorno exacta en tu aplicación: {url}.|Registriere diesen exakten Callback in deiner App: {url}.|Registre esta URL de retorno exata no seu aplicativo: {url}.
+brandAdded|{name} added to this workspace.|Se añadió {name} a este espacio de trabajo.|{name} wurde diesem Arbeitsbereich hinzugefügt.|{name} foi adicionada a este espaço de trabalho.
+inviteInstructions|Ask {email} to sign in and open Workspaces to accept. No email has been sent.|Pide a {email} que inicie sesión y abra Espacios de trabajo para aceptar. No se ha enviado ningún correo.|Bitte {email}, sich anzumelden und Arbeitsbereiche zu öffnen, um anzunehmen. Es wurde keine E-Mail gesendet.|Peça a {email} para entrar e abrir Espaços de trabalho para aceitar. Nenhum e-mail foi enviado.
+roleChanged|Member role changed to {role}.|Rol del miembro cambiado a {role}.|Mitgliedsrolle auf {role} geändert.|Função do membro alterada para {role}.
+providerCapture|{platform} · account #{id} · captured {date}|{platform} · cuenta n.º {id} · captura del {date}|{platform} · Konto Nr. {id} · erfasst am {date}|{platform} · conta nº {id} · captura em {date}
+providerAccount|Account #{id}: {message}|Cuenta n.º {id}: {message}|Konto Nr. {id}: {message}|Conta nº {id}: {message}
+environment.mongo|MongoDB Persistence|Persistencia MongoDB|MongoDB-Persistenz|Persistência MongoDB
+environment.openai|Managed OpenAI API Key (OPENAI_API_KEY)|Clave API de OpenAI gestionada (OPENAI_API_KEY)|Verwalteter OpenAI-API-Schlüssel (OPENAI_API_KEY)|Chave de API da OpenAI gerenciada (OPENAI_API_KEY)
+environment.checkout|Paid Checkout|Pago de suscripción|Kostenpflichtiger Checkout|Pagamento de assinatura
+environment.social|Social Platform Credentials|Credenciales de plataformas sociales|Zugangsdaten sozialer Plattformen|Credenciais de plataformas sociais
+environment.unavailable|Not available|No disponible|Nicht verfügbar|Indisponível
+environment.customer|Customer-owned; configure per account|Del cliente; configurar por cuenta|Kundeneigen; pro Konto konfigurieren|Do cliente; configurar por conta
+status.all|all|todos|alle|todos
+status.draft|draft|borrador|Entwurf|rascunho
+status.pending_approval|pending approval|pendiente de aprobación|Freigabe ausstehend|aguardando aprovação
+status.waiting_media|waiting media|esperando medios|wartet auf Medien|aguardando mídia
+status.media_failed|media failed|error de medios|Medien fehlgeschlagen|falha na mídia
+status.approved|approved|aprobado|genehmigt|aprovado
+status.scheduled|scheduled|programado|geplant|agendado
+status.publishing|publishing|publicando|wird veröffentlicht|publicando
+status.published|published|publicado|veröffentlicht|publicado
+status.failed|failed|fallido|fehlgeschlagen|falhou
+status.cancelled|cancelled|cancelado|abgebrochen|cancelado
+status.completed|completed|completado|abgeschlossen|concluído
+status.pending|pending|pendiente|ausstehend|pendente
+status.queued|queued|en cola|eingereiht|na fila
+status.processing|processing|procesando|in Bearbeitung|processando
+status.ready|ready|listo|bereit|pronto
+status.deleting|deleting|eliminando|wird gelöscht|excluindo
+status.proposed|proposed|propuesto|vorgeschlagen|proposto
+status.rejected|rejected|rechazado|abgelehnt|rejeitado
+status.executed|executed|ejecutado|ausgeführt|executado
+status.active|active|activo|aktiv|ativo
+status.paused|paused|pausado|pausiert|pausado
+status.archived|archived|archivado|archiviert|arquivado
+status.connected|connected|conectado|verbunden|conectado
+status.disconnected|disconnected|desconectado|getrennt|desconectado
+status.expired|expired|vencido|abgelaufen|expirado
+status.error|error|error|Fehler|erro
+status.reconnect_required|reconnect required|requiere reconexión|erneute Verbindung erforderlich|reconexão necessária
+status.not_supported|not supported|no compatible|nicht unterstützt|não compatível
+status.unsupported|unsupported|no compatible|nicht unterstützt|não compatível
+status.not_configured|not configured|sin configurar|nicht konfiguriert|não configurado
+status.not_checked|not checked|sin comprobar|nicht geprüft|não verificado
+status.synced|synced|sincronizado|synchronisiert|sincronizado
+status.not_synced|not synced|sin sincronizar|nicht synchronisiert|não sincronizado
+status.available|available|disponible|verfügbar|disponível
+status.unavailable|unavailable|no disponible|nicht verfügbar|indisponível
+status.success|success|correcto|erfolgreich|sucesso
+status.renewed|renewed|renovado|erneuert|renovado
+status.valid|valid|válido|gültig|válido
+status.invited|invited|invitado|eingeladen|convidado
+status.accepted|accepted|aceptado|angenommen|aceito
+status.declined|declined|rechazado|abgelehnt|recusado
+status.manual|manual|manual|manuell|manual
+status.assisted|assisted|asistido|assistiert|assistido
+status.autopilot|autopilot|piloto automático|Autopilot|piloto automático
+status.owner|owner|propietario|Inhaber|proprietário
+status.admin|admin|administrador|Administrator|administrador
+status.editor|editor|editor|Redakteur|editor
+status.approver|approver|aprobador|Prüfer|aprovador
+status.viewer|viewer|lector|Betrachter|leitor
+status.member|member|miembro|Mitglied|membro
+status.user|user|usuario|Benutzer|usuário
+status.operator|operator|operador|Betreiber|operador
+status.monthly|monthly|mensual|monatlich|mensal
+status.yearly|yearly|anual|jährlich|anual
+status.annual|annual|anual|jährlich|anual
+status.weekly|weekly|semanal|wöchentlich|semanal
+status.daily|daily|diaria|täglich|diária
+status.list|list|lista|Liste|lista
+status.image|image|imagen|Bild|imagem
+status.video|video|video|Video|vídeo
+status.gif|gif|GIF|GIF|GIF
+status.private|private|privado|privat|privado
+status.unlisted|unlisted|no listado|nicht gelistet|não listado
+status.public|public|público|öffentlich|público
+status.SELF_ONLY|SELF ONLY|SOLO YO|NUR ICH|SOMENTE EU
+status.MUTUAL_FOLLOW_FRIENDS|MUTUAL FOLLOW FRIENDS|AMIGOS MUTUOS|GEGENSEITIGE FREUNDE|AMIGOS MÚTUOS
+status.FOLLOWER_OF_CREATOR|FOLLOWER OF CREATOR|SEGUIDORES DEL CREADOR|FOLLOWER DES ERSTELLERS|SEGUIDORES DO CRIADOR
+status.PUBLIC_TO_EVERYONE|PUBLIC TO EVERYONE|PÚBLICO PARA TODOS|FÜR ALLE ÖFFENTLICH|PÚBLICO PARA TODOS
+status.Monday|Monday|Lunes|Montag|Segunda-feira
+status.Tuesday|Tuesday|Martes|Dienstag|Terça-feira
+status.Wednesday|Wednesday|Miércoles|Mittwoch|Quarta-feira
+status.Thursday|Thursday|Jueves|Donnerstag|Quinta-feira
+status.Friday|Friday|Viernes|Freitag|Sexta-feira
+status.Saturday|Saturday|Sábado|Samstag|Sábado
+status.Sunday|Sunday|Domingo|Sonntag|Domingo
+metric.likes|likes|me gusta|Gefällt mir|curtidas
+metric.comments|comments|comentarios|Kommentare|comentários
+metric.shares|shares|compartidos|geteilt|compartilhamentos
+metric.views|views|visualizaciones|Aufrufe|visualizações
+metric.replies|replies|respuestas|Antworten|respostas
+metric.reposts|reposts|republicaciones|erneute Beiträge|republicações
+metric.quotes|quotes|citas|Zitate|citações
+metric.saves|saves|guardados|gespeichert|salvamentos
+metric.reactions|reactions|reacciones|Reaktionen|reações
+metric.subscribers|subscribers|suscriptores|Abonnenten|inscritos
+metric.videos|videos|videos|Videos|vídeos
+metric.media|media|medios|Medien|mídia
+metric.posts|posts|publicaciones|Beiträge|publicações
+provider.x.renewal|OAuth 2.0 refresh token; offline.access and customer API access required.|Token de actualización OAuth 2.0; requiere offline.access y acceso a la API del cliente.|OAuth-2.0-Refresh-Token; offline.access und kundeneigener API-Zugriff erforderlich.|Token de atualização OAuth 2.0; exige offline.access e acesso à API do cliente.
+provider.x.analytics|Account public counters; latest 100 posts' public engagement, not daily reach.|Contadores públicos de la cuenta; interacción pública de las últimas 100 publicaciones, no alcance diario.|Öffentliche Kontozähler; öffentliche Interaktion der letzten 100 Beiträge, keine tägliche Reichweite.|Contadores públicos da conta; engajamento público das últimas 100 publicações, não alcance diário.
+provider.x.notes|X API v2 Basic/Pro tier required for automated post creation.|La creación automática de publicaciones requiere X API v2 Basic/Pro.|Die automatische Beitragserstellung erfordert X API v2 Basic/Pro.|A criação automática de publicações exige X API v2 Basic/Pro.
+provider.youtube.renewal|Google offline refresh token; consent/app verification may be required.|Token de actualización sin conexión de Google; puede requerir consentimiento o verificación de la aplicación.|Google-Offline-Refresh-Token; Zustimmung oder App-Verifizierung kann erforderlich sein.|Token de atualização off-line do Google; pode exigir consentimento ou verificação do aplicativo.
+provider.youtube.analytics|Channel lifetime views, visible subscribers and video count; not daily reach.|Visualizaciones acumuladas del canal, suscriptores visibles y cantidad de videos; no alcance diario.|Gesamte Kanalaufrufe, sichtbare Abonnenten und Videoanzahl; keine tägliche Reichweite.|Visualizações acumuladas do canal, inscritos visíveis e quantidade de vídeos; não alcance diário.
+provider.youtube.notes|YouTube Data API v3 quota units apply per upload operation.|Se aplican unidades de cuota de YouTube Data API v3 por cada subida.|Pro Upload gelten Kontingenteinheiten der YouTube Data API v3.|Unidades de cota da YouTube Data API v3 são aplicadas por operação de envio.
+provider.tiktok.renewal|Rotating OAuth refresh token; approved Login Kit and requested scopes required.|Token de actualización OAuth rotativo; requiere Login Kit aprobado y los permisos solicitados.|Rotierendes OAuth-Refresh-Token; genehmigtes Login Kit und angeforderte Berechtigungen erforderlich.|Token de atualização OAuth rotativo; exige Login Kit aprovado e as permissões solicitadas.
+provider.tiktok.analytics|Account lifetime followers, likes and video count; user.info.stats permission required.|Seguidores, me gusta y cantidad de videos acumulados de la cuenta; requiere el permiso user.info.stats.|Gesamte Follower, Likes und Videoanzahl des Kontos; Berechtigung user.info.stats erforderlich.|Seguidores, curtidas e quantidade de vídeos acumulados da conta; exige a permissão user.info.stats.
+provider.tiktok.notes|Direct publishing requires TikTok Content Posting API audit approval.|La publicación directa requiere aprobación de auditoría de TikTok Content Posting API.|Direkte Veröffentlichung erfordert eine Audit-Genehmigung der TikTok Content Posting API.|A publicação direta exige aprovação de auditoria da TikTok Content Posting API.
+provider.pinterest.renewal|OAuth refresh token; customer app access/approval required.|Token de actualización OAuth; requiere acceso o aprobación de la aplicación del cliente.|OAuth-Refresh-Token; Zugriff bzw. Genehmigung der Kunden-App erforderlich.|Token de atualização OAuth; exige acesso ou aprovação do aplicativo do cliente.
+provider.pinterest.analytics|Previous UTC day's account impressions, engagements, clicks and saves when returned; business-account/API access and user_accounts:read required.|Impresiones, interacciones, clics y guardados de la cuenta del día UTC anterior cuando se devuelvan; requiere acceso de cuenta empresarial/API y user_accounts:read.|Kontoimpressionen, Interaktionen, Klicks und Speicherungen des vorherigen UTC-Tages, sofern geliefert; Geschäftskonto-/API-Zugriff und user_accounts:read erforderlich.|Impressões, engajamentos, cliques e salvamentos da conta do dia UTC anterior, quando retornados; exige acesso de conta comercial/API e user_accounts:read.
+provider.pinterest.notes|Requires destination board ID and vertical media asset.|Requiere el ID del tablero de destino y un archivo multimedia vertical.|Ziel-Pinnwand-ID und vertikale Mediendatei erforderlich.|Exige o ID do painel de destino e um arquivo de mídia vertical.
+provider.linkedin.renewal|Customer app can request member or intended-organization permissions. Refresh only when LinkedIn issued a refresh token to an approved Marketing Developer Platform partner.|La aplicación del cliente puede solicitar permisos de miembro o de la organización de destino. Solo se renueva si LinkedIn emitió un token de actualización a un socio aprobado de Marketing Developer Platform.|Die Kunden-App kann Mitglieds- oder Zielorganisationsberechtigungen anfordern. Erneuerung nur, wenn LinkedIn einem genehmigten Marketing-Developer-Platform-Partner ein Refresh-Token ausgestellt hat.|O aplicativo do cliente pode solicitar permissões de membro ou da organização de destino. A renovação só ocorre se o LinkedIn tiver emitido um token de atualização a um parceiro aprovado da Marketing Developer Platform.
+provider.linkedin.analytics|Member TOTAL post analytics requires approved r_member_postAnalytics; organization organic share totals require administrator/rw_organization_admin access. Not daily totals.|La analítica TOTAL de publicaciones de miembros requiere r_member_postAnalytics aprobado; los totales orgánicos de organizaciones requieren acceso de administrador/rw_organization_admin. No son totales diarios.|Die TOTAL-Beitragsanalyse für Mitglieder erfordert genehmigtes r_member_postAnalytics; organische Gesamtwerte von Organisationen erfordern Administrator-/rw_organization_admin-Zugriff. Keine Tagessummen.|A análise TOTAL de publicações de membros exige r_member_postAnalytics aprovado; os totais orgânicos das organizações exigem acesso de administrador/rw_organization_admin. Não são totais diários.
+provider.linkedin.notes|Requires LinkedIn Community Management API approval for Company Pages.|Requiere aprobación de LinkedIn Community Management API para páginas de empresa.|Erfordert eine Genehmigung der LinkedIn Community Management API für Unternehmensseiten.|Exige aprovação da LinkedIn Community Management API para páginas de empresas.
+provider.facebook.renewal|Own-app browser flow exchanges a user token for a long-lived token, then saves only the exact intended Page's token. Long-lived Page tokens have no scheduled expiry; invalidated tokens need reauthorization, not a generic refresh grant.|El flujo del navegador de tu aplicación intercambia un token de usuario por uno de larga duración y guarda solo el token de la página de destino exacta. Los tokens de página de larga duración no tienen vencimiento programado; si se invalidan, requieren reautorización, no una actualización genérica.|Der Browserablauf deiner eigenen App tauscht ein Benutzertoken gegen ein langlebiges Token und speichert nur das Token der exakt vorgesehenen Seite. Langlebige Seitentokens haben kein geplantes Ablaufdatum; ungültige Tokens erfordern eine erneute Autorisierung statt eines allgemeinen Refresh-Vorgangs.|O fluxo do navegador do seu aplicativo troca um token de usuário por um de longa duração e salva apenas o token da página de destino exata. Tokens de página de longa duração não têm expiração programada; tokens invalidados exigem nova autorização, não uma atualização genérica.
+provider.facebook.analytics|Page followers/Page likes and engagement on authored published posts among at most 100 returned feed items. Reactions are not likes; Reels and missing counters are excluded.|Seguidores y me gusta de la página e interacción en publicaciones propias entre un máximo de 100 elementos devueltos del feed. Las reacciones no son me gusta; se excluyen Reels y contadores ausentes.|Seiten-Follower/Seiten-Likes und Interaktion auf eigenen veröffentlichten Beiträgen unter höchstens 100 gelieferten Feed-Einträgen. Reaktionen sind keine Likes; Reels und fehlende Zähler sind ausgeschlossen.|Seguidores/curtidas da página e engajamento em publicações próprias entre no máximo 100 itens retornados do feed. Reações não são curtidas; Reels e contadores ausentes são excluídos.
+provider.facebook.notes|Requires a Page access token with publishing permissions for the selected Page.|Requiere un token de acceso de página con permisos de publicación para la página seleccionada.|Erfordert ein Seitenzugriffstoken mit Veröffentlichungsberechtigungen für die ausgewählte Seite.|Exige um token de acesso de página com permissões de publicação para a página selecionada.
+provider.instagram.renewal|Own Instagram Login app; intended professional-account ID required. Code exchange obtains a long-lived token; refresh requires it to remain unexpired and at least 24 hours old.|Aplicación propia de Instagram Login; requiere el ID de la cuenta profesional de destino. El intercambio de código obtiene un token de larga duración; para renovarlo debe seguir vigente y tener al menos 24 horas.|Eigene Instagram-Login-App; ID des vorgesehenen professionellen Kontos erforderlich. Der Codeaustausch liefert ein langlebiges Token; für die Erneuerung muss es noch gültig und mindestens 24 Stunden alt sein.|Aplicativo próprio do Instagram Login; exige o ID da conta profissional de destino. A troca de código obtém um token de longa duração; para renová-lo, ele deve estar válido e ter pelo menos 24 horas.
+provider.instagram.analytics|Previous UTC day's account views/reach/interactions/likes/comments/shares, plus current followers/media count when returned. Approved instagram_business_manage_insights required; data can lag 48 hours.|Visualizaciones, alcance, interacciones, me gusta, comentarios y compartidos de la cuenta del día UTC anterior, más seguidores y medios actuales cuando se devuelvan. Requiere instagram_business_manage_insights aprobado; los datos pueden retrasarse 48 horas.|Kontoaufrufe, Reichweite, Interaktionen, Likes, Kommentare und geteilte Inhalte des vorherigen UTC-Tages sowie aktuelle Follower-/Medienanzahl, sofern geliefert. Genehmigtes instagram_business_manage_insights erforderlich; Daten können 48 Stunden verzögert sein.|Visualizações, alcance, interações, curtidas, comentários e compartilhamentos da conta do dia UTC anterior, mais seguidores e mídias atuais, quando retornados. Exige instagram_business_manage_insights aprovado; os dados podem atrasar 48 horas.
+provider.instagram.notes|Requires an Instagram Professional account and an Instagram Login user access token. JPEG images or MP4 reels.|Requiere una cuenta profesional de Instagram y un token de acceso de usuario de Instagram Login. Imágenes JPEG o reels MP4.|Erfordert ein professionelles Instagram-Konto und ein Instagram-Login-Benutzerzugriffstoken. JPEG-Bilder oder MP4-Reels.|Exige uma conta profissional do Instagram e um token de acesso de usuário do Instagram Login. Imagens JPEG ou reels MP4.
+provider.threads.renewal|Own Threads app; code exchange obtains a long-lived token. Refresh requires an unexpired token at least 24 hours old; private-profile permission grants may still need reauthorization.|Aplicación propia de Threads; el intercambio de código obtiene un token de larga duración. Renovarlo requiere un token vigente de al menos 24 horas; los permisos de perfiles privados pueden requerir reautorización.|Eigene Threads-App; der Codeaustausch liefert ein langlebiges Token. Die Erneuerung erfordert ein gültiges Token, das mindestens 24 Stunden alt ist; Berechtigungen privater Profile können dennoch eine erneute Autorisierung erfordern.|Aplicativo próprio do Threads; a troca de código obtém um token de longa duração. A renovação exige um token válido com pelo menos 24 horas; permissões de perfis privados ainda podem exigir nova autorização.
+provider.threads.analytics|Previous UTC day's profile views, post likes/replies/reposts/quotes/link clicks plus separately requested current followers. threads_manage_insights required.|Visualizaciones del perfil, me gusta, respuestas, republicaciones, citas y clics en enlaces del día UTC anterior, más seguidores actuales solicitados por separado. Requiere threads_manage_insights.|Profilaufrufe, Beitrags-Likes, Antworten, Reposts, Zitate und Linkklicks des vorherigen UTC-Tages sowie separat angeforderte aktuelle Follower. threads_manage_insights erforderlich.|Visualizações do perfil, curtidas, respostas, republicações, citações e cliques em links do dia UTC anterior, mais seguidores atuais solicitados separadamente. Exige threads_manage_insights.
+provider.threads.notes|Uses Meta Threads Publishing API with two-step container creation.|Usa Meta Threads Publishing API con creación de contenedores en dos pasos.|Nutzt die Meta Threads Publishing API mit zweistufiger Containererstellung.|Usa a Meta Threads Publishing API com criação de contêiner em duas etapas.
+status.blocked|blocked|bloqueado|blockiert|bloqueado
+status.configured|configured|configurado|konfiguriert|configurado
+status.not_due|not due|aún no corresponde|noch nicht fällig|ainda não é necessário
+status.no_scheduled_expiry|no scheduled expiry|sin vencimiento programado|kein geplantes Ablaufdatum|sem expiração programada
+status.expiry_unknown|expiry unknown|vencimiento desconocido|Ablauf unbekannt|expiração desconhecida
+status.plan_required|plan required|requiere un plan|Tarif erforderlich|plano necessário
+status.action_needed|action needed|requiere atención|Aktion erforderlich|ação necessária
+metric.sampledPosts|sampledPosts|publicaciones de muestra|Beitragsstichprobe|publicações amostradas
+metric.pinClicks|pinClicks|clics en pines|Pin-Klicks|cliques em pins
+metric.uniqueImpressions|uniqueImpressions|impresiones únicas|einzigartige Impressionen|impressões únicas
+metric.pageLikes|pageLikes|me gusta de la página|Seiten-Likes|curtidas da página
+metric.profileViews|profileViews|visualizaciones del perfil|Profilaufrufe|visualizações do perfil
+metric.impressions|impressions|impresiones|Impressionen|impressões
+metric.reach|reach|alcance|Reichweite|alcance
+metric.engagements|engagements|interacciones|Interaktionen|engajamentos
+metric.clicks|clicks|clics|Klicks|cliques
+metric.followers|followers|seguidores|Follower|seguidores
+calendar.monthlyView|monthly View|Vista mensual|Monatsansicht|Visualização mensal
+calendar.weeklyView|weekly View|Vista semanal|Wochenansicht|Visualização semanal
+calendar.dailyView|daily View|Vista diaria|Tagesansicht|Visualização diária
+calendar.listView|list View|Vista de lista|Listenansicht|Visualização em lista
+calendar.monthlyQueue|monthly Schedule Queue|Cola de programación mensual|Monatliche Planungswarteschlange|Fila de agendamento mensal
+calendar.weeklyQueue|weekly Schedule Queue|Cola de programación semanal|Wöchentliche Planungswarteschlange|Fila de agendamento semanal
+calendar.dailyQueue|daily Schedule Queue|Cola de programación diaria|Tägliche Planungswarteschlange|Fila de agendamento diária
+calendar.listQueue|list Schedule Queue|Cola de programación en lista|Planungswarteschlange als Liste|Fila de agendamento em lista
+close|Close|Cerrar|Schließen|Fechar
+studio.preview|Live {platform} Post Preview ({format})|Vista previa en vivo de {platform} ({format})|Live-Beitragsvorschau für {platform} ({format})|Prévia ao vivo da publicação no {platform} ({format})
+status.needs_review|needs review|requiere revisión|Prüfung erforderlich|precisa de revisão
+status.uncertain|uncertain|incierto|ungewiss|incerto
+status.retrying|retrying|reintentando|erneuter Versuch|tentando novamente

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppLanguage } from "@/i18n/provider";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -49,6 +50,9 @@ export function AgentWorkspaceClient({
   config: AgentConfigDTO;
   actions: AgentActionDTO[];
 }) {
+  const { t, locale, formatNumber } = useAppLanguage();
+  const displayStatus = (value: string) => ["draft","pending_approval","waiting_media","media_failed","approved","scheduled","publishing","published","failed","cancelled","paused","proposed","rejected","executed","completed","manual","assisted","autopilot","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -85,14 +89,14 @@ export function AgentWorkspaceClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast("Guardrail check", data.error || "Could not update mode.", "error");
+        toast(t("customer.text.193"), data.error || t("customer.text.194"), "error");
         return;
       }
       setMode(targetMode);
       planRequestKey.current = null;
       toast(
-        "Agent configuration saved",
-        `Operating in ${targetMode.toUpperCase()} mode with updated guardrails.`
+        t("customer.text.195"),
+        t("customer.agentOperating", { mode: displayStatus(targetMode).toLocaleUpperCase(locale) })
       );
       router.refresh();
     } finally {
@@ -108,15 +112,15 @@ export function AgentWorkspaceClient({
     });
     if (res.ok) {
       toast(
-        config.isPaused ? "Planning enabled" : "Planning paused",
+        config.isPaused ? t("customer.text.196") : t("customer.text.197"),
         config.isPaused
-          ? "You can generate new weekly plans."
-          : "New plan generation is paused. Existing scheduled posts are unchanged."
+          ? t("customer.text.198")
+          : t("customer.text.199")
       );
       router.refresh();
     } else {
       const data = await res.json();
-      toast("Planning not changed", data.error || "Could not update planning.", "error");
+      toast(t("customer.text.200"), data.error || t("customer.text.201"), "error");
     }
   };
 
@@ -132,16 +136,16 @@ export function AgentWorkspaceClient({
       if (res.ok) {
         planRequestKey.current = null;
         toast(
-          "Weekly plan regenerated",
-          "Mapped brand content pillars across approved channels."
+          t("customer.text.202"),
+          t("customer.text.203")
         );
         router.refresh();
       } else {
         const data = await res.json();
-        toast("Plan not generated", data.error || "Check your plan, credentials, and AI credits.", "error");
+        toast(t("customer.text.204"), data.error || t("customer.text.205"), "error");
       }
     } catch {
-      toast("Plan request interrupted", "Retry reuses the same request key; an uncertain provider request is never automatically repeated.", "error");
+      toast(t("customer.text.206"), t("customer.text.207"), "error");
     } finally {
       setGeneratingPlan(false);
     }
@@ -158,13 +162,13 @@ export function AgentWorkspaceClient({
     });
     if (res.ok) {
       toast(
-        decision === "approved" ? "Proposal Approved" : "Proposal Rejected",
-        "Action recorded in workspace audit log."
+        decision === "approved" ? t("customer.text.208") : t("customer.text.209"),
+        t("customer.text.210")
       );
       router.refresh();
     } else {
       const data = await res.json();
-      toast("Proposal not changed", data.error || "Review the post and your approval permissions.", "error");
+      toast(t("customer.text.211"), data.error || t("customer.text.212"), "error");
     }
   };
 
@@ -180,7 +184,7 @@ export function AgentWorkspaceClient({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-extrabold">Autonomous Marketing Strategist</h2>
+              <h2 className="text-lg font-extrabold">{t("customer.text.213")}</h2>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
                   config.isPaused
@@ -189,12 +193,11 @@ export function AgentWorkspaceClient({
                 }`}
               >
                 <PulseStatusDot color={config.isPaused ? "amber" : "emerald"} />
-                {config.isPaused ? "Paused" : `${mode} Mode Active`}
+                {config.isPaused ? t("customer.text.214") : t("customer.modeActive", { mode: displayStatus(mode) })}
               </span>
             </div>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Max {maxPostsPerWeek} posts/week • {allowedPlatforms.length} authorized channel(s) •
-              All actions logged
+              {t("customer.agentLimits", { posts: formatNumber(maxPostsPerWeek), channels: formatNumber(allowedPlatforms.length) })}
             </p>
           </div>
         </div>
@@ -210,11 +213,11 @@ export function AgentWorkspaceClient({
         >
           {config.isPaused ? (
             <>
-              <PlayCircle className="h-4 w-4" /> Resume Agent
+              <PlayCircle className="h-4 w-4" /> {t("customer.text.218")}
             </>
           ) : (
             <>
-              <PauseCircle className="h-4 w-4" /> Pause Planning
+              <PauseCircle className="h-4 w-4" /> {t("customer.text.219")}
             </>
           )}
         </button>
@@ -225,18 +228,18 @@ export function AgentWorkspaceClient({
         {[
           {
             id: "manual",
-            title: "Manual Mode",
-            desc: "AI suggests topics and drafts, but humans control every single edit, schedule slot, and publication.",
+            title: t("customer.text.220"),
+            desc: t("customer.text.221"),
           },
           {
             id: "assisted",
-            title: "Assisted Mode",
-            desc: "Generate weekly plan suggestions on demand. Create posts and submit them for approval separately.",
+            title: t("customer.text.222"),
+            desc: t("customer.text.223"),
           },
           {
             id: "autopilot",
-            title: "Autopilot Mode",
-            desc: "Enable recurring weekly AI planning and real generated drafts (Pro/Agency). Every draft requires human approval and a publishing time; no automatic promotional or client approval.",
+            title: t("customer.text.224"),
+            desc: t("customer.text.225"),
           },
         ].map((m) => {
           const active = mode === m.id;
@@ -263,7 +266,7 @@ export function AgentWorkspaceClient({
                     transition={SPRING_SNAPPY}
                     className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white"
                   >
-                    Selected
+                    {t("customer.text.227")}
                   </motion.span>
                 ) : null}
               </div>
@@ -281,9 +284,9 @@ export function AgentWorkspaceClient({
         <div className="surface-card space-y-4 rounded-3xl p-6 lg:col-span-5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-extrabold">
-              Agent Approval Inbox ({proposedActions.length})
+              {t("customer.text.228")}{formatNumber(proposedActions.length)})
             </h3>
-            <span className="text-[11px] font-semibold text-cyan-400">Human-in-the-Loop</span>
+            <span className="text-[11px] font-semibold text-cyan-400">{t("customer.text.229")}</span>
           </div>
 
           <AnimatePresence initial={false}>
@@ -294,8 +297,7 @@ export function AgentWorkspaceClient({
                 animate={{ opacity: 1 }}
                 className="elevated-card rounded-2xl p-6 text-center text-xs text-[var(--text-secondary)]"
               >
-                No pending agent proposals. Click &ldquo;Regenerate Weekly Plan&rdquo; to generate fresh
-                recommendations.
+                {t("customer.text.230")}
               </motion.div>
             ) : (
               proposedActions.map((act) => (
@@ -312,7 +314,7 @@ export function AgentWorkspaceClient({
                   <p className="text-xs text-[var(--text-secondary)]">{act.description}</p>
                   {act.reasoning && (
                     <div className="rounded-xl bg-violet-500/10 p-2.5 text-[11px] text-violet-300">
-                      <strong>Agent Reasoning:</strong> {act.reasoning}
+                      <strong>{t("customer.text.231")}</strong> {act.reasoning}
                     </div>
                   )}
                   <div className="flex gap-2 pt-1">
@@ -321,14 +323,14 @@ export function AgentWorkspaceClient({
                       onClick={() => handleResolveProposal(act.id, "approved")}
                       className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500 py-2 text-xs font-bold text-slate-950"
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Approve Draft
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t("customer.text.232")}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleResolveProposal(act.id, "rejected")}
                       className="inline-flex items-center justify-center gap-1 rounded-xl bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300"
                     >
-                      <XCircle className="h-3.5 w-3.5" /> Reject
+                      <XCircle className="h-3.5 w-3.5" /> {t("customer.text.233")}
                     </button>
                   </div>
                 </motion.div>
@@ -341,9 +343,9 @@ export function AgentWorkspaceClient({
         <div className="surface-card space-y-4 rounded-3xl p-6 lg:col-span-7">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-base font-extrabold">Autonomous Weekly Content Plan</h3>
+              <h3 className="text-base font-extrabold">{t("customer.text.234")}</h3>
               <p className="text-xs text-[var(--text-secondary)]">
-                Balanced across your brand content pillars and approved channels
+                {t("customer.text.235")}
               </p>
             </div>
             <button
@@ -357,19 +359,19 @@ export function AgentWorkspaceClient({
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              Regenerate Weekly Plan
+              {t("customer.text.236")}
             </button>
           </div>
 
           <div className="space-y-2.5">
             {config.weeklyPlan.map((slot, idx) => (
               <div
-                key={`${slot.day}-${idx}`}
+                key={`${displayStatus(slot.day)}-${idx}`}
                 className="elevated-card flex flex-wrap items-center justify-between gap-3 rounded-2xl p-3.5"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-extrabold text-cyan-400">{slot.day}</span>
+                    <span className="text-xs font-extrabold text-cyan-400">{displayStatus(slot.day)}</span>
                     <span className="rounded bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-300">
                       {slot.platform}
                     </span>
@@ -380,7 +382,7 @@ export function AgentWorkspaceClient({
                   <p className="mt-1 text-xs font-medium">{slot.concept}</p>
                 </div>
                 <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-bold uppercase text-slate-300">
-                  {slot.status}
+                  {displayStatus(slot.status)}
                 </span>
               </div>
             ))}
@@ -391,11 +393,11 @@ export function AgentWorkspaceClient({
       {/* Strategy & Safety Guardrails Configuration */}
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="surface-card space-y-4 rounded-3xl p-6 lg:col-span-7">
-          <h3 className="text-base font-extrabold">Active Brand Strategy & Guardrail Limits</h3>
+          <h3 className="text-base font-extrabold">{t("customer.text.237")}</h3>
 
           <div>
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Strategic Directive
+              {t("customer.text.238")}
             </label>
             <textarea
               rows={3}
@@ -408,7 +410,7 @@ export function AgentWorkspaceClient({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-                Max Autonomous Posts / Week
+                {t("customer.text.239")}
               </label>
               <input
                 type="number"
@@ -428,14 +430,14 @@ export function AgentWorkspaceClient({
                   disabled
                   className="accent-violet-600"
                 />
-                All generated drafts require approval, including promotional and client content
+                {t("customer.text.240")}
               </label>
             </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
-              Authorized Channels Allowlist
+              {t("customer.text.241")}
             </label>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {Object.values(SOCIAL_PLATFORM_SPECS).map((p) => (
@@ -461,7 +463,7 @@ export function AgentWorkspaceClient({
             onClick={() => handleSaveRules()}
             className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-bold text-white"
           >
-            <Save className="h-3.5 w-3.5" /> Save Guardrails & Strategy
+            <Save className="h-3.5 w-3.5" /> {t("customer.text.243")}
           </button>
         </div>
 
@@ -470,27 +472,27 @@ export function AgentWorkspaceClient({
           <div className="flex items-center gap-2 text-emerald-400">
             <ShieldCheck className="h-5 w-5" />
             <h3 className="text-base font-extrabold text-[var(--text-primary)]">
-              Hardcoded Agent Safety Boundaries
+              {t("customer.text.244")}
             </h3>
           </div>
           <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-            <li>• Never publishes outside explicitly authorized channels</li>
-            <li>• Never exceeds weekly posting caps ({maxPostsPerWeek}/week)</li>
-            <li>• Never spends money or upgrades subscription plans</li>
-            <li>• Never connects/disconnects social OAuth accounts</li>
-            <li>• Every autonomous action writes an immutable audit log</li>
+            <li>{t("customer.text.245")}</li>
+            <li>{t("customer.text.246")}{formatNumber(maxPostsPerWeek)}{t("customer.text.247")}</li>
+            <li>{t("customer.text.248")}</li>
+            <li>{t("customer.text.249")}</li>
+            <li>{t("customer.text.250")}</li>
           </ul>
 
           <div className="border-t border-[var(--border-subtle)] pt-4">
             <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Auditable Activity History
+              {t("customer.text.251")}
             </div>
             <div className="mt-2.5 max-h-48 space-y-2 overflow-y-auto">
               {actions.map((a) => (
                 <div key={a.id} className="elevated-card rounded-xl p-2.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{a.title}</span>
-                    <span className="text-[10px] uppercase text-cyan-400">{a.status}</span>
+                    <span className="text-[10px] uppercase text-cyan-400">{displayStatus(a.status)}</span>
                   </div>
                 </div>
               ))}

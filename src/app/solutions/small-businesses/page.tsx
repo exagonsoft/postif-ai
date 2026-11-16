@@ -1,42 +1,38 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import Link from "next/link";
 import { PublicShell } from "@/components/PublicShell";
 import { Bot, Check, ArrowRight } from "lucide-react";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Solutions for Small Businesses — Autonomous Marketing Team in a Box",
-};
+export async function generateMetadata() {
+  const { locale } = await getServerI18n();
+  return publicPageMetadata("smallBusinesses", locale);
+}
 
-export default function SmallBusinessSolutionPage() {
+export default async function SmallBusinessSolutionPage() {
+  const { t } = await getServerI18n();
   return (
     <PublicShell>
       <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-semibold text-cyan-400">
-          <Bot className="h-3.5 w-3.5" />
-          Solutions for Small Businesses & Lean Growth Teams
-        </span>
-        <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Enterprise-Grade Social Presence Without Hiring a Full Agency
-        </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-          Run AI Brand Discovery on your website, approve weekly content plans in five minutes, and
-          let Assisted or Autopilot mode maintain consistent customer acquisition across every
-          channel.
-        </p>
+          <Bot className="h-3.5 w-3.5" />{t("public.smallbusinesses.text01")}</span>
+        <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">{t("public.smallbusinesses.text02")}</h1>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">{t("public.smallbusinesses.text03")}</p>
 
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {[
             {
-              title: "AI Brand Discovery Onboarding",
-              desc: "Enter your website URL and POSTIF-AI extracts your products, ICP, brand voice, content pillars, and starter hashtags.",
+              title: t("public.smallbusinesses.text04"),
+              desc: t("public.smallbusinesses.text05"),
             },
             {
-              title: "4-Week Campaign Architect",
-              desc: "Describe a product launch or seasonal promo and get a structured multi-week calendar with ready-to-publish drafts.",
+              title: t("public.smallbusinesses.text06"),
+              desc: t("public.smallbusinesses.text07"),
             },
             {
-              title: "Grounded ROI Recommendations",
-              desc: "See which content pillars drive clicks and engagement so your team doubles down on what converts.",
+              title: t("public.smallbusinesses.text08"),
+              desc: t("public.smallbusinesses.text09"),
             },
           ].map((item) => (
             <div key={item.title} className="surface-card rounded-3xl p-6">
@@ -51,8 +47,7 @@ export default function SmallBusinessSolutionPage() {
           <Link
             href="/register"
             className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3.5 text-sm font-bold text-white"
-          >
-            Create a Free Business Account <ArrowRight className="h-4 w-4" />
+          >{t("public.smallbusinesses.text10")}{" "}<ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>

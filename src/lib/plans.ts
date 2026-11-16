@@ -1,6 +1,9 @@
 export interface PlanDefinition {
-  slug: "free" | "starter_byok" | "starter_ai" | "pro_byok" | "pro_ai" | "agency";
+  slug: string;
+  catalogVersionId?: number;
+  purchasable?: boolean;
   name: string;
+  description?: string;
   tagline: string;
   monthlyPrice: number;
   annualMonthlyPrice: number;
@@ -22,6 +25,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   free: {
     slug: "free",
     name: "Free",
+    description: "Start creating and scheduling social content with your own OpenAI key.",
     tagline: "Plan and publish with your own OpenAI key.",
     monthlyPrice: 0,
     annualMonthlyPrice: 0,
@@ -46,6 +50,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   starter_byok: {
     slug: "starter_byok",
     name: "Starter BYOK",
+    description: "Social content creation and scheduling for one brand, using your own OpenAI key.",
     tagline: "Bring your own OpenAI key and pay direct token rates.",
     monthlyPrice: 9,
     annualMonthlyPrice: 7,
@@ -70,6 +75,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   starter_ai: {
     slug: "starter_ai",
     name: "Starter AI",
+    description: "Social content creation and scheduling for one brand, with Managed AI credits included.",
     tagline: "Zero API setup with managed OpenAI credits included.",
     monthlyPrice: 19,
     annualMonthlyPrice: 15,
@@ -94,6 +100,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   pro_byok: {
     slug: "pro_byok",
     name: "Pro BYOK",
+    description: "Multi-brand social media planning and publishing with your own OpenAI key.",
     tagline: "Multi-brand growth engine powered by your own OpenAI key.",
     monthlyPrice: 24,
     annualMonthlyPrice: 19,
@@ -118,6 +125,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   pro_ai: {
     slug: "pro_ai",
     name: "Pro AI",
+    description: "Multi-brand social media planning and publishing with Managed AI credits included.",
     tagline: "Recurring AI planning with managed credits and review controls.",
     monthlyPrice: 49,
     annualMonthlyPrice: 39,
@@ -143,6 +151,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanDefinition["slug"], PlanDefinition> 
   agency: {
     slug: "agency",
     name: "Agency",
+    description: "Manage client brands with team collaboration, approval workflows, and social content scheduling.",
     tagline: "Multi-client command center with RBAC and client approvals.",
     monthlyPrice: 99,
     annualMonthlyPrice: 79,

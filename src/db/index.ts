@@ -35,16 +35,24 @@ class Repository {
     try { return await callback(); }
     finally { clearInterval(heartbeat); await leases.updateOne({ _id: name, token }, { $set: { expiresAt: new Date(0) } }); }
   }
-  async find<T extends object>(model: CollectionModel<T>, filter: Document = {}, options: { projection?: Document; sort?: Sort; limit?: number; lock?: boolean } = {}): Promise<T[]> {
+  async find<T extends object>(model: CollectionModel<T>, filter: Document = {}, options: { projection?: Document; sort?: Sort; limit?: number; skip?: number; maxTimeMS?: number; lock?: boolean } = {}): Promise<T[]> {
     const collection = (await getMongoDatabase()).collection(model.name);
     const cursor = collection.find(filter, { session: this.session, projection: options.projection }).sort(options.sort || {});
     if (options.limit) cursor.limit(options.limit);
+    if (options.skip) cursor.skip(options.skip);
+    if (options.maxTimeMS) cursor.maxTimeMS(options.maxTimeMS);
     const docs = await cursor.toArray();
     if (options.lock) {
       if (!this.session) throw new Error("A document lock requires a transaction.");
       for (const doc of docs) await collection.updateOne({ _id: doc._id }, { $inc: { _revision: 1 } }, { session: this.session });
     }
     return docs.map(doc => clean<T>(doc));
+  }
+  async count<T extends object>(model: CollectionModel<T>, filter: Document = {}) {
+    return (await getMongoDatabase()).collection(model.name).countDocuments(filter, { session: this.session, maxTimeMS: 5000 });
+  }
+  async aggregate<TResult extends Document>(model: CollectionModel<object>, pipeline: Document[]): Promise<TResult[]> {
+    return (await getMongoDatabase()).collection(model.name).aggregate<TResult>(pipeline, { session: this.session, maxTimeMS: 5000 }).toArray();
   }
   private async nextId(name: string, explicitId?: number) {
     if (explicitId !== undefined && !Number.isSafeInteger(explicitId)) throw new Error("Public IDs must be safe integers.");

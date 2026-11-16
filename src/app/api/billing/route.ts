@@ -4,8 +4,8 @@ import { workspaces, aiConfigurations, auditLogs } from "@/db/schema";
 import { getAuthContext } from "@/lib/auth";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { getWorkspaceEntitlements } from "@/lib/entitlements";
-import { BillingError, getBillingReadiness } from "@/lib/stripe";
-import { changeBillingSubscription } from "@/lib/subscriptions";
+import { BillingError } from "@/lib/paypal";
+import { changeBillingSubscription, confirmBillingCheckout } from "@/lib/subscriptions";
 
 export async function POST(req: Request) {
   try {
@@ -15,11 +15,15 @@ export async function POST(req: Request) {
     const body = await req.json();
     const workspaceId = ctx.workspace.id;
     if (body.action === "topup_credits") return NextResponse.json({ error: "Credit top-ups are disabled pending pricing." }, { status: 501 });
+    if (body.action === "refresh_subscription") {
+      if (ctx.memberRole !== "owner") return NextResponse.json({ error: "Only the workspace owner can reconcile PayPal." }, { status: 403 });
+      return NextResponse.json({ ok: true, ...await confirmBillingCheckout(workspaceId) });
+    }
     if (body.action === "change_plan") {
       if (ctx.memberRole !== "owner") return NextResponse.json({ error: "Only the workspace owner can change subscriptions." }, { status: 403 });
-      if (!getBillingReadiness().ready) throw new BillingError("Billing is unavailable. The operator must enable and configure Stripe.");
-      if (typeof body.planSlug !== "string" || !["monthly", "annual"].includes(body.billingCycle)) return NextResponse.json({ error: "Choose a catalog plan and billing cycle." }, { status: 400 });
-      return NextResponse.json({ ok: true, ...await changeBillingSubscription(workspaceId, body.planSlug, body.billingCycle === "annual" ? "year" : "month") });
+      if (typeof body.planSlug !== "string" || (body.planSlug !== "free" && !["monthly", "annual"].includes(body.billingCycle))) return NextResponse.json({ error: "Choose a catalog plan and billing cycle." }, { status: 400 });
+      if (body.planSlug !== "free" && !Number.isSafeInteger(body.catalogVersionId)) throw new BillingError("Refresh the published catalog before changing plans.", 400);
+      return NextResponse.json({ ok: true, ...await changeBillingSubscription(workspaceId, body.planSlug, body.billingCycle === "annual" ? "year" : "month", body.catalogVersionId) });
     }
     if (body.action === "revoke_byok") {
       await db.update(aiConfigurations, { workspaceId }, { encryptedApiKey: null, keyLast4: null, keyValidated: false, updatedAt: new Date() });

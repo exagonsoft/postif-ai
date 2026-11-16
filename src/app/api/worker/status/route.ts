@@ -6,7 +6,7 @@ import { getAuthContext } from "@/lib/auth";
 import { isWorkerAuthorized } from "@/lib/worker-auth";
 import { mediaGenerationReadiness } from "@/lib/media-generation";
 import { notificationReadiness } from "@/lib/notification-service";
-import { getBillingReadiness } from "@/lib/stripe";
+import { getBillingReadiness } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

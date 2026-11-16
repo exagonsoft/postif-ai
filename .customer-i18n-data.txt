@@ -1,0 +1,661 @@
+5|Sin registros|Keine Aufzeichnungen|Sem registros
+6|Canales conectados|Verbundene Kanäle|Canais conectados
+7|Límite mensual de publicaciones utilizado|Genutztes monatliches Veröffentlichungskontingent|Limite mensal de publicações utilizado
+8|Programadas y pendientes|Geplant und ausstehend|Agendadas e pendentes
+9|Cola persistente de MongoDB|Persistente MongoDB-Warteschlange|Fila persistente do MongoDB
+10|Motor de IA y plan|KI-Engine und Tarif|Motor de IA e plano
+11|BYOK OpenAI|BYOK OpenAI|BYOK OpenAI
+12|Resumen del centro de control|Übersicht der Steuerzentrale|Visão geral da central de controle
+13|Marca activa:|Aktive Marke:|Marca ativa:
+14|• Espacio de trabajo:|• Arbeitsbereich:|• Espaço de trabalho:
+15|Espacio de trabajo|Arbeitsbereich|Espaço de trabalho
+20|Tienes una invitación a un espacio de trabajo. Revisa las invitaciones.|Du hast eine Einladung zu einem Arbeitsbereich. Einladungen ansehen.|Você tem um convite para um espaço de trabalho. Confira os convites.
+23|Planificador de marketing con IA|KI-Marketingplaner|Planejador de marketing com IA
+24|Genera un plan a partir del resumen de tu marca y luego crea y revisa publicaciones. La planificación autónoma recurrente no está disponible.|Erstelle aus deinem Markenbriefing einen Plan und anschließend Beiträge zur Prüfung. Wiederkehrende autonome Planung ist nicht verfügbar.|Gere um plano a partir do resumo da sua marca e depois crie e revise publicações. O planejamento autônomo recorrente não está disponível.
+25|Analítica e inteligencia de rendimiento|Analysen und Leistungsinformationen|Análises e inteligência de desempenho
+26|Rendimiento registrado y contadores reales de proveedores. Las métricas no disponibles nunca se estiman.|Erfasste Leistung und echte Anbieterzähler. Nicht verfügbare Kennzahlen werden niemals geschätzt.|Desempenho registrado e contadores reais dos provedores. Métricas indisponíveis nunca são estimadas.
+27|Capturas de interacción de proveedores|Interaktionsaufnahmen der Anbieter|Registros de engajamento dos provedores
+28|Todos los planes pueden consultar la analítica registrada. La sincronización de nuevos datos requiere Pro o Agency y tus propios permisos aprobados del proveedor. Revisa la cobertura de cada captura: algunas métricas abarcan un día UTC anterior, otras son contadores acumulados o muestras de publicaciones recientes. No sumes observaciones acumulativas de distintas fechas.|Alle Tarife können erfasste Analysen lesen. Neue Anbietersynchronisierungen erfordern Pro oder Agency sowie eigene genehmigte Anbieterberechtigungen. Beachte die Abdeckung jeder Aufnahme: Manche Kennzahlen gelten für einen vorherigen UTC-Tag, andere sind Gesamtzähler oder Stichproben neuer Beiträge. Summiere kumulative Beobachtungen verschiedener Erfassungstage nicht.|Todos os planos podem consultar as análises registradas. Novas sincronizações exigem Pro ou Agency e suas próprias permissões aprovadas do provedor. Confira a cobertura de cada registro: algumas métricas abrangem um dia UTC anterior; outras são contadores acumulados ou amostras de publicações recentes. Não some observações cumulativas de datas diferentes.
+29|Cambia a Pro o Agency para sincronizar nuevas capturas del proveedor.|Wechsle zu Pro oder Agency, um neue Anbieteraufnahmen zu synchronisieren.|Mude para Pro ou Agency para sincronizar novos registros dos provedores.
+30|No hay capturas del proveedor registradas. No se muestran métricas de ejemplo ni simuladas.|Keine Anbieteraufnahmen erfasst. Es werden keine Beispiel- oder simulierten Kennzahlen angezeigt.|Nenhum registro de provedor disponível. Nenhuma métrica de exemplo ou simulada é exibida.
+31|· cuenta n.º|· Konto Nr.|· conta nº
+32|· capturado|· erfasst|· capturado
+33|No disponible:|Nicht verfügbar:|Indisponível:
+34|Cuenta n.º|Konto Nr.|Conta nº
+35|Funciones y limitaciones de los proveedores|Funktionen und Einschränkungen der Anbieter|Recursos e limitações dos provedores
+38|Calendario de contenido y cola de publicación|Inhaltskalender und Veröffentlichungswarteschlange|Calendário de conteúdo e fila de publicação
+39|Programación de arrastrar y soltar en vistas mensual, semanal, diaria y de lista, con tareas idempotentes del servidor.|Planung per Drag-and-drop in Monats-, Wochen-, Tages- und Listenansichten mit idempotenten serverseitigen Aufträgen.|Agendamento por arrastar e soltar nas visualizações mensal, semanal, diária e em lista, com tarefas idempotentes no servidor.
+41|Campañas de marketing|Marketingkampagnen|Campanhas de marketing
+42|Coordina lanzamientos de varias semanas y genera planes de campaña con IA y borradores de publicaciones vinculados.|Koordiniere mehrwöchige Markteinführungen und erstelle KI-Kampagnenkonzepte mit verknüpften Beitragsentwürfen.|Coordene lançamentos de várias semanas e gere planos de campanha com IA e rascunhos de publicações vinculados.
+43|Estudio de imágenes y medios con IA|KI-Bild- und Medienstudio|Estúdio de imagens e mídia com IA
+44|Sube tus archivos o genera imágenes, videos y GIF reales con tus proveedores configurados.|Lade deine Medien hoch oder erstelle echte Bilder, Videos und GIFs mit deinen konfigurierten Anbietern.|Envie seus arquivos ou gere imagens, vídeos e GIFs reais com seus provedores configurados.
+47|Publicaciones y aprobaciones del equipo|Beiträge und Teamfreigaben|Publicações e aprovações da equipe
+48|Tus publicaciones|Deine Beiträge|Suas publicações
+49|Crea, revisa y programa publicaciones con tu equipo.|Erstelle, prüfe und plane Beiträge mit deinem Team.|Crie, revise e agende publicações com sua equipe.
+50|Genera, programa y publica. Revisa primero solo cuando lo elijas.|Erstelle, plane und veröffentliche. Prüfe vorher nur, wenn du es möchtest.|Gere, agende e publique. Revise antes somente quando quiser.
+51|Crear nueva publicación|Neuen Beitrag erstellen|Criar nova publicação
+54|Faltan datos|Fehlende Angaben|Faltam informações
+55|Proporciona el texto de origen y selecciona al menos un canal.|Gib den Ausgangstext ein und wähle mindestens einen Kanal.|Forneça o texto de origem e selecione pelo menos um canal.
+56|Error de reutilización|Fehler bei der Wiederverwendung|Erro na reutilização
+57|No se pudo reutilizar el contenido.|Der Inhalt konnte nicht wiederverwendet werden.|Não foi possível reutilizar o conteúdo.
+58|¡Contenido reutilizado!|Inhalt wiederverwendet!|Conteúdo reutilizado!
+59|Reutilización interrumpida|Wiederverwendung unterbrochen|Reutilização interrompida
+60|Vuelve a intentarlo para reanudar esta solicitud.|Versuche es erneut, um diese Anfrage fortzusetzen.|Tente novamente para retomar esta solicitação.
+61|Guardado en borradores|Als Entwurf gespeichert|Salvo nos rascunhos
+62|Publicación multicanal reutilizada guardada en tu cola de publicaciones.|Der wiederverwendete Mehrkanalbeitrag wurde in deiner Beitragswarteschlange gespeichert.|Publicação multicanal reutilizada salva na sua fila de publicações.
+63|Reutilización inteligente de contenido|Intelligente Wiederverwendung von Inhalten|Reutilização inteligente de conteúdo
+64|Transforma artículos de blog, descripciones de productos, anuncios o publicaciones destacadas en campañas multicanal nativas sin perder la voz de tu marca.|Verwandle Blogartikel, Produktbeschreibungen, Ankündigungen oder Top-Beiträge in plattformgerechte Mehrkanalkampagnen und bewahre dabei deine Markenstimme.|Transforme artigos de blog, descrições de produtos, anúncios ou publicações de destaque em campanhas multicanal nativas, preservando a voz da marca.
+65|Tipo de material de origen|Art des Ausgangsmaterials|Tipo de material de origem
+66|Artículo de blog|Blogbeitrag|Artigo de blog
+67|Descripción de producto|Produktbeschreibung|Descrição de produto
+68|Artículo extenso|Langer Artikel|Artigo longo
+69|Renovación de publicación existente|Bestehenden Beitrag auffrischen|Renovação de publicação existente
+70|Anuncio de empresa|Unternehmensankündigung|Anúncio da empresa
+72|Texto de origen / Resumen de URL|Ausgangstext / URL-Zusammenfassung|Texto de origem / Resumo da URL
+73|Límites de significado y voz|Vorgaben für Bedeutung und Tonalität|Limites de significado e voz
+74|Conservar las métricas reales y la tesis central|Faktische Kennzahlen und Kernaussage bewahren|Preservar métricas reais e a tese central
+75|Variar ganchos y enfoques por plataforma para evitar textos duplicados|Aufhänger und Blickwinkel je Plattform variieren, um doppelte Texte zu vermeiden|Variar chamadas e abordagens por plataforma para evitar textos duplicados
+76|Canales de destino|Zielkanäle|Canais de destino
+78|Reutilizar en los canales seleccionados|Für ausgewählte Kanäle wiederverwenden|Reutilizar nos canais selecionados
+79|Listo para multiplicar tu contenido|Bereit, deine Inhalte zu vervielfachen|Pronto para multiplicar seu conteúdo
+80|Pega un artículo extenso, un registro de cambios o una descripción de producto a la izquierda y genera publicaciones adaptadas a cada plataforma con un clic.|Füge links einen langen Artikel, ein Änderungsprotokoll oder eine Produktbeschreibung ein und erstelle mit einem Klick individuelle plattformgerechte Beiträge.|Cole um artigo longo, um registro de alterações ou uma descrição de produto à esquerda e gere publicações distintas para cada plataforma com um clique.
+81|Adaptaciones por canal generadas (|Erstellte Kanalanpassungen (|Adaptações por canal geradas (
+82|Guardar borrador multicanal|Mehrkanalentwurf speichern|Salvar rascunho multicanal
+83|caracteres|Zeichen|caracteres
+84|Operativo|Betriebsbereit|Operacional
+85|Sin configurar|Nicht konfiguriert|Não configurado
+86|Configurado (requiere acceso del proveedor)|Konfiguriert (Anbieterzugriff erforderlich)|Configurado (exige acesso ao provedor)
+87|Sin configurar; usa BYOK|Nicht konfiguriert; BYOK verwenden|Não configurado; use BYOK
+88|Cuenta, seguridad y arquitectura del entorno|Konto, Sicherheit und Umgebungsarchitektur|Conta, segurança e arquitetura do ambiente
+89|Consulta los detalles de la sesión, la seguridad de las credenciales y el estado de las integraciones.|Prüfe Sitzungsdetails, die Sicherheit des Zugangsdaten-Tresors und den Status der Laufzeitintegrationen.|Confira os detalhes da sessão, a segurança do cofre de credenciais e o status das integrações.
+90|Perfil de usuario y espacio de trabajo|Benutzer- und Arbeitsbereichsprofil|Perfil do usuário e do espaço de trabalho
+91|Nombre completo|Vollständiger Name|Nome completo
+92|Dirección de correo electrónico|E-Mail-Adresse|Endereço de e-mail
+93|Rol en el espacio de trabajo|Rolle im Arbeitsbereich|Função no espaço de trabalho
+94|Nivel de acceso al sistema|Systemzugriffsebene|Nível de acesso ao sistema
+95|Configurar cofre BYOK de OpenAI|OpenAI-BYOK-Tresor konfigurieren|Configurar cofre BYOK da OpenAI
+96|Exportar datos del espacio de trabajo|Arbeitsbereichsdaten exportieren|Exportar dados do espaço de trabalho
+97|Integraciones y preparación del entorno|Laufzeitintegration und Umgebungsbereitschaft|Integrações e prontidão do ambiente
+98|Los servicios requieren configuración real. Las credenciales sociales se gestionan por espacio de trabajo y cuenta, no mediante claves compartidas del servidor.|Dienste erfordern eine echte Konfiguration. Zugangsdaten sozialer Netzwerke werden pro Arbeitsbereich/Konto verwaltet, nicht über gemeinsame Serverschlüssel.|Os serviços exigem configuração real. As credenciais sociais são gerenciadas por espaço de trabalho/conta, não por chaves compartilhadas do servidor.
+100|Integraciones de redes sociales|Social-Media-Integrationen|Integrações de redes sociais
+101|Conecta tus propias cuentas con credenciales de plataforma cifradas y limitadas al espacio de trabajo.|Verbinde deine eigenen Konten mit verschlüsselten, arbeitsbereichsgebundenen Plattformzugangsdaten.|Conecte suas próprias contas com credenciais de plataforma criptografadas e restritas ao espaço de trabalho.
+102|Estudio de contenido con IA|KI-Inhaltsstudio|Estúdio de conteúdo com IA
+103|Genera, perfecciona, previsualiza y programa contenido nativo de redes sociales desde un único resumen creativo.|Erstelle, überarbeite, prüfe und plane plattformgerechte Social-Media-Inhalte aus einem einzigen Kreativbriefing.|Gere, refine, visualize e agende conteúdo nativo para redes sociais a partir de um único resumo criativo.
+105|Marcas, agencias y gestión de equipos|Marken, Agenturen und Teamverwaltung|Marcas, agências e gestão de equipes
+106|Gestiona perfiles multimarca, control de acceso por roles y exportaciones de datos del espacio de trabajo.|Verwalte mehrere Markenprofile, rollenbasierte Zugriffsrechte und Datenexporte des Arbeitsbereichs.|Gerencie perfis de várias marcas, controle de acesso por funções e exportações de dados do espaço de trabalho.
+107|Espacio de trabajo|Arbeitsbereich|Espaço de trabalho
+108|Configura tu espacio de trabajo|Arbeitsbereich einrichten|Configure seu espaço de trabalho
+109|1. Espacio de trabajo|1. Arbeitsbereich|1. Espaço de trabalho
+110|2. Nombre de marca|2. Markenname|2. Nome da marca
+111|3. Sitio web y análisis con IA|3. Website und KI-Analyse|3. Site e descoberta com IA
+112|4. Sector|4. Branche|4. Setor
+113|5. Productos y servicios|5. Produkte und Dienstleistungen|5. Produtos e serviços
+114|6. Público objetivo|6. Zielgruppe|6. Público-alvo
+115|7. Tono de comunicación|7. Kommunikationston|7. Tom de comunicação
+116|8. Objetivos de marketing|8. Marketingziele|8. Objetivos de marketing
+117|9. Canales sociales|9. Soziale Kanäle|9. Canais sociais
+118|10. Modalidad de facturación de IA|10. KI-Abrechnungsmodell|10. Modalidade de cobrança de IA
+119|11. Plan de suscripción|11. Abonnementtarif|11. Plano de assinatura
+121|Error en el análisis de marca|Markenanalyse fehlgeschlagen|Falha na descoberta da marca
+122|Configura tu proveedor de IA o introduce los datos de tu marca manualmente.|Konfiguriere deinen KI-Anbieter oder gib deine Markendaten manuell ein.|Configure seu provedor de IA ou insira os dados da marca manualmente.
+123|Análisis de marca con IA completado|KI-Markenanalyse abgeschlossen|Descoberta da marca com IA concluída
+124|Análisis de marca interrumpido|Markenanalyse unterbrochen|Descoberta da marca interrompida
+125|Vuelve a intentarlo para reanudar esta solicitud.|Versuche es erneut, um diese Anfrage fortzusetzen.|Tente novamente para retomar esta solicitação.
+126|Error de configuración|Einrichtungsfehler|Erro de configuração
+127|No se pudo finalizar el espacio de trabajo.|Der Arbeitsbereich konnte nicht fertig eingerichtet werden.|Não foi possível finalizar o espaço de trabalho.
+128|¡Espacio de trabajo configurado!|Arbeitsbereich eingerichtet!|Espaço de trabalho configurado!
+129|Paso|Schritt|Etapa
+130|de|von|de
+132|Crear|Erstelle|Criar
+133|Configurar|Konfiguriere|Configurar
+134|tu espacio de trabajo|deinen Arbeitsbereich|seu espaço de trabalho
+135|Crea un espacio de trabajo adicional con su propia marca, roles de equipo, tokens sociales y configuración de facturación de IA.|Erstelle einen weiteren Arbeitsbereich mit eigener Marke, Teamrollen, Social-Media-Tokens und KI-Abrechnungseinstellungen.|Crie um espaço de trabalho adicional com sua própria marca, funções da equipe, tokens sociais e configurações de cobrança de IA.
+136|Tu cuenta y espacio de trabajo están listos. Confirma el nombre del espacio antes de configurar tu marca.|Dein Konto und Arbeitsbereich sind bereit. Bestätige den Namen des Arbeitsbereichs, bevor du deine Marke einrichtest.|Sua conta e espaço de trabalho estão prontos. Confirme o nome do espaço antes de configurar sua marca.
+137|Nombre de tu espacio de trabajo|Name deines Arbeitsbereichs|Nome do seu espaço de trabalho
+138|2. Introduce el nombre de la empresa o marca|2. Unternehmens- oder Markennamen eingeben|2. Insira o nome da empresa ou marca
+139|Puedes añadir clientes o submarcas en cualquier momento desde Marcas y espacios de trabajo.|Du kannst jederzeit unter Marken und Arbeitsbereiche weitere Kunden- oder Untermarken hinzufügen.|Você pode adicionar clientes ou submarcas a qualquer momento em Marcas e espaços de trabalho.
+140|Nombre de tu marca|Dein Markenname|Nome da sua marca
+141|3. URL del sitio web y análisis de marca con IA|3. Website-URL und KI-Markenanalyse|3. URL do site e descoberta da marca com IA
+142|Deja que POSTIF-AI analice tu perfil de marca y proponga pilares de contenido, segmentos de audiencia, voz y hashtags para que los revises.|Lass POSTIF-AI dein Markenprofil analysieren und Inhaltssäulen, Zielgruppensegmente, Tonalität und Hashtags zur Prüfung vorschlagen.|Deixe o POSTIF-AI analisar o perfil da sua marca e propor pilares de conteúdo, segmentos de público, voz e hashtags para sua revisão.
+143|Ejecutar análisis de marca con IA|KI-Markenanalyse starten|Executar descoberta da marca com IA
+144|Información de marca propuesta por IA (revisar y aprobar)|KI-Markenvorschläge (prüfen und freigeben)|Informações da marca propostas por IA (revisar e aprovar)
+145|Estrategia inicial:|Anfangsstrategie:|Estratégia inicial:
+146|Pilar:|Säule:|Pilar:
+147|4. Selecciona el sector|4. Branche auswählen|4. Selecione o setor
+148|IA e infraestructura para desarrolladores|KI- und Entwickler-Infrastruktur|IA e infraestrutura para desenvolvedores
+149|SaaS B2B|B2B-SaaS|SaaS B2B
+150|Comercio electrónico y marcas de consumo|E-Commerce und Verbrauchermarken|Comércio eletrônico e marcas de consumo
+151|Salud, ejercicio y bienestar|Gesundheit, Fitness und Wohlbefinden|Saúde, atividade física e bem-estar
+152|Agencia de marketing|Marketingagentur|Agência de marketing
+153|FinTech y servicios financieros|FinTech und Finanzdienstleistungen|FinTech e serviços financeiros
+154|5. Describe los productos o servicios|5. Produkte oder Dienstleistungen beschreiben|5. Descreva os produtos ou serviços
+155|Resumen del posicionamiento de la empresa|Zusammenfassung der Unternehmenspositionierung|Resumo do posicionamento da empresa
+156|6. Define el público objetivo|6. Zielgruppe definieren|6. Defina o público-alvo
+157|7. Elige el tono y la voz de comunicación|7. Kommunikationston und Markenstimme wählen|7. Escolha o tom e a voz da comunicação
+158|Innovador y visionario|Innovativ und visionär|Inovador e visionário
+159|Experto y ejecutivo|Kompetent und führungsorientiert|Especializado e executivo
+160|Amigable y conversacional|Freundlich und dialogorientiert|Amigável e conversacional
+161|Educativo y práctico|Lehrreich und praxisnah|Educativo e prático
+162|Audaz y provocador|Mutig und provokant|Ousado e provocativo
+163|Empático y centrado en la comunidad|Einfühlsam und gemeinschaftsorientiert|Empático e voltado à comunidade
+165|Notas personalizadas sobre la voz de marca|Eigene Notizen zur Markenstimme|Observações personalizadas sobre a voz da marca
+166|8. Selecciona los objetivos de marketing|8. Marketingziele auswählen|8. Selecione os objetivos de marketing
+167|Añadir un objetivo personalizado...|Eigenes Ziel hinzufügen...|Adicionar um objetivo personalizado...
+168|Añadir|Hinzufügen|Adicionar
+169|Eliminar|Entfernen|Remover
+170|9. Conecta los canales de redes sociales|9. Social-Media-Kanäle verbinden|9. Conecte os canais de redes sociais
+171|Selecciona los canales que planeas usar. No se creará ninguna conexión hasta que añadas y verifiques tus propias credenciales en Integraciones de redes sociales.|Wähle die Kanäle, die du nutzen möchtest. Eine Verbindung wird erst hergestellt, wenn du deine eigenen Zugangsdaten unter Social-Media-Integrationen hinzufügst und verifizierst.|Selecione os canais que pretende usar. Nenhuma conexão será criada até você adicionar e verificar suas próprias credenciais em Integrações de redes sociais.
+174|10. Selecciona BYOK o IA gestionada|10. BYOK oder verwaltete KI auswählen|10. Selecione BYOK ou IA gerenciada
+175|Créditos de IA gestionada|Verwaltete KI-Guthaben|Créditos de IA gerenciada
+176|Incluidos con un plan de IA de pago. Free utiliza tu propia clave de OpenAI.|In einem kostenpflichtigen KI-Tarif enthalten. Free nutzt deinen eigenen OpenAI-Schlüssel.|Incluídos em um plano de IA pago. O Free usa sua própria chave da OpenAI.
+177|Trae tu propia clave (BYOK)|Eigenen Schlüssel verwenden (BYOK)|Use sua própria chave (BYOK)
+178|Proporciona tu clave API de OpenAI (`sk-...`). Se almacena cifrada con AES-256-GCM.|Gib deinen OpenAI-API-Schlüssel an (`sk-...`). Er wird mit AES-256-GCM verschlüsselt gespeichert.|Forneça sua chave de API da OpenAI (`sk-...`). Armazenada com criptografia AES-256-GCM.
+179|Clave API de OpenAI opcional (también puedes añadirla después en Facturación e IA)|Optionaler OpenAI-API-Schlüssel (auch später unter Abrechnung und KI hinzufügbar)|Chave de API da OpenAI opcional (também pode ser adicionada depois em Cobrança e IA)
+180|11. Selecciona el plan de suscripción|11. Abonnementtarif auswählen|11. Selecione o plano de assinatura
+181|Condiciones actuales:|Aktuelle Konditionen:|Condições atuais:
+182|marcas ·|Marken ·|marcas ·
+183|canales ·|Kanäle ·|canais ·
+184|publicaciones/mes ·|Beiträge/Monat ·|publicações/mês ·
+185|créditos de IA/mes. Los cambios del catálogo no sustituyen las condiciones de suscripciones de pago existentes.|KI-Guthaben/Monat. Katalogänderungen ersetzen keine bestehenden Konditionen kostenpflichtiger Abonnements.|créditos de IA/mês. Alterações no catálogo não substituem as condições das assinaturas pagas existentes.
+186|/mes|/Monat|/mês
+187|Disponible en Facturación tras la configuración|Nach der Einrichtung unter Abrechnung verfügbar|Disponível em Cobrança após a configuração
+188|Solo informativo · pago no configurado|Nur zur Information · Zahlungsabwicklung nicht konfiguriert|Apenas informativo · pagamento não configurado
+189|Los espacios nuevos comienzan en Free con BYOK y sin créditos incluidos. Mejora tu plan de forma segura en Facturación después de la configuración.|Neue Arbeitsbereiche starten mit Free, BYOK und ohne enthaltenes Guthaben. Wechsle nach der Einrichtung sicher unter Abrechnung zu einem höheren Tarif.|Novos espaços começam no Free com BYOK e sem créditos incluídos. Faça o upgrade com segurança em Cobrança após a configuração.
+190|Anterior|Zurück|Anterior
+191|Siguiente paso|Nächster Schritt|Próxima etapa
+192|Iniciar mi espacio de trabajo|Meinen Arbeitsbereich starten|Iniciar meu espaço de trabalho
+193|Comprobación de límites|Prüfung der Schutzregeln|Verificação de limites
+194|No se pudo actualizar el modo.|Der Modus konnte nicht aktualisiert werden.|Não foi possível atualizar o modo.
+195|Configuración del agente guardada|Agentenkonfiguration gespeichert|Configuração do agente salva
+196|Planificación habilitada|Planung aktiviert|Planejamento ativado
+197|Planificación pausada|Planung pausiert|Planejamento pausado
+198|Puedes generar nuevos planes semanales.|Du kannst neue Wochenpläne erstellen.|Você pode gerar novos planos semanais.
+199|La generación de nuevos planes está pausada. Las publicaciones ya programadas no cambian.|Die Erstellung neuer Pläne ist pausiert. Bereits geplante Beiträge bleiben unverändert.|A geração de novos planos está pausada. As publicações já agendadas não mudam.
+200|Planificación sin cambios|Planung nicht geändert|Planejamento não alterado
+201|No se pudo actualizar la planificación.|Die Planung konnte nicht aktualisiert werden.|Não foi possível atualizar o planejamento.
+202|Plan semanal regenerado|Wochenplan neu erstellt|Plano semanal gerado novamente
+203|Se distribuyeron los pilares de contenido de la marca entre los canales aprobados.|Die Inhaltssäulen der Marke wurden auf genehmigte Kanäle verteilt.|Os pilares de conteúdo da marca foram distribuídos entre os canais aprovados.
+204|Plan no generado|Plan nicht erstellt|Plano não gerado
+205|Revisa tu plan, credenciales y créditos de IA.|Prüfe deinen Tarif, deine Zugangsdaten und dein KI-Guthaben.|Verifique seu plano, suas credenciais e seus créditos de IA.
+206|Solicitud de plan interrumpida|Plananfrage unterbrochen|Solicitação de plano interrompida
+207|El reintento reutiliza la misma clave de solicitud; una solicitud incierta al proveedor nunca se repite automáticamente.|Ein erneuter Versuch verwendet denselben Anfrageschlüssel; eine ungewisse Anbieteranfrage wird nie automatisch wiederholt.|A nova tentativa reutiliza a mesma chave de solicitação; uma solicitação incerta ao provedor nunca é repetida automaticamente.
+208|Propuesta aprobada|Vorschlag genehmigt|Proposta aprovada
+209|Propuesta rechazada|Vorschlag abgelehnt|Proposta rejeitada
+210|Acción registrada en el historial de auditoría del espacio de trabajo.|Aktion im Prüfprotokoll des Arbeitsbereichs erfasst.|Ação registrada no histórico de auditoria do espaço de trabalho.
+211|Propuesta sin cambios|Vorschlag nicht geändert|Proposta não alterada
+212|Revisa la publicación y tus permisos de aprobación.|Prüfe den Beitrag und deine Freigabeberechtigungen.|Revise a publicação e suas permissões de aprovação.
+213|Estratega de marketing autónomo|Autonomer Marketingstratege|Estrategista de marketing autônomo
+214|Pausado|Pausiert|Pausado
+215|Máx.|Max.|Máx.
+216|publicaciones/semana •|Beiträge/Woche •|publicações/semana •
+217|canales autorizados • Todas las acciones registradas|autorisierte Kanäle • Alle Aktionen protokolliert|canais autorizados • Todas as ações registradas
+218|Reanudar agente|Agenten fortsetzen|Retomar agente
+219|Pausar planificación|Planung pausieren|Pausar planejamento
+220|Modo manual|Manueller Modus|Modo manual
+221|La IA sugiere temas y borradores, pero las personas controlan cada edición, horario y publicación.|Die KI schlägt Themen und Entwürfe vor, aber Menschen kontrollieren jede Bearbeitung, jeden Termin und jede Veröffentlichung.|A IA sugere temas e rascunhos, mas as pessoas controlam cada edição, horário e publicação.
+222|Modo asistido|Assistierter Modus|Modo assistido
+223|Genera sugerencias de planes semanales cuando lo necesites. Crea publicaciones y envíalas a aprobación por separado.|Erstelle bei Bedarf Vorschläge für Wochenpläne. Erstelle Beiträge und reiche sie separat zur Freigabe ein.|Gere sugestões de planos semanais quando precisar. Crie publicações e envie-as para aprovação separadamente.
+224|Modo piloto automático|Autopilot-Modus|Modo piloto automático
+225|Habilita la planificación semanal recurrente con IA y borradores reales (Pro/Agency). Cada borrador requiere aprobación humana y una hora de publicación; no hay aprobación automática de promociones ni de clientes.|Aktiviere wiederkehrende wöchentliche KI-Planung und echte Beitragsentwürfe (Pro/Agency). Jeder Entwurf erfordert eine menschliche Freigabe und einen Veröffentlichungstermin; keine automatische Werbe- oder Kundenfreigabe.|Ative o planejamento semanal recorrente com IA e rascunhos reais (Pro/Agency). Cada rascunho exige aprovação humana e um horário de publicação; não há aprovação automática de promoções ou clientes.
+227|Seleccionado|Ausgewählt|Selecionado
+228|Bandeja de aprobaciones del agente (|Freigabepostfach des Agenten (|Caixa de aprovações do agente (
+229|Supervisión humana|Menschliche Kontrolle|Supervisão humana
+230|No hay propuestas del agente pendientes. Haz clic en «Regenerar plan semanal» para generar recomendaciones nuevas.|Keine ausstehenden Agentenvorschläge. Klicke auf „Wochenplan neu erstellen“, um neue Empfehlungen zu erhalten.|Nenhuma proposta do agente pendente. Clique em “Gerar plano semanal novamente” para obter novas recomendações.
+231|Razonamiento del agente:|Begründung des Agenten:|Justificativa do agente:
+232|Aprobar borrador|Entwurf freigeben|Aprovar rascunho
+233|Rechazar|Ablehnen|Rejeitar
+234|Plan de contenido semanal autónomo|Autonomer Wocheninhaltsplan|Plano semanal de conteúdo autônomo
+235|Equilibrado entre los pilares de contenido de tu marca y los canales aprobados|Ausgewogen über deine Markeninhaltssäulen und genehmigten Kanäle verteilt|Equilibrado entre os pilares de conteúdo da sua marca e os canais aprovados
+236|Regenerar plan semanal|Wochenplan neu erstellen|Gerar plano semanal novamente
+237|Estrategia de marca activa y límites de seguridad|Aktive Markenstrategie und Schutzgrenzen|Estratégia ativa da marca e limites de segurança
+238|Directiva estratégica|Strategische Vorgabe|Diretriz estratégica
+239|Máximo de publicaciones autónomas por semana|Maximale autonome Beiträge pro Woche|Máximo de publicações autônomas por semana
+240|Todos los borradores generados requieren aprobación, incluidos el contenido promocional y el de clientes|Alle erstellten Entwürfe erfordern eine Freigabe, auch Werbe- und Kundeninhalte|Todos os rascunhos gerados exigem aprovação, incluindo conteúdo promocional e de clientes
+241|Lista de canales autorizados|Liste autorisierter Kanäle|Lista de canais autorizados
+243|Guardar límites y estrategia|Schutzregeln und Strategie speichern|Salvar limites e estratégia
+244|Límites de seguridad fijos del agente|Festgelegte Sicherheitsgrenzen des Agenten|Limites fixos de segurança do agente
+245|• Nunca publica fuera de los canales expresamente autorizados|• Veröffentlicht nie außerhalb ausdrücklich autorisierter Kanäle|• Nunca publica fora dos canais expressamente autorizados
+246|• Nunca supera los límites semanales de publicaciones (|• Überschreitet nie wöchentliche Beitragslimits (|• Nunca ultrapassa os limites semanais de publicações (
+247|/semana)|/Woche)|/semana)
+248|• Nunca gasta dinero ni mejora planes de suscripción|• Gibt nie Geld aus und führt keine Tarif-Upgrades durch|• Nunca gasta dinheiro nem faz upgrades de assinatura
+249|• Nunca conecta ni desconecta cuentas OAuth sociales|• Verbindet oder trennt nie Social-Media-OAuth-Konten|• Nunca conecta nem desconecta contas OAuth de redes sociais
+250|• Cada acción autónoma genera un registro de auditoría inmutable|• Jede autonome Aktion erzeugt einen unveränderlichen Prüfprotokolleintrag|• Cada ação autônoma gera um registro de auditoria imutável
+251|Historial de actividad auditable|Prüfbarer Aktivitätsverlauf|Histórico de atividades auditável
+252|Fecha,Plataforma,Tipo de publicación,Impresiones,Alcance,Interacciones,Me gusta,Comentarios,Compartidos,Clics,Seguidores|Datum,Plattform,Beitragstyp,Impressionen,Reichweite,Interaktionen,Gefällt mir,Kommentare,Geteilt,Klicks,Follower|Data,Plataforma,Tipo de publicação,Impressões,Alcance,Engajamentos,Curtidas,Comentários,Compartilhamentos,Cliques,Seguidores
+253|Informe CSV exportado|CSV-Bericht exportiert|Relatório CSV exportado
+254|No hay analítica detallada registrada. Los contadores compatibles del proveedor aparecen arriba; las métricas no disponibles no se representan como cero.|Keine detaillierten Analysen erfasst. Unterstützte Anbieterzähler erscheinen oben; nicht verfügbare Kennzahlen werden nicht als null dargestellt.|Não há análises detalhadas registradas. Os contadores compatíveis do provedor aparecem acima; métricas indisponíveis não são representadas como zero.
+255|Analítica registrada|Erfasste Analysen|Análises registradas
+256|Todas las plataformas|Alle Plattformen|Todas as plataformas
+261|Todos los formatos|Alle Formate|Todos os formatos
+262|Publicación educativa|Lehrreicher Beitrag|Publicação educativa
+263|Anuncio de producto|Produktankündigung|Anúncio de produto
+264|Caso de estudio|Fallstudie|Estudo de caso
+265|Carrusel|Karussell|Carrossel
+266|Guion de video|Videoskript|Roteiro de vídeo
+267|Exportar informe CSV|CSV-Bericht exportieren|Exportar relatório CSV
+268|Impresiones totales|Impressionen gesamt|Total de impressões
+269|Alcance único|Einzigartige Reichweite|Alcance único
+270|Tasa de interacción|Interaktionsrate|Taxa de engajamento
+271|Clics en enlaces externos|Klicks auf externe Links|Cliques em links externos
+272|Comparación del rendimiento registrado|Vergleich der erfassten Leistung|Comparação do desempenho registrado
+273|Según los datos filtrados actualmente,|Basierend auf dem aktuell gefilterten Datensatz erzielten|Com base nos dados filtrados atualmente,
+274|el contenido logró la mayor tasa de interacción con|Inhalte die höchste Interaktionsrate mit|o conteúdo alcançou a maior taxa de engajamento de
+275|. Compara periodos y tamaños de muestra equivalentes antes de cambiar tu combinación de publicaciones.|. Vergleiche gleichwertige Zeiträume und Stichprobengrößen, bevor du deinen Veröffentlichungsmix änderst.|. Compare períodos e tamanhos de amostra equivalentes antes de mudar sua combinação de publicações.
+276|Desglose del rendimiento por canal|Leistungsübersicht nach Kanal|Detalhamento do desempenho por canal
+277|Fecha|Datum|Data
+278|Plataforma|Plattform|Plataforma
+279|Formato|Format|Formato
+280|Impresiones|Impressionen|Impressões
+281|Interacciones|Interaktionen|Engajamentos
+282|Clics|Klicks|Cliques
+283|Seguidores|Follower|Seguidores
+284|Crear medios al programar|Medien bei der Planung erstellen|Criar mídia ao agendar
+285|Sin medios|Keine Medien|Sem mídia
+286|Imagen|Bild|Imagem
+287|Video|Video|Vídeo
+288|GIF|GIF|GIF
+289|Elige el tipo de medio. Al programar, lo creamos y adjuntamos según tu tema, publicación y el estilo, los colores y el público de la marca seleccionada. Elegimos el formato para tus canales.|Wähle den Medientyp. Bei der Planung erstellen und verknüpfen wir ihn anhand deines Themas, Beitrags sowie Stils, Farben und Zielgruppe der ausgewählten Marke. Wir wählen das Format für deine Kanäle.|Escolha o tipo de mídia. Ao agendar, criamos e anexamos usando seu tema, publicação e o estilo, as cores e o público da marca selecionada. Escolhemos o formato para seus canais.
+290|40 créditos gestionados o tu clave de OpenAI.|40 verwaltete Guthabeneinheiten oder dein OpenAI-Schlüssel.|40 créditos gerenciados ou sua chave da OpenAI.
+291|120 créditos gestionados.|120 verwaltete Guthabeneinheiten.|120 créditos gerenciados.
+292|Tu preferencia de revisión se aplica a la publicación y a los medios completados.|Deine Prüfungseinstellung gilt für den fertigen Beitrag und die Medien.|Sua preferência de revisão se aplica à publicação e à mídia concluídas.
+294|Programación actualizada|Planung aktualisiert|Agendamento atualizado
+295|Reprogramado arrastrando y soltando|Per Drag-and-drop neu geplant|Reagendado por arrastar e soltar
+296|Publicación duplicada|Beitrag dupliziert|Publicação duplicada
+297|Se creó un borrador para facilitar la programación en varios días.|Ein Entwurf wurde zur einfachen Planung über mehrere Tage erstellt.|Um rascunho foi criado para facilitar o agendamento em vários dias.
+298|Reintento en cola|Erneuter Versuch eingereiht|Nova tentativa na fila
+299|Revisión del proceso completada|Worker-Durchlauf abgeschlossen|Verificação do processo concluída
+301|Vista|Ansicht|Visualização
+302|Todos los estados|Alle Status|Todos os status
+303|Programado|Geplant|Agendado
+304|Pendiente de aprobación|Freigabe ausstehend|Aguardando aprovação
+305|Publicado|Veröffentlicht|Publicado
+306|Borrador|Entwurf|Rascunho
+307|Fallido|Fehlgeschlagen|Falhou
+312|— Arrastra publicaciones para reprogramar|— Beiträge zum Neuplanen ziehen|— Arraste publicações para reagendar
+313|Haz clic en cualquier publicación para editarla|Klicke zum Bearbeiten auf einen Beitrag|Clique em qualquer publicação para editar
+314|HOY|HEUTE|HOJE
+315|Cola de programación|Planungswarteschlange|Fila de agendamento
+316|Borrador sin programar|Ungeplanter Entwurf|Rascunho não agendado
+317|Cola persistente de tareas de publicación y telemetría de errores|Persistente Veröffentlichungswarteschlange und Fehlertelemetrie|Fila persistente de tarefas de publicação e telemetria de falhas
+318|Tareas idempotentes del servidor guardadas en MongoDB, con contadores de reintentos y registros de auditoría.|Idempotente serverseitige Aufträge in MongoDB mit Wiederholungszählern und Prüfprotokollen.|Tarefas idempotentes do servidor armazenadas no MongoDB, com contadores de tentativas e registros de auditoria.
+319|Ejecutar tareas pendientes ahora|Fällige Aufträge jetzt ausführen|Executar tarefas pendentes agora
+320|Tarea n.º|Auftrag Nr.|Tarefa nº
+321|clave:|Schlüssel:|chave:
+322|Programado:|Geplant:|Agendado:
+323|• Intentos:|• Versuche:|• Tentativas:
+324|Reintentar tarea|Auftrag erneut versuchen|Tentar tarefa novamente
+325|Editar publicación programada|Geplanten Beitrag bearbeiten|Editar publicação agendada
+326|Título|Titel|Título
+327|Contenido|Inhalt|Conteúdo
+328|Hora programada (|Geplanter Zeitpunkt (|Horário agendado (
+329|Estado del ciclo de vida|Lebenszyklusstatus|Status do ciclo de vida
+330|Borrador|Entwurf|Rascunho
+331|Pendiente de aprobación|Freigabe ausstehend|Aguardando aprovação
+332|Aprobado|Genehmigt|Aprovado
+333|Programado|Geplant|Agendado
+334|Publicado|Veröffentlicht|Publicado
+335|Cancelado|Abgebrochen|Cancelado
+336|Duplicar|Duplizieren|Duplicar
+337|Guardar cambios|Änderungen speichern|Salvar alterações
+338|Lanzamiento de producto y registros cualificados|Produkteinführung und qualifizierte Registrierungen|Lançamento de produto e cadastros qualificados
+339|Error de IA de campaña|Kampagnen-KI-Fehler|Erro de IA da campanha
+340|No se pudo generar el plan.|Das Konzept konnte nicht erstellt werden.|Não foi possível gerar o plano.
+341|La campaña generada estaba vacía.|Die erstellte Kampagne war leer.|A campanha gerada estava vazia.
+342|¡Campaña de 4 semanas creada!|4-Wochen-Kampagne erstellt!|Campanha de 4 semanas criada!
+343|No se pudo guardar la campaña generada. Vuelve a intentarlo para guardarla sin otra solicitud a la IA.|Die erstellte Kampagne konnte nicht gespeichert werden. Versuche es erneut, um sie ohne weitere KI-Anfrage zu speichern.|Não foi possível salvar a campanha gerada. Tente novamente para salvar sem outra solicitação à IA.
+344|Error en la solicitud de campaña|Kampagnenanfrage fehlgeschlagen|Falha na solicitação da campanha
+345|Vuelve a intentarlo para reanudar la misma solicitud.|Versuche es erneut, um dieselbe Anfrage fortzusetzen.|Tente novamente para retomar a mesma solicitação.
+346|Campaña actualizada|Kampagne aktualisiert|Campanha atualizada
+347|Campaña eliminada|Kampagne gelöscht|Campanha excluída
+348|Diseñador de campañas con IA|KI-Kampagnenarchitekt|Arquiteto de campanhas com IA
+349|Describe el objetivo de tu campaña y POSTIF-AI propondrá temas de contenido, frecuencia semanal, estrategia de mensajes y borradores iniciales.|Beschreibe dein Kampagnenziel und POSTIF-AI schlägt Inhaltsthemen, Wochenrhythmus, Kommunikationsstrategie und erste Beitragsentwürfe vor.|Descreva o objetivo da sua campanha e o POSTIF-AI proporá temas de conteúdo, frequência semanal, estratégia de mensagens e rascunhos iniciais.
+350|Resumen de campaña|Kampagnenbriefing|Resumo da campanha
+351|Objetivo principal|Hauptziel|Objetivo principal
+352|Canales de destino|Zielkanäle|Canais de destino
+354|Reintentar guardar la campaña generada|Erstellte Kampagne erneut speichern|Tentar salvar a campanha gerada novamente
+355|Generar campaña de 4 semanas y publicaciones iniciales|4-Wochen-Kampagne und erste Beiträge erstellen|Gerar campanha de 4 semanas e publicações iniciais
+356|Campaña de ejemplo|Beispielkampagne|Campanha de exemplo
+357|publicaciones/sem.|Beiträge/Woche|publicações/sem.
+358|publicaciones vinculadas|verknüpfte Beiträge|publicações vinculadas
+359|Activar|Aktivieren|Ativar
+360|Pausar|Pausieren|Pausar
+361|Eliminar campaña|Kampagne löschen|Excluir campanha
+362|Interacción del público|Zielgruppeninteraktion|Engajamento do público
+368|Añade un tema o una idea|Thema oder Idee hinzufügen|Adicione um tema ou uma ideia
+369|Describe de qué debe tratar la publicación.|Beschreibe, worum es im Beitrag gehen soll.|Descreva sobre o que a publicação deve tratar.
+370|Selecciona al menos un canal|Mindestens einen Kanal auswählen|Selecione pelo menos um canal
+371|Elige una o más plataformas de destino.|Wähle eine oder mehrere Zielplattformen.|Escolha uma ou mais plataformas de destino.
+373|Error de generación|Erstellungsfehler|Erro de geração
+374|No se pudo generar contenido.|Der Inhalt konnte nicht erstellt werden.|Não foi possível gerar conteúdo.
+375|¡Variantes por plataforma generadas!|Plattformvarianten erstellt!|Variações por plataforma geradas!
+376|Generación interrumpida|Erstellung unterbrochen|Geração interrompida
+377|Vuelve a intentarlo para reanudar esta solicitud.|Versuche es erneut, um diese Anfrage fortzusetzen.|Tente novamente para retomar esta solicitação.
+380|Error en la acción editorial|Redaktionelle Aktion fehlgeschlagen|Falha na ação editorial
+381|No se pudo transformar la publicación.|Der Beitrag konnte nicht umgearbeitet werden.|Não foi possível transformar a publicação.
+382|Acción editorial interrumpida|Redaktionelle Aktion unterbrochen|Ação editorial interrompida
+383|Vuelve a intentarlo para reanudar esta solicitud.|Versuche es erneut, um diese Anfrage fortzusetzen.|Tente novamente para retomar esta solicitação.
+384|Selecciona una plataforma|Plattform auswählen|Selecione uma plataforma
+385|Elige al menos un canal antes de guardar.|Wähle vor dem Speichern mindestens einen Kanal.|Escolha pelo menos um canal antes de salvar.
+386|Publicación sin título|Unbenannter Beitrag|Publicação sem título
+387|No se pudo guardar la publicación|Beitrag konnte nicht gespeichert werden|Não foi possível salvar a publicação
+388|Revisa los límites del plan o los permisos de tu rol.|Prüfe Tarifkontingente oder Rollenberechtigungen.|Verifique os limites do plano ou as permissões da sua função.
+389|Guardado en borradores|Als Entwurf gespeichert|Salvo nos rascunhos
+390|Enviado a aprobación|Zur Freigabe eingereicht|Enviado para aprovação
+391|Programado para tu revisión|Für deine Prüfung geplant|Agendado para sua revisão
+392|Programado en el calendario de contenido|Im Inhaltskalender geplant|Agendado no calendário de conteúdo
+393|En cola para publicación|Zur Veröffentlichung eingereiht|Na fila para publicação
+394|Publicación guardada|Beitrag gespeichert|Publicação salva
+395|La generación de medios está en cola. El resultado se adjuntará automáticamente antes de la revisión o publicación.|Die Medienerstellung ist eingereiht. Das Ergebnis wird vor der Prüfung oder Veröffentlichung automatisch angehängt.|A geração de mídia está na fila. O resultado será anexado automaticamente antes da revisão ou publicação.
+396|Tu equipo revisará esta publicación antes de enviarla.|Dein Team prüft diesen Beitrag vor dem Versand.|Sua equipe revisará esta publicação antes do envio.
+397|Esperaremos tu revisión antes de enviarla.|Wir warten vor dem Versand auf deine Prüfung.|Aguardaremos sua revisão antes do envio.
+398|La publicación esperará hasta que haya una conexión social disponible.|Die Veröffentlichung wartet, bis eine Social-Media-Verbindung verfügbar ist.|A publicação aguardará até que uma conexão social esteja disponível.
+399|No se pudo guardar la publicación|Beitrag konnte nicht gespeichert werden|Não foi possível salvar a publicação
+400|Vuelve a intentarlo.|Bitte versuche es erneut.|Tente novamente.
+401|Publicación|Beitrag|Publicação
+402|1. Resumen de contenido y parámetros|1. Inhaltsbriefing und Parameter|1. Resumo de conteúdo e parâmetros
+403|Perfil de marca|Markenprofil|Perfil da marca
+404|Tipo de contenido|Inhaltstyp|Tipo de conteúdo
+405|Publicación educativa|Lehrreicher Beitrag|Publicação educativa
+406|Promoción de producto|Produktwerbung|Promoção de produto
+407|Anuncio|Ankündigung|Anúncio
+408|Contenido narrativo|Erzählerischer Inhalt|Conteúdo narrativo
+409|Interacción con la comunidad|Community-Interaktion|Engajamento da comunidade
+410|Texto para carrusel|Karusselltext|Texto para carrossel
+411|Guion de video corto|Kurzvideoskript|Roteiro de vídeo curto
+412|Tema / Titular|Thema / Überschrift|Tema / Título
+413|Resumen creativo / Instrucciones para la IA|KI-Kreativbriefing / Eingabe|Resumo criativo / Instruções para a IA
+414|Tono|Tonalität|Tom
+415|Profesional y visionario|Professionell und visionär|Profissional e visionário
+416|Experto|Kompetent|Especializado
+417|Conversacional|Dialogorientiert|Conversacional
+418|Enérgico y audaz|Energisch und mutig|Enérgico e ousado
+419|Educativo|Lehrreich|Educativo
+420|Idioma|Sprache|Idioma
+421|Inglés|Englisch|Inglês
+422|Español|Spanisch|Espanhol
+423|Francés|Französisch|Francês
+424|Alemán|Deutsch|Alemão
+425|Portugués|Portugiesisch|Português
+426|Extensión|Länge|Extensão
+427|Corto|Kurz|Curto
+428|Medio|Mittel|Médio
+429|Extenso|Lang|Longo
+430|Objetivo|Ziel|Objetivo
+431|Público objetivo|Zielgruppe|Público-alvo
+432|Palabras clave / Hashtags|Schlüsselwörter / Hashtags|Palavras-chave / Hashtags
+433|Llamada a la acción|Handlungsaufforderung|Chamada para ação
+434|Canales sociales de destino|Soziale Zielkanäle|Canais sociais de destino
+436|Generar publicaciones optimizadas por plataforma|Plattformoptimierte Beiträge erstellen|Gerar publicações otimizadas por plataforma
+437|Adjuntar medios existentes (opcional)|Vorhandene Medien anhängen (optional)|Anexar mídia existente (opcional)
+439|caracteres|Zeichen|caracteres
+440|Ajustar con IA:|Mit KI überarbeiten:|Refinar com IA:
+441|Reescribir|Umschreiben|Reescrever
+442|Mejorar|Verbessern|Melhorar
+443|Acortar|Kürzen|Encurtar
+444|Ampliar|Erweitern|Expandir
+445|Traducir|Übersetzen|Traduzir
+446|+ Hashtags|+ Hashtags|+ Hashtags
+447|+ Llamada a la acción|+ Handlungsaufforderung|+ Chamada para ação
+448|En vivo|Live|Ao vivo
+449|Vista previa de publicación (|Beitragsvorschau (|Prévia da publicação (
+450|Adaptado al canal|Kanalgerecht formatiert|Formatado para o canal
+451|Cuenta de marca|Markenkonto|Conta da marca
+452|Vista previa patrocinada / programada • Ahora mismo|Gesponserte / geplante Vorschau • Gerade eben|Prévia patrocinada / agendada • Agora
+453|Me gusta|Gefällt mir|Curtir
+454|Comentar|Kommentieren|Comentar
+455|Republicar|Erneut posten|Republicar
+456|Compartir|Teilen|Compartilhar
+457|Revisión y publicación|Prüfung und Veröffentlichung|Revisão e publicação
+458|Permiso de publicación del equipo|Veröffentlichungsberechtigung des Teams|Permissão de publicação da equipe
+459|Preferencia de publicación|Veröffentlichungseinstellung|Preferência de publicação
+460|Publicar automáticamente|Automatisch veröffentlichen|Publicar automaticamente
+461|Enviar a los aprobadores del equipo antes de publicar|Vor der Veröffentlichung an Teamprüfer senden|Enviar aos aprovadores da equipe antes de publicar
+462|Dejarme revisar primero|Mich zuerst prüfen lassen|Deixar eu revisar antes
+463|Notificarme los resultados de publicación|Mich über Veröffentlichungsergebnisse benachrichtigen|Notificar os resultados da publicação
+464|Elige correo electrónico, notificaciones en el sitio o push del navegador en Configuración. Las conexiones de publicación social se añadirán más adelante; las publicaciones programadas no se enviarán hasta entonces.|Wähle unter Einstellungen E-Mail, Website- oder Browser-Push-Benachrichtigungen. Social-Media-Verbindungen werden später hinzugefügt; geplante Beiträge bleiben bis dahin ungesendet.|Escolha e-mail, notificações no site ou push do navegador em Configurações. As conexões de publicação social serão adicionadas depois; as publicações agendadas não serão enviadas até lá.
+465|Fecha y hora de programación|Geplantes Datum und Uhrzeit|Data e hora do agendamento
+466|Zona horaria|Zeitzone|Fuso horário
+473|Guardar borrador|Entwurf speichern|Salvar rascunho
+474|Solicitar aprobación|Freigabe anfordern|Solicitar aprovação
+475|Enviar para aprobación del equipo|Zur Teamfreigabe einreichen|Enviar para aprovação da equipe
+476|Programar y notificarme para revisar|Planen und mich zur Prüfung benachrichtigen|Agendar e me notificar para revisar
+477|Programar publicación|Beitrag planen|Agendar publicação
+478|Publicar ahora|Jetzt veröffentlichen|Publicar agora
+479|No se pudo cargar la configuración de notificaciones.|Die Benachrichtigungseinstellungen konnten nicht geladen werden.|Não foi possível carregar as configurações de notificação.
+482|Este navegador no admite notificaciones push. Elige correo electrónico o notificaciones en el sitio.|Dieser Browser unterstützt keine Push-Benachrichtigungen. Wähle E-Mail- oder Website-Benachrichtigungen.|Este navegador não oferece suporte a notificações push. Escolha e-mail ou notificações no site.
+483|No se concedió permiso para push. Habilítalo en tu navegador o desactiva push.|Die Push-Berechtigung wurde nicht erteilt. Aktiviere sie im Browser oder deaktiviere Push.|A permissão para push não foi concedida. Ative-a no navegador ou desative o push.
+484|No se pudo registrar este navegador para push.|Dieser Browser konnte nicht für Push registriert werden.|Não foi possível registrar este navegador para push.
+485|No se pudo guardar la configuración de notificaciones.|Die Benachrichtigungseinstellungen konnten nicht gespeichert werden.|Não foi possível salvar as configurações de notificação.
+486|Preferencias guardadas.|Einstellungen gespeichert.|Preferências salvas.
+487| Algunos canales estarán disponibles cuando el administrador complete la configuración.| Einige Kanäle sind verfügbar, sobald die Administration die Einrichtung abschließt.| Alguns canais estarão disponíveis quando o administrador concluir a configuração.
+488|No se pudo guardar.|Speichern nicht möglich.|Não foi possível salvar.
+489|¿Dónde debemos notificarte?|Wo sollen wir dich benachrichtigen?|Onde devemos notificar você?
+490|Elige cualquier combinación para solicitudes de revisión y novedades de publicación. La revisión previa se elige por separado para cada publicación.|Wähle eine beliebige Kombination für Prüfanfragen und Veröffentlichungsupdates. Die Prüfung vor der Veröffentlichung wird für jeden Beitrag separat festgelegt.|Escolha qualquer combinação para solicitações de revisão e atualizações de publicação. A revisão antes de publicar é escolhida separadamente para cada publicação.
+491|En el sitio|Auf der Website|No site
+492|Correo electrónico|E-Mail|E-mail
+493|Push del navegador|Browser-Push|Push do navegador
+494|Configuración del servicio pendiente|Diensteinrichtung ausstehend|Configuração do serviço pendente
+495|Guardando…|Wird gespeichert…|Salvando…
+496|Guardar preferencias de notificación|Benachrichtigungseinstellungen speichern|Salvar preferências de notificação
+497|Plan semanal de contenido generado|Wocheninhaltsplan erstellt|Plano semanal de conteúdo gerado
+498|El agente de marketing con IA actualizó tu programación multicanal de 5 días.|Der KI-Marketingagent hat deinen 5-Tage-Mehrkanalplan aktualisiert.|O agente de marketing com IA atualizou seu agendamento multicanal de 5 dias.
+499|Crear publicación|Beitrag erstellen|Criar publicação
+500|Estudio multicanal con IA|KI-Mehrkanalstudio|Estúdio multicanal com IA
+501|Generar contenido semanal|Wocheninhalte erstellen|Gerar conteúdo semanal
+502|Plan de 5 días del agente de IA|5-Tage-Konzept des KI-Agenten|Plano de 5 dias do agente de IA
+503|Crear campaña|Kampagne erstellen|Criar campanha
+504|Plan de campaña de 4 semanas con IA|KI-Kampagnenplan für 4 Wochen|Plano de campanha de 4 semanas com IA
+505|Conectar cuenta social|Social-Media-Konto verbinden|Conectar conta social
+506|8 adaptadores de plataforma|8 Plattformadapter|8 adaptadores de plataforma
+507|Evolución de interacción y alcance|Entwicklung von Interaktion und Reichweite|Evolução de engajamento e alcance
+508|Analítica registrada|Erfasste Analysen|Análises registradas
+509|Mediciones de interacción almacenadas. La recopilación en vivo debe configurarse por separado.|Gespeicherte Interaktionsmessungen. Die Erfassung in Echtzeit muss separat konfiguriert werden.|Medições de engajamento armazenadas. A coleta ao vivo deve ser configurada separadamente.
+511|impr. •|Impr. •|impr. •
+512|interac.|Interakt.|engaj.
+514|Impresiones|Impressionen|Impressões
+515|Interacciones ponderadas|Gewichtete Interaktionen|Engajamentos ponderados
+516|Analítica completa y exportación CSV →|Vollständige Analysen und CSV-Export →|Análises completas e exportação CSV →
+517|Agente de marketing con IA|KI-Marketingagent|Agente de marketing com IA
+518|Pausado|Pausiert|Pausado
+519|Recomendación de IA fundamentada|Datengestützte KI-Empfehlung|Recomendação de IA fundamentada
+520|Las publicaciones educativas generaron|Lehrreiche Beiträge erzielten|As publicações educativas geraram
+521|un 4,9 % de interacción|4,9 % Interaktion|4,9% de engajamento
+522|frente al 2,7 % de los anuncios de producto en los últimos 14 días. Aumenta los análisis educativos a 3 por semana.|gegenüber 2,7 % bei reinen Produktankündigungen in den letzten 14 Tagen. Erhöhe lehrreiche Erläuterungen auf 3 pro Woche.|contra 2,7% dos anúncios de produtos nos últimos 14 dias. Aumente as análises educativas para 3 por semana.
+523|Actividad reciente del agente|Letzte Agentenaktivitäten|Atividade recente do agente
+524|Abrir centro de control del agente →|Agenten-Steuerzentrale öffnen →|Abrir central de controle do agente →
+525|Próximas publicaciones y aprobaciones pendientes|Anstehende Beiträge und ausstehende Freigaben|Próximas publicações e aprovações pendentes
+526|Abrir calendario →|Kalender öffnen →|Abrir calendário →
+527|No hay próximas publicaciones programadas. Usa el estudio de contenido con IA para crear tu siguiente borrador.|Keine anstehenden Beiträge geplant. Erstelle deinen nächsten Entwurf im KI-Inhaltsstudio.|Nenhuma publicação futura agendada. Use o estúdio de conteúdo com IA para criar seu próximo rascunho.
+528|Publicaciones recientes|Letzte Veröffentlichungen|Publicações recentes
+529|Todas las publicaciones →|Alle Beiträge →|Todas as publicações →
+530|Publicado en|Veröffentlicht auf|Publicado em
+531|Publicado|Veröffentlicht|Publicado
+532|Eliminación pendiente. Reintenta la eliminación para finalizar.|Löschung ausstehend. Versuche die Löschung erneut, um sie abzuschließen.|Exclusão pendente. Tente excluir novamente para concluir.
+533|Error de generación|Erstellung fehlgeschlagen|Falha na geração
+534|No se pudieron cargar los medios.|Medien konnten nicht geladen werden.|Não foi possível carregar a mídia.
+535|Elige un archivo de menos de 50 MB.|Wähle eine Datei unter 50 MB.|Escolha um arquivo menor que 50 MB.
+536|Se requiere permiso de subida.|Upload-Berechtigung erforderlich.|É necessária permissão de envio.
+537|No se pudo iniciar la subida.|Der Upload konnte nicht gestartet werden.|Não foi possível iniciar o envio.
+538|El almacenamiento privado rechazó la subida. Revisa la configuración CORS del almacenamiento o inténtalo de nuevo.|Der private Speicher hat den Upload abgelehnt. Prüfe die CORS-Konfiguration des Speichers oder versuche es erneut.|O armazenamento privado rejeitou o envio. Verifique a configuração CORS do armazenamento ou tente novamente.
+540|Archivo guardado en tu biblioteca de medios.|Upload in deiner Medienbibliothek gespeichert.|Arquivo salvo na sua biblioteca de mídia.
+541|Archivo adjuntado a esta publicación.|Upload an diesen Beitrag angehängt.|Arquivo anexado a esta publicação.
+542|Error de subida.|Upload fehlgeschlagen.|Falha no envio.
+543|Generación en cola. Puedes salir de esta página; los medios completados aparecerán en tu biblioteca.|Erstellung eingereiht. Du kannst diese Seite verlassen; die fertigen Medien erscheinen in deiner Bibliothek.|Geração na fila. Você pode sair desta página; a mídia concluída aparecerá na sua biblioteca.
+544|Error de generación.|Erstellung fehlgeschlagen.|Falha na geração.
+545|No se pudieron eliminar los medios.|Medienlöschung fehlgeschlagen.|Falha ao excluir a mídia.
+546|Medios eliminados.|Medien gelöscht.|Mídia excluída.
+547|No se pudieron eliminar los medios.|Medienlöschung fehlgeschlagen.|Falha ao excluir a mídia.
+548|Imágenes y videos|Bilder und Videos|Imagens e vídeos
+549|Sube una imagen o un video (hasta 50 MB)|Bild oder Video hochladen (bis zu 50 MB)|Envie uma imagem ou um vídeo (até 50 MB)
+550|Describe la imagen o el video que quieres generar|Beschreibe das Bild oder Video, das du erstellen möchtest|Descreva a imagem ou o vídeo que deseja gerar
+551|Tipo de medio|Medientyp|Tipo de mídia
+552|Imagen|Bild|Imagem
+553|Video (5 segundos)|Video (5 Sekunden)|Vídeo (5 segundos)
+554|Relación de aspecto del medio|Medienseitenverhältnis|Proporção da mídia
+555|Horizontal|Querformat|Paisagem
+556|Vertical|Hochformat|Retrato
+557|Cuadrado|Quadratisch|Quadrado
+558|Generar|Erstellen|Gerar
+559|Imágenes: 40 créditos gestionados o tu clave de OpenAI. Videos: 120 créditos gestionados. Las generaciones fallidas devuelven los créditos reservados. Tu administrador debe habilitar el proveedor de medios y el proceso en segundo plano.|Bilder: 40 verwaltete Guthabeneinheiten oder dein OpenAI-Schlüssel. Videos: 120 verwaltete Guthabeneinheiten. Fehlgeschlagene Erstellungen erstatten reserviertes Guthaben. Deine Administration muss den Medienanbieter und den Hintergrundprozess aktivieren.|Imagens: 40 créditos gerenciados ou sua chave da OpenAI. Vídeos: 120 créditos gerenciados. Gerações com falha devolvem os créditos reservados. Seu administrador deve ativar o provedor de mídia e o processo em segundo plano.
+560|Reintentar eliminación|Löschung erneut versuchen|Tentar exclusão novamente
+561|Eliminar|Löschen|Excluir
+562|Esperando tu revisión|Wartet auf deine Prüfung|Aguardando sua revisão
+563|Revisado|Geprüft|Revisado
+564|Acción bloqueada|Aktion blockiert|Ação bloqueada
+565|No se pudo actualizar la publicación.|Der Beitrag konnte nicht aktualisiert werden.|Não foi possível atualizar a publicação.
+566|Publicación actualizada|Beitrag aktualisiert|Publicação atualizada
+567|Esperando aprobación del equipo.|Wartet auf Teamfreigabe.|Aguardando aprovação da equipe.
+568|Esperando tu revisión.|Wartet auf deine Prüfung.|Aguardando sua revisão.
+569|En cola para la hora programada. Publicar requiere una conexión social.|Für den geplanten Zeitpunkt eingereiht. Zur Veröffentlichung ist eine Social-Media-Verbindung erforderlich.|Na fila para o horário agendado. A publicação exige uma conexão social.
+570|Cambios guardados.|Änderungen gespeichert.|Alterações salvas.
+571|Error en la acción|Aktion fehlgeschlagen|Falha na ação
+572|Vuelve a intentarlo.|Bitte versuche es erneut.|Tente novamente.
+574|Buscar publicaciones...|Beiträge suchen...|Buscar publicações...
+575|Ninguna publicación coincide con el filtro actual.|Keine Beiträge entsprechen dem aktuellen Filter.|Nenhuma publicação corresponde ao filtro atual.
+576|Agente de IA|KI-Agent|Agente de IA
+577|Horario previsto:|Zieltermin:|Horário previsto:
+578|Se requiere aprobación del equipo|Teamfreigabe erforderlich|Aprovação da equipe necessária
+579|Elegiste revisar antes de enviar|Du möchtest vor dem Versand prüfen|Você escolheu revisar antes de enviar
+580|Publicar automáticamente|Automatisch veröffentlichen|Publicar automaticamente
+581|archivos multimedia adjuntos|Medienanhänge|anexos de mídia
+582|Automático|Automatisch|Automático
+583|se generará al programar|wird bei der Planung erstellt|será gerado ao agendar
+584|La generación de medios requiere atención. Elige una nueva hora de publicación si es necesario y vuelve a intentarlo.|Die Medienerstellung erfordert Aufmerksamkeit. Wähle bei Bedarf einen neuen Veröffentlichungstermin und versuche es erneut.|A geração de mídia precisa de atenção. Escolha um novo horário de publicação, se necessário, e tente novamente.
+585|Cerrar vista previa|Vorschau schließen|Fechar prévia
+586|Revisar publicación completa y medios|Vollständigen Beitrag und Medien prüfen|Revisar publicação completa e mídia
+587|Permiso de publicación del equipo|Veröffentlichungsberechtigung des Teams|Permissão de publicação da equipe
+588|Preferencia de publicación|Veröffentlichungseinstellung|Preferência de publicação
+589|Publicar automáticamente|Automatisch veröffentlichen|Publicar automaticamente
+590|Enviar a los aprobadores del equipo|An Teamprüfer senden|Enviar aos aprovadores da equipe
+591|Dejarme revisar primero|Mich zuerst prüfen lassen|Deixar eu revisar antes
+592|Guardar configuración de medios automáticos|Automatische Medieneinstellungen speichern|Salvar configurações de mídia automática
+593|Hora de publicación (|Veröffentlichungszeit (|Horário de publicação (
+594|Programación no válida|Ungültiger Termin|Agendamento inválido
+595|Elige una hora.|Wähle einen Zeitpunkt.|Escolha um horário.
+596|Guardar hora|Zeitpunkt speichern|Salvar horário
+597|Aprobar|Genehmigen|Aprovar
+598|Se ve bien|Sieht gut aus|Está ótimo
+599| y programar| und planen| e agendar
+600|Programar|Planen|Agendar
+601|Publicar ahora|Jetzt veröffentlichen|Publicar agora
+602|Reintentar generación de medios|Medienerstellung erneut versuchen|Tentar gerar mídia novamente
+603|Rechazar|Ablehnen|Rejeitar
+604|Cancelar|Abbrechen|Cancelar
+605|Duplicar publicación|Beitrag duplizieren|Duplicar publicação
+606|Duplicar|Duplizieren|Duplicar
+607|Eliminar publicación|Beitrag löschen|Excluir publicação
+608|No se pudo completar la sincronización.|Die Synchronisierung konnte nicht abgeschlossen werden.|Não foi possível concluir a sincronização.
+609|Sincronización no disponible. Vuelve a intentarlo más tarde.|Synchronisierung nicht verfügbar. Versuche es später erneut.|Sincronização indisponível. Tente novamente mais tarde.
+610|Sincronizando…|Wird synchronisiert…|Sincronizando…
+611|Sincronizar analítica del proveedor|Anbieteranalysen synchronisieren|Sincronizar análises do provedor
+613|No se pudo iniciar la autorización.|Die Autorisierung konnte nicht gestartet werden.|Não foi possível iniciar a autorização.
+614|El proveedor no pudo verificar esta conexión.|Der Anbieter konnte diese Verbindung nicht verifizieren.|O provedor não conseguiu verificar esta conexão.
+615|Conexión eliminada|Verbindung entfernt|Conexão removida
+616|Cuenta verificada|Konto verifiziert|Conta verificada
+617|Se eliminaron las credenciales guardadas. Revoca el token con el proveedor si ya no lo necesitas.|Gespeicherte Zugangsdaten wurden gelöscht. Widerrufe das Token beim Anbieter, wenn es nicht mehr benötigt wird.|As credenciais armazenadas foram excluídas. Revogue o token no provedor se não precisar mais dele.
+618|Se verificó tu identidad con el proveedor. La publicación sigue requiriendo los permisos indicados.|Deine Anbieteridentität wurde verifiziert. Die Veröffentlichung erfordert weiterhin die aufgeführten Berechtigungen.|Sua identidade no provedor foi verificada. A publicação ainda exige as permissões listadas.
+619|Error de conexión|Verbindung fehlgeschlagen|Falha na conexão
+620|La solicitud falló.|Die Anfrage ist fehlgeschlagen.|A solicitação falhou.
+621|Conecta tu propio token de acceso emitido por la plataforma. Las credenciales se cifran por espacio de trabajo y cuenta y nunca se devuelven al navegador. No se requieren claves sociales compartidas en el servidor. No introduzcas tu contraseña de la red social.|Verbinde dein eigenes, von der Plattform ausgestelltes Zugriffstoken. Zugangsdaten werden pro Arbeitsbereich/Konto verschlüsselt und nie an den Browser zurückgegeben. Gemeinsame Anbieterschlüssel auf dem Server sind nicht erforderlich. Gib nicht dein Social-Media-Passwort ein.|Conecte seu próprio token de acesso emitido pela plataforma. As credenciais são criptografadas por espaço de trabalho/conta e nunca retornam ao navegador. Não são necessárias chaves sociais compartilhadas no servidor. Não insira sua senha da rede social.
+622|Los tokens deben tener permisos de publicación y el acceso o aprobación de API que requiere tu propia aplicación. La renovación automática requiere una concesión de actualización compatible o un token declarado explícitamente como de larga duración. Desconectar elimina los secretos locales; revoca también los permisos en la configuración del proveedor.|Tokens benötigen Veröffentlichungsberechtigungen und den erforderlichen API-Zugriff bzw. die Genehmigung deiner eigenen App. Die automatische Erneuerung erfordert eine unterstützte Refresh-Berechtigung oder ein ausdrücklich als langlebig deklariertes Token. Das Trennen entfernt lokale Geheimnisse; widerrufe die Berechtigungen auch beim Anbieter.|Os tokens devem ter permissões de publicação e o acesso ou aprovação de API exigido pelo seu próprio aplicativo. A renovação automática exige uma concessão de atualização compatível ou um token declarado como de longa duração. Desconectar remove os segredos locais; revogue também as permissões nas configurações do provedor.
+623|canales conectados (|verbundene Kanäle (|canais conectados (
+624|Plataforma|Plattform|Plataforma
+625|ID de la página de Facebook de destino (requerido para OAuth)|ID der vorgesehenen Facebook-Seite (für OAuth erforderlich)|ID da página do Facebook de destino (obrigatório para OAuth)
+626|ID de la cuenta profesional de Instagram de destino (requerido para OAuth)|ID des vorgesehenen professionellen Instagram-Kontos (für OAuth erforderlich)|ID da conta profissional do Instagram de destino (obrigatório para OAuth)
+627|ID de cuenta del proveedor / URN de autor de LinkedIn (opcional; detectado del token)|Anbieterkonto-ID / LinkedIn-Autoren-URN (optional; aus Token erkannt)|ID da conta do provedor / URN do autor no LinkedIn (opcional; detectado pelo token)
+628|Tu token de acceso|Dein Zugriffstoken|Seu token de acesso
+629|(token de página, no de usuario personal)|(Seitentoken, kein persönliches Benutzertoken)|(token de página, não de usuário pessoal)
+630|Analítica:|Analysen:|Análises:
+631|Requisitos oficiales del proveedor|Offizielle Anbieteranforderungen|Requisitos oficiais do provedor
+632|OAuth no está disponible hasta que se configure un origen HTTPS público en APP_URL.|OAuth ist erst verfügbar, wenn ein öffentlicher HTTPS-Ursprung für APP_URL konfiguriert ist.|O OAuth não estará disponível até que uma origem HTTPS pública seja configurada em APP_URL.
+633|Completa las declaraciones siguientes antes de autorizar. Las credenciales del cliente te pertenecen; nunca son de una aplicación compartida de la plataforma.|Vervollständige vor der Autorisierung die folgenden Angaben. Die Client-Zugangsdaten gehören dir, nie einer gemeinsamen Plattform-App.|Preencha as declarações abaixo antes de autorizar. As credenciais do cliente pertencem a você, nunca a um aplicativo compartilhado da plataforma.
+634|Tu ID de cliente OAuth|Deine OAuth-Client-ID|Seu ID de cliente OAuth
+635|Tu secreto de cliente OAuth|Dein OAuth-Client-Geheimnis|Seu segredo de cliente OAuth
+636|(omitir solo para clientes públicos registrados)|(nur bei registrierten öffentlichen Clients weglassen)|(omita somente para clientes públicos registrados)
+637|Token de actualización (opcional al conectar manualmente)|Refresh-Token (bei manueller Verbindung optional)|Token de atualização (opcional ao conectar manualmente)
+638|Solicitar permisos de analítica aprobados durante OAuth (LinkedIn/Instagram/Threads). Desactívalo si tu aplicación no tiene ese producto; las métricas se limitarán a sus permisos realmente concedidos.|Genehmigte Analyseberechtigungen während OAuth anfordern (LinkedIn/Instagram/Threads). Deaktiviere dies, wenn deine App dieses Produkt nicht hat; Messwerte beschränken sich dann auf tatsächlich erteilte Berechtigungen.|Solicitar permissões de análise aprovadas durante o OAuth (LinkedIn/Instagram/Threads). Desative se seu aplicativo não tiver esse produto; as métricas ficarão limitadas às permissões realmente concedidas.
+639|Obtuve un token de larga duración mediante mi propia aplicación del proveedor (no un token de corta duración).|Ich habe über meine eigene Anbieter-App ein langlebiges Token erhalten (kein kurzlebiges Token).|Obtive um token de longa duração pelo meu próprio aplicativo do provedor (não um token de curta duração).
+640|ID del tablero de destino|Ziel-Pinnwand-ID|ID do painel de destino
+641|Versión de API del proveedor|API-Version des Anbieters|Versão da API do provedor
+642|(requerido, AAAAMM)|(erforderlich, JJJJMM)|(obrigatório, AAAAMM)
+643|(opcional, p. ej., v27.0)|(optional, z. B. v27.0)|(opcional, por exemplo, v27.0)
+644|¿Los videos están dirigidos a niños?|Sind die Videos für Kinder bestimmt?|Os vídeos são feitos para crianças?
+645|¿Tus videos subidos contienen medios generados por IA?|Enthalten deine hochgeladenen Videos KI-generierte Medien?|Seus vídeos enviados contêm mídia gerada por IA?
+646|Elige una declaración|Angabe auswählen|Escolha uma declaração
+647|Sí|Ja|Sim
+648|No|Nein|Não
+649|Se aplica a esta conexión. Reconecta antes de publicar contenido con una declaración diferente. Los medios de TikTok generados por la aplicación siempre se etiquetan como generados por IA.|Gilt für diese Verbindung. Verbinde dich vor der Veröffentlichung von Inhalten mit anderen Angaben erneut. Von der App erstellte TikTok-Medien werden immer als KI-generiert gekennzeichnet.|Aplica-se a esta conexão. Reconecte antes de publicar conteúdo com uma declaração diferente. Mídias do TikTok geradas pelo aplicativo são sempre identificadas como geradas por IA.
+650|Visibilidad de publicación|Sichtbarkeit der Veröffentlichung|Visibilidade da publicação
+651|Elige la visibilidad|Sichtbarkeit auswählen|Escolha a visibilidade
+656|Vencimiento del token (si lo proporciona tu plataforma)|Token-Ablauf (falls von deiner Plattform angegeben)|Expiração do token (se fornecida pela plataforma)
+657|Permisos requeridos:|Erforderliche Berechtigungen:|Permissões necessárias:
+658|Verificar y conectar|Verifizieren und verbinden|Verificar e conectar
+659|Autorizar con mi aplicación OAuth|Mit meiner OAuth-App autorisieren|Autorizar com meu aplicativo OAuth
+660|No hay cuentas conectadas. Añade tus propias credenciales para habilitar la publicación.|Keine Konten verbunden. Füge eigene Zugangsdaten hinzu, um die Veröffentlichung zu aktivieren.|Nenhuma conta conectada. Adicione suas próprias credenciais para ativar a publicação.
+661|Credenciales del cliente|Kundeneigene Zugangsdaten|Credenciais do cliente
+662|Conexión antigua: reconecta con tus credenciales|Alte Verbindung: Mit eigenen Zugangsdaten erneut verbinden|Conexão antiga: reconecte com suas credenciais
+663|Renovación:|Erneuerung:|Renovação:
+664|sin comprobar|nicht geprüft|não verificado
+665|Analítica:|Analysen:|Análises:
+666|sin sincronizar|nicht synchronisiert|não sincronizado
+667|Verificar token|Token verifizieren|Verificar token
+668|Renovar token|Token erneuern|Renovar token
+669|Desconectar|Trennen|Desconectar
+670|SaaS y tecnología|SaaS und Technologie|SaaS e tecnologia
+671|No se pudo actualizar la invitación.|Die Einladung konnte nicht aktualisiert werden.|Não foi possível atualizar o convite.
+672|Invitación aceptada|Einladung angenommen|Convite aceito
+673|Invitación rechazada|Einladung abgelehnt|Convite recusado
+674|Se actualizó tu espacio de trabajo activo.|Dein aktiver Arbeitsbereich wurde aktualisiert.|Seu espaço de trabalho ativo foi atualizado.
+675|Invitación eliminada.|Einladung entfernt.|Convite removido.
+676|Error en la invitación|Einladung fehlgeschlagen|Falha no convite
+677|No se pudo actualizar la invitación.|Die Einladung konnte nicht aktualisiert werden.|Não foi possível atualizar o convite.
+678|Límite de marcas alcanzado|Markenkontingent erreicht|Limite de marcas atingido
+679|Mejora tu plan para añadir más marcas.|Wechsle zu einem höheren Tarif, um weitere Marken hinzuzufügen.|Faça upgrade do plano para adicionar mais marcas.
+680|Marca creada|Marke erstellt|Marca criada
+681|Invitación bloqueada|Einladung blockiert|Convite bloqueado
+682|Revisa tus permisos.|Prüfe deine Berechtigungen.|Verifique suas permissões.
+683|Invitación creada|Einladung erstellt|Convite criado
+684|Rol actualizado|Rolle aktualisiert|Função atualizada
+685|Actualización de rol bloqueada|Rollenaktualisierung blockiert|Atualização de função bloqueada
+686|Revisa tus permisos.|Prüfe deine Berechtigungen.|Verifique suas permissões.
+687|No se pudo revocar el acceso.|Der Zugriff konnte nicht widerrufen werden.|Não foi possível revogar o acesso.
+688|Acceso revocado|Zugriff widerrufen|Acesso revogado
+689|Se eliminó el miembro o la invitación pendiente.|Das Mitglied oder die ausstehende Einladung wurde entfernt.|O membro ou convite pendente foi removido.
+690|Eliminación bloqueada|Entfernung blockiert|Remoção bloqueada
+691|Vuelve a intentarlo más tarde.|Versuche es später erneut.|Tente novamente mais tarde.
+692|Datos del espacio de trabajo exportados|Arbeitsbereichsdaten exportiert|Dados do espaço de trabalho exportados
+693|Archivo JSON completo descargado.|Vollständiges JSON-Archiv heruntergeladen.|Arquivo JSON completo baixado.
+694|Invitaciones al espacio de trabajo|Arbeitsbereichseinladungen|Convites para o espaço de trabalho
+696|Aceptar|Annehmen|Aceitar
+697|Rechazar|Ablehnen|Recusar
+698|Marcas gestionadas (|Verwaltete Marken (|Marcas gerenciadas (
+699|en|mit|no
+700|Exportar JSON del espacio de trabajo|Arbeitsbereich als JSON exportieren|Exportar JSON do espaço de trabalho
+701|Voz y tono:|Stimme und Tonalität:|Voz e tom:
+702|Nombre de nueva marca|Neuer Markenname|Nome da nova marca
+703|Cliente o submarca|Kunden- oder Untermarke|Cliente ou submarca
+704|URL del sitio web|Website-URL|URL do site
+705|Sector|Branche|Setor
+706|Añadir marca|Marke hinzufügen|Adicionar marca
+707|Colaboración del equipo y roles de aprobación del cliente (tu rol:|Teamzusammenarbeit und Kundenfreigaberollen (deine Rolle:|Colaboração da equipe e funções de aprovação do cliente (sua função:
+708|Asigna roles RBAC detallados:|Detaillierte RBAC-Rollen zuweisen:|Atribua funções RBAC detalhadas:
+709|Propietario|Inhaber|Proprietário
+710|Administrador|Administrator|Administrador
+711|Editor|Redakteur|Editor
+712|Aprobador|Prüfer|Aprovador
+713|(aprobación del cliente) y|(Kundenfreigabe) und|(aprovação do cliente) e
+714|Lector|Betrachter|Leitor
+715|Se requiere una suscripción Pro o Agency para invitar o editar miembros del equipo. Los datos existentes siguen disponibles.|Ein Pro- oder Agency-Abonnement ist erforderlich, um Teammitglieder einzuladen oder zu bearbeiten. Bestehende Daten bleiben verfügbar.|Uma assinatura Pro ou Agency é necessária para convidar ou editar membros da equipe. Os dados existentes continuam disponíveis.
+716|Correo del miembro del equipo o cliente|E-Mail des Teammitglieds oder Kunden|E-mail do membro da equipe ou cliente
+717|Rol RBAC|RBAC-Rolle|Função RBAC
+718|Administrador|Administrator|Administrador
+719|Editor|Redakteur|Editor
+720|Aprobador (aprobación del cliente)|Prüfer (Kundenfreigabe)|Aprovador (aprovação do cliente)
+721|Lector (solo lectura)|Betrachter (nur Lesen)|Leitor (somente leitura)
+722|Crear invitación|Einladung erstellen|Criar convite
+723|Propietario|Inhaber|Proprietário
+724|Administrador|Administrator|Administrador
+725|Editor|Redakteur|Editor
+726|Aprobador|Prüfer|Aprovador
+727|Lector|Betrachter|Leitor
+728|Revocar acceso|Zugriff widerrufen|Revogar acesso

@@ -7,6 +7,7 @@ import { generateSessionToken, hashPassword, hashToken, verifyPassword, } from "
 import { getAuthContext, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { completeAccountAction, requestAccountEmail } from "@/lib/account-email";
 import { WorkflowError } from "@/lib/post-policy";
+import { validateAccountRegistration } from "@/lib/account-registration";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -59,14 +60,12 @@ export async function POST(req: Request) {
                 path: "/",
                 expires: expiresAt,
             });
-            return NextResponse.json({ ok: true, redirectTo: "/app" });
+            return NextResponse.json({ ok: true, redirectTo: user.systemRole === "operator" ? "/app/admin" : "/app" });
         }
         if (action === "register") {
-            const name = String(body.name || "").trim();
-            const email = String(body.email || "").trim().toLowerCase();
-            const password = String(body.password || "");
+            const { name, email, password } = validateAccountRegistration(body);
             const workspaceName = String(body.workspaceName || `${name}'s Workspace`).trim();
-            if (!name || name.length > 200 || workspaceName.length > 300 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 1024) {
+            if (workspaceName.length > 300) {
                 return NextResponse.json({ error: "Please provide a name, valid email, and a password of at least 12 characters." }, { status: 400 });
             }
             const existing = await db.find(users, eq("email", email), {});

@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+import { useAppLanguage } from "@/i18n/provider";
 
 type ToastType = "success" | "error" | "info";
 
@@ -22,6 +23,7 @@ const ToastContext = createContext<ToastContextValue>({
 });
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useAppLanguage();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const toast = useCallback(
@@ -76,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   setToasts((prev) => prev.filter((t) => t.id !== item.id))
                 }
                 className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                aria-label="Dismiss notification"
+                aria-label={t("common.dismiss")}
               >
                 <X className="h-4 w-4" />
               </button>

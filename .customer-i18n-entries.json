@@ -1,0 +1,5834 @@
+[
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 1010,
+    "end": 1023,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 19
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 1063,
+    "end": 1076,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 20
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 1150,
+    "end": 1163,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 21
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 1302,
+    "end": 1315,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 23
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 1362,
+    "end": 1375,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2019,
+    "end": 2032,
+    "value": "No recorded",
+    "kind": "string",
+    "line": 31
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2165,
+    "end": 2185,
+    "value": "Connected Channels",
+    "kind": "string",
+    "line": 35
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2402,
+    "end": 2437,
+    "value": "Monthly Publishing Allowance Used",
+    "kind": "string",
+    "line": 41
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2645,
+    "end": 2666,
+    "value": "Scheduled & Pending",
+    "kind": "string",
+    "line": 47
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2761,
+    "end": 2787,
+    "value": "Persistent MongoDB queue",
+    "kind": "string",
+    "line": 49
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2868,
+    "end": 2886,
+    "value": "AI Engine & Plan",
+    "kind": "string",
+    "line": 53
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 2964,
+    "end": 2977,
+    "value": "BYOK OpenAI",
+    "kind": "string",
+    "line": 55
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 3377,
+    "end": 3411,
+    "value": "Command Center Overview",
+    "kind": "jsx",
+    "line": 65
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 3508,
+    "end": 3522,
+    "value": "Active Brand:",
+    "kind": "jsx",
+    "line": 68
+  },
+  {
+    "file": "src\\app\\app\\page.tsx",
+    "start": 3563,
+    "end": 3575,
+    "value": "• Workspace:",
+    "kind": "jsx",
+    "line": 68
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 576,
+    "end": 587,
+    "value": "Workspace",
+    "kind": "string",
+    "line": 12
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 1116,
+    "end": 1129,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 1156,
+    "end": 1164,
+    "value": "userId",
+    "kind": "string",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 1187,
+    "end": 1195,
+    "value": "userId",
+    "kind": "string",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 1285,
+    "end": 1298,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 26
+  },
+  {
+    "file": "src\\app\\app\\layout.tsx",
+    "start": 2844,
+    "end": 2896,
+    "value": "You have a workspace invitation. Review invitations.",
+    "kind": "jsx",
+    "line": 56
+  },
+  {
+    "file": "src\\app\\app\\agent\\page.tsx",
+    "start": 612,
+    "end": 625,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 15
+  },
+  {
+    "file": "src\\app\\app\\agent\\page.tsx",
+    "start": 684,
+    "end": 697,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 16
+  },
+  {
+    "file": "src\\app\\app\\agent\\page.tsx",
+    "start": 894,
+    "end": 923,
+    "value": "AI Marketing Planner",
+    "kind": "jsx",
+    "line": 21
+  },
+  {
+    "file": "src\\app\\app\\agent\\page.tsx",
+    "start": 1016,
+    "end": 1141,
+    "value": "Generate a plan from your brand brief, then create and review posts. Recurring autonomous planning is not available.",
+    "kind": "jsx",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 1355,
+    "end": 1400,
+    "value": "Analytics & Performance Intelligence",
+    "kind": "jsx",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 1493,
+    "end": 1591,
+    "value": "Recorded performance and real provider counters. Unavailable metrics are never estimated.",
+    "kind": "jsx",
+    "line": 27
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 1710,
+    "end": 1739,
+    "value": "Provider engagement snapshots",
+    "kind": "jsx",
+    "line": 31
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 1776,
+    "end": 2092,
+    "value": "All plans can read recorded analytics. New provider synchronization requires Pro or Agency and your own approved provider permissions. Read each snapshot&apos;s coverage: some metrics cover a prior UTC day, others are lifetime counters or recent-post samples. Do not sum cumulative observations across capture dates.",
+    "kind": "jsx",
+    "line": 32
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 2273,
+    "end": 2336,
+    "value": "Upgrade to Pro or Agency to synchronize new provider snapshots.",
+    "kind": "jsx",
+    "line": 34
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 2403,
+    "end": 2476,
+    "value": "No provider snapshots recorded. No sample or simulated metrics are shown.",
+    "kind": "jsx",
+    "line": 35
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 2677,
+    "end": 2688,
+    "value": "· account #",
+    "kind": "jsx",
+    "line": 37
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 2715,
+    "end": 2726,
+    "value": "· captured",
+    "kind": "jsx",
+    "line": 37
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 3070,
+    "end": 3083,
+    "value": "Unavailable:",
+    "kind": "jsx",
+    "line": 40
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 3277,
+    "end": 3286,
+    "value": "Account #",
+    "kind": "jsx",
+    "line": 42
+  },
+  {
+    "file": "src\\app\\app\\analytics\\page.tsx",
+    "start": 3390,
+    "end": 3427,
+    "value": "Provider capabilities and limitations",
+    "kind": "jsx",
+    "line": 43
+  },
+  {
+    "file": "src\\app\\app\\calendar\\page.tsx",
+    "start": 571,
+    "end": 584,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 15
+  },
+  {
+    "file": "src\\app\\app\\calendar\\page.tsx",
+    "start": 670,
+    "end": 683,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 16
+  },
+  {
+    "file": "src\\app\\app\\calendar\\page.tsx",
+    "start": 880,
+    "end": 924,
+    "value": "Content Calendar & Publishing Queue",
+    "kind": "jsx",
+    "line": 21
+  },
+  {
+    "file": "src\\app\\app\\calendar\\page.tsx",
+    "start": 1017,
+    "end": 1145,
+    "value": "Drag-and-drop scheduling across Monthly, Weekly, Daily, and List views backed by idempotent server-side jobs.",
+    "kind": "jsx",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\campaigns\\page.tsx",
+    "start": 688,
+    "end": 701,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 16
+  },
+  {
+    "file": "src\\app\\app\\campaigns\\page.tsx",
+    "start": 873,
+    "end": 901,
+    "value": "Marketing Campaigns",
+    "kind": "jsx",
+    "line": 21
+  },
+  {
+    "file": "src\\app\\app\\campaigns\\page.tsx",
+    "start": 994,
+    "end": 1104,
+    "value": "Coordinate multi-week launches and generate AI campaign blueprints with linked draft posts.",
+    "kind": "jsx",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\media\\page.tsx",
+    "start": 525,
+    "end": 557,
+    "value": "AI Image & Media Studio",
+    "kind": "jsx",
+    "line": 14
+  },
+  {
+    "file": "src\\app\\app\\media\\page.tsx",
+    "start": 650,
+    "end": 750,
+    "value": "Upload your media or generate real images, videos, and GIFs with your configured providers.",
+    "kind": "jsx",
+    "line": 17
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 671,
+    "end": 684,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 17
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 784,
+    "end": 797,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 18
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 1140,
+    "end": 1164,
+    "value": "Posts & Team Approvals",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 1167,
+    "end": 1179,
+    "value": "Your Posts",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 1307,
+    "end": 1359,
+    "value": "Create, review, and schedule posts with your team.",
+    "kind": "string",
+    "line": 27
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 1362,
+    "end": 1434,
+    "value": "Generate, schedule, and publish. Review first only when you choose to.",
+    "kind": "string",
+    "line": 27
+  },
+  {
+    "file": "src\\app\\app\\posts\\page.tsx",
+    "start": 1690,
+    "end": 1714,
+    "value": "Create New Post",
+    "kind": "jsx",
+    "line": 31
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 587,
+    "end": 598,
+    "value": "Blog Post",
+    "kind": "string",
+    "line": 15
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 688,
+    "end": 716,
+    "value": "Authoritative & Insightful",
+    "kind": "string",
+    "line": 17
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 1426,
+    "end": 1442,
+    "value": "Missing inputs",
+    "kind": "string",
+    "line": 38
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 1444,
+    "end": 1498,
+    "value": "Provide source text and select at least one channel.",
+    "kind": "string",
+    "line": 38
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 1988,
+    "end": 2005,
+    "value": "Repurpose error",
+    "kind": "string",
+    "line": 58
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 2021,
+    "end": 2051,
+    "value": "Could not repurpose content.",
+    "kind": "string",
+    "line": 58
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 2142,
+    "end": 2163,
+    "value": "Content repurposed!",
+    "kind": "string",
+    "line": 63
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 2319,
+    "end": 2344,
+    "value": "Repurposing interrupted",
+    "kind": "string",
+    "line": 68
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 2387,
+    "end": 2418,
+    "value": "Retry to resume this request.",
+    "kind": "string",
+    "line": 68
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 3112,
+    "end": 3129,
+    "value": "Saved to Drafts",
+    "kind": "string",
+    "line": 93
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 3131,
+    "end": 3190,
+    "value": "Multi-platform repurposed post saved to your Posts queue.",
+    "kind": "string",
+    "line": 93
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 3403,
+    "end": 3437,
+    "value": "Smart Content Repurposing",
+    "kind": "jsx",
+    "line": 103
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 3530,
+    "end": 3689,
+    "value": "Transform blog articles, product descriptions, announcements, or top posts into native multi-channel campaigns while preserving brand voice.",
+    "kind": "jsx",
+    "line": 106
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 3978,
+    "end": 4011,
+    "value": "Source Material Type",
+    "kind": "jsx",
+    "line": 115
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4111,
+    "end": 4122,
+    "value": "Blog Post",
+    "kind": "string",
+    "line": 119
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4140,
+    "end": 4161,
+    "value": "Product Description",
+    "kind": "string",
+    "line": 120
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4179,
+    "end": 4198,
+    "value": "Long-Form Article",
+    "kind": "string",
+    "line": 121
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4216,
+    "end": 4239,
+    "value": "Existing Post Refresh",
+    "kind": "string",
+    "line": 122
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4257,
+    "end": 4280,
+    "value": "Business Announcement",
+    "kind": "string",
+    "line": 123
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4646,
+    "end": 4690,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 4977,
+    "end": 5015,
+    "value": "Source Text / URL Summary",
+    "kind": "jsx",
+    "line": 143
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 5522,
+    "end": 5562,
+    "value": "Semantic & Voice Guardrails",
+    "kind": "jsx",
+    "line": 155
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 5876,
+    "end": 5927,
+    "value": "Preserve factual metrics & core thesis",
+    "kind": "jsx",
+    "line": 164
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 6243,
+    "end": 6311,
+    "value": "Vary hooks & angle per platform to avoid duplicate copy",
+    "kind": "jsx",
+    "line": 173
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 6478,
+    "end": 6506,
+    "value": "Target Channels",
+    "kind": "jsx",
+    "line": 179
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 6974,
+    "end": 7018,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 190
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 7664,
+    "end": 7709,
+    "value": "Repurpose Across Selected Channels",
+    "kind": "jsx",
+    "line": 210
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 8067,
+    "end": 8097,
+    "value": "Ready to Multiply Your Content",
+    "kind": "jsx",
+    "line": 218
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 8200,
+    "end": 8363,
+    "value": "Paste any long-form article, changelog, or product description on the left and generate distinct platform-native posts in one click.",
+    "kind": "jsx",
+    "line": 220
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 8560,
+    "end": 8591,
+    "value": "Generated Channel Adaptations (",
+    "kind": "jsx",
+    "line": 228
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 8940,
+    "end": 8982,
+    "value": "Save Multi-Platform Draft",
+    "kind": "jsx",
+    "line": 235
+  },
+  {
+    "file": "src\\app\\app\\repurpose\\page.tsx",
+    "start": 9644,
+    "end": 9672,
+    "value": "chars",
+    "kind": "jsx",
+    "line": 248
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 607,
+    "end": 620,
+    "value": "Operational",
+    "kind": "string",
+    "line": 19
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 623,
+    "end": 637,
+    "value": "Unconfigured",
+    "kind": "string",
+    "line": 19
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 798,
+    "end": 837,
+    "value": "Configured (provider access required)",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 840,
+    "end": 866,
+    "value": "Not configured; use BYOK",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 1329,
+    "end": 1382,
+    "value": "Account, Security & Environment Architecture",
+    "kind": "jsx",
+    "line": 44
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 1475,
+    "end": 1572,
+    "value": "Inspect user session details, credential vault security, and runtime integration status.",
+    "kind": "jsx",
+    "line": 47
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 1876,
+    "end": 1900,
+    "value": "User & Workspace Profile",
+    "kind": "jsx",
+    "line": 55
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 2109,
+    "end": 2118,
+    "value": "Full Name",
+    "kind": "jsx",
+    "line": 60
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 2347,
+    "end": 2360,
+    "value": "Email Address",
+    "kind": "jsx",
+    "line": 64
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 2590,
+    "end": 2604,
+    "value": "Workspace Role",
+    "kind": "jsx",
+    "line": 68
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 2858,
+    "end": 2877,
+    "value": "System Access Level",
+    "kind": "jsx",
+    "line": 72
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 3345,
+    "end": 3385,
+    "value": "Configure BYOK OpenAI Vault",
+    "kind": "jsx",
+    "line": 84
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 3588,
+    "end": 3610,
+    "value": "Export Workspace Data",
+    "kind": "jsx",
+    "line": 90
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 4000,
+    "end": 4056,
+    "value": "Runtime Integration & Environment Readiness",
+    "kind": "jsx",
+    "line": 100
+  },
+  {
+    "file": "src\\app\\app\\settings\\page.tsx",
+    "start": 4154,
+    "end": 4287,
+    "value": "Services require real configuration. Social credentials are managed per workspace/account, not through shared server keys.",
+    "kind": "jsx",
+    "line": 104
+  },
+  {
+    "file": "src\\app\\app\\social\\page.tsx",
+    "start": 823,
+    "end": 836,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 18
+  },
+  {
+    "file": "src\\app\\app\\social\\page.tsx",
+    "start": 1298,
+    "end": 1332,
+    "value": "Social Media Integrations",
+    "kind": "jsx",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\app\\social\\page.tsx",
+    "start": 1425,
+    "end": 1514,
+    "value": "Connect your own accounts with encrypted, workspace-scoped platform credentials.",
+    "kind": "jsx",
+    "line": 28
+  },
+  {
+    "file": "src\\app\\app\\studio\\page.tsx",
+    "start": 671,
+    "end": 697,
+    "value": "AI Content Studio",
+    "kind": "jsx",
+    "line": 20
+  },
+  {
+    "file": "src\\app\\app\\studio\\page.tsx",
+    "start": 790,
+    "end": 909,
+    "value": "Generate, refine, preview, and schedule platform-native social content from a single creative brief.",
+    "kind": "jsx",
+    "line": 23
+  },
+  {
+    "file": "src\\app\\app\\workspaces\\page.tsx",
+    "start": 706,
+    "end": 719,
+    "value": "workspaceId",
+    "kind": "string",
+    "line": 16
+  },
+  {
+    "file": "src\\app\\app\\workspaces\\page.tsx",
+    "start": 1143,
+    "end": 1186,
+    "value": "Brands, Agencies & Team Governance",
+    "kind": "jsx",
+    "line": 22
+  },
+  {
+    "file": "src\\app\\app\\workspaces\\page.tsx",
+    "start": 1279,
+    "end": 1368,
+    "value": "Manage multi-brand profiles, role-based access control, and tenant data exports.",
+    "kind": "jsx",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\app\\workspaces\\page.tsx",
+    "start": 2114,
+    "end": 2125,
+    "value": "Workspace",
+    "kind": "string",
+    "line": 43
+  },
+  {
+    "file": "src\\app\\onboarding\\page.tsx",
+    "start": 485,
+    "end": 508,
+    "value": "Set Up Your Workspace",
+    "kind": "string",
+    "line": 11
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 577,
+    "end": 591,
+    "value": "1. Workspace",
+    "kind": "string",
+    "line": 23
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 595,
+    "end": 610,
+    "value": "2. Brand Name",
+    "kind": "string",
+    "line": 24
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 614,
+    "end": 641,
+    "value": "3. Website & AI Discovery",
+    "kind": "string",
+    "line": 25
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 645,
+    "end": 658,
+    "value": "4. Industry",
+    "kind": "string",
+    "line": 26
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 662,
+    "end": 686,
+    "value": "5. Products & Services",
+    "kind": "string",
+    "line": 27
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 690,
+    "end": 710,
+    "value": "6. Target Audience",
+    "kind": "string",
+    "line": 28
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 714,
+    "end": 737,
+    "value": "7. Communication Tone",
+    "kind": "string",
+    "line": 29
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 741,
+    "end": 761,
+    "value": "8. Marketing Goals",
+    "kind": "string",
+    "line": 30
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 765,
+    "end": 785,
+    "value": "9. Social Channels",
+    "kind": "string",
+    "line": 31
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 789,
+    "end": 810,
+    "value": "10. AI Billing Mode",
+    "kind": "string",
+    "line": 32
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 814,
+    "end": 837,
+    "value": "11. Subscription Plan",
+    "kind": "string",
+    "line": 33
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 2446,
+    "end": 2460,
+    "value": "Professional",
+    "kind": "string",
+    "line": 64
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 3688,
+    "end": 3712,
+    "value": "Brand discovery failed",
+    "kind": "string",
+    "line": 93
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 3728,
+    "end": 3794,
+    "value": "Configure your AI provider or enter your brand details manually.",
+    "kind": "string",
+    "line": 93
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 4254,
+    "end": 4283,
+    "value": "AI Brand Discovery complete",
+    "kind": "string",
+    "line": 107
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 4439,
+    "end": 4468,
+    "value": "Brand discovery interrupted",
+    "kind": "string",
+    "line": 111
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 4511,
+    "end": 4542,
+    "value": "Retry to resume this request.",
+    "kind": "string",
+    "line": 111
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 5697,
+    "end": 5710,
+    "value": "Setup error",
+    "kind": "string",
+    "line": 159
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 5726,
+    "end": 5757,
+    "value": "Could not finalize workspace.",
+    "kind": "string",
+    "line": 159
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 5805,
+    "end": 5828,
+    "value": "Workspace configured!",
+    "kind": "string",
+    "line": 162
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 6377,
+    "end": 6382,
+    "value": "Step",
+    "kind": "jsx",
+    "line": 176
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 6393,
+    "end": 6396,
+    "value": "of",
+    "kind": "jsx",
+    "line": 176
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 7326,
+    "end": 7366,
+    "value": "elevated-card text-[var(--text-muted)]",
+    "kind": "string",
+    "line": 200
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 7721,
+    "end": 7729,
+    "value": "Create",
+    "kind": "string",
+    "line": 212
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 7732,
+    "end": 7743,
+    "value": "Configure",
+    "kind": "string",
+    "line": 212
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 7745,
+    "end": 7759,
+    "value": "Your Workspace",
+    "kind": "jsx",
+    "line": 212
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 7885,
+    "end": 7989,
+    "value": "Create an additional workspace with its own brand, team roles, social tokens, and AI billing settings.",
+    "kind": "string",
+    "line": 215
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 8010,
+    "end": 8106,
+    "value": "Your account and workspace are ready. Confirm the workspace name before setting up your brand.",
+    "kind": "string",
+    "line": 216
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 8281,
+    "end": 8302,
+    "value": "Your workspace name",
+    "kind": "string",
+    "line": 221
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 8612,
+    "end": 8642,
+    "value": "2. Enter Company or Brand Name",
+    "kind": "jsx",
+    "line": 229
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 8731,
+    "end": 8823,
+    "value": "You can add additional client or sub-brands anytime from Brands & Workspaces.",
+    "kind": "jsx",
+    "line": 231
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 8974,
+    "end": 8991,
+    "value": "Your brand name",
+    "kind": "string",
+    "line": 236
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 9409,
+    "end": 9444,
+    "value": "3. Website URL & AI Brand Discovery",
+    "kind": "jsx",
+    "line": 246
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 9546,
+    "end": 9710,
+    "value": "Let POSTIF-AI analyze your brand profile and propose content pillars, audience segments, voice, and hashtags for your review.",
+    "kind": "jsx",
+    "line": 248
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 10299,
+    "end": 10338,
+    "value": "Run AI Brand Discovery",
+    "kind": "jsx",
+    "line": 263
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 11097,
+    "end": 11165,
+    "value": "AI Proposed Brand Intelligence (Review & Approve)",
+    "kind": "jsx",
+    "line": 280
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 11287,
+    "end": 11304,
+    "value": "Initial Strategy:",
+    "kind": "jsx",
+    "line": 283
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 11685,
+    "end": 11693,
+    "value": "Pillar:",
+    "kind": "jsx",
+    "line": 291
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12380,
+    "end": 12398,
+    "value": "4. Select Industry",
+    "kind": "jsx",
+    "line": 312
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12706,
+    "end": 12737,
+    "value": "AI & Developer Infrastructure",
+    "kind": "string",
+    "line": 320
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12757,
+    "end": 12767,
+    "value": "B2B SaaS",
+    "kind": "string",
+    "line": 321
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12787,
+    "end": 12817,
+    "value": "E-Commerce & Consumer Brands",
+    "kind": "string",
+    "line": 322
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12837,
+    "end": 12865,
+    "value": "Health, Fitness & Wellness",
+    "kind": "string",
+    "line": 323
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12885,
+    "end": 12903,
+    "value": "Marketing Agency",
+    "kind": "string",
+    "line": 324
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 12923,
+    "end": 12953,
+    "value": "FinTech & Financial Services",
+    "kind": "string",
+    "line": 325
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 13590,
+    "end": 13622,
+    "value": "5. Describe Products or Services",
+    "kind": "jsx",
+    "line": 344
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14056,
+    "end": 14085,
+    "value": "Company positioning summary",
+    "kind": "string",
+    "line": 355
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14330,
+    "end": 14355,
+    "value": "6. Define Target Audience",
+    "kind": "jsx",
+    "line": 363
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14761,
+    "end": 14797,
+    "value": "7. Choose Communication Tone & Voice",
+    "kind": "jsx",
+    "line": 375
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14898,
+    "end": 14922,
+    "value": "Innovative & Visionary",
+    "kind": "string",
+    "line": 378
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14942,
+    "end": 14969,
+    "value": "Authoritative & Executive",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 14989,
+    "end": 15016,
+    "value": "Friendly & Conversational",
+    "kind": "string",
+    "line": 380
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 15036,
+    "end": 15061,
+    "value": "Educational & Practical",
+    "kind": "string",
+    "line": 381
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 15081,
+    "end": 15101,
+    "value": "Bold & Provocative",
+    "kind": "string",
+    "line": 382
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 15121,
+    "end": 15151,
+    "value": "Empathetic & Community-First",
+    "kind": "string",
+    "line": 383
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 15535,
+    "end": 15577,
+    "value": "elevated-card hover:border-violet-500/40",
+    "kind": "string",
+    "line": 392
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 15863,
+    "end": 15889,
+    "value": "Custom brand voice notes",
+    "kind": "string",
+    "line": 402
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 16141,
+    "end": 16166,
+    "value": "8. Select Marketing Goals",
+    "kind": "jsx",
+    "line": 410
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 16369,
+    "end": 16391,
+    "value": "Add a custom goal...",
+    "kind": "string",
+    "line": 415
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 16717,
+    "end": 16737,
+    "value": "Add",
+    "kind": "jsx",
+    "line": 423
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 17416,
+    "end": 17443,
+    "value": "Remove",
+    "kind": "jsx",
+    "line": 440
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 17673,
+    "end": 17705,
+    "value": "9. Connect Social Media Channels",
+    "kind": "jsx",
+    "line": 450
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 17794,
+    "end": 17946,
+    "value": "Select the channels you plan to use. No connection is created until you add and verify your own credentials in Social Media Integrations.",
+    "kind": "jsx",
+    "line": 452
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 18526,
+    "end": 18579,
+    "value": "border border-cyan-400 bg-cyan-500/15 text-cyan-200",
+    "kind": "string",
+    "line": 464
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 18608,
+    "end": 18652,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 465
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 19071,
+    "end": 19100,
+    "value": "10. Select BYOK or Managed AI",
+    "kind": "jsx",
+    "line": 479
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 19740,
+    "end": 19758,
+    "value": "Managed AI Credits",
+    "kind": "jsx",
+    "line": 492
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 19861,
+    "end": 19940,
+    "value": "Included with a paid AI plan. Free uses your own OpenAI key.",
+    "kind": "jsx",
+    "line": 494
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 20550,
+    "end": 20575,
+    "value": "Bring Your Own Key (BYOK)",
+    "kind": "jsx",
+    "line": 509
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 20678,
+    "end": 20770,
+    "value": "Supply your OpenAI API key (`sk-...`). Stored encrypted with AES-256-GCM.",
+    "kind": "jsx",
+    "line": 511
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21026,
+    "end": 21110,
+    "value": "Optional OpenAI API Key (can also be added later in Billing & AI)",
+    "kind": "jsx",
+    "line": 519
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21640,
+    "end": 21668,
+    "value": "11. Select Subscription Plan",
+    "kind": "jsx",
+    "line": 535
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21740,
+    "end": 21755,
+    "value": "Current terms:",
+    "kind": "jsx",
+    "line": 536
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21800,
+    "end": 21809,
+    "value": "brands ·",
+    "kind": "jsx",
+    "line": 536
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21835,
+    "end": 21846,
+    "value": "channels ·",
+    "kind": "jsx",
+    "line": 536
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21877,
+    "end": 21891,
+    "value": "posts/month ·",
+    "kind": "jsx",
+    "line": 536
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 21928,
+    "end": 22010,
+    "value": "AI credits/month. Catalog changes do not replace existing paid subscription terms.",
+    "kind": "jsx",
+    "line": 536
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 22898,
+    "end": 22924,
+    "value": "/mo",
+    "kind": "jsx",
+    "line": 553
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 23150,
+    "end": 23184,
+    "value": "Available in Billing after setup",
+    "kind": "string",
+    "line": 557
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 23187,
+    "end": 23233,
+    "value": "Informational only · checkout not configured",
+    "kind": "string",
+    "line": 557
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 23371,
+    "end": 23480,
+    "value": "New workspaces start on Free with BYOK and no included credits. Upgrade securely through Billing after setup.",
+    "kind": "jsx",
+    "line": 561
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 24017,
+    "end": 24038,
+    "value": "Previous",
+    "kind": "jsx",
+    "line": 573
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 24381,
+    "end": 24391,
+    "value": "Next Step",
+    "kind": "jsx",
+    "line": 582
+  },
+  {
+    "file": "src\\app\\onboarding\\OnboardingWizard.tsx",
+    "start": 25000,
+    "end": 25034,
+    "value": "Launch My Workspace",
+    "kind": "jsx",
+    "line": 596
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 2447,
+    "end": 2464,
+    "value": "Guardrail check",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 2480,
+    "end": 2504,
+    "value": "Could not update mode.",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 2625,
+    "end": 2652,
+    "value": "Agent configuration saved",
+    "kind": "string",
+    "line": 94
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3104,
+    "end": 3122,
+    "value": "Planning enabled",
+    "kind": "string",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3125,
+    "end": 3142,
+    "value": "Planning paused",
+    "kind": "string",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3180,
+    "end": 3216,
+    "value": "You can generate new weekly plans.",
+    "kind": "string",
+    "line": 113
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3229,
+    "end": 3301,
+    "value": "New plan generation is paused. Existing scheduled posts are unchanged.",
+    "kind": "string",
+    "line": 114
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3397,
+    "end": 3419,
+    "value": "Planning not changed",
+    "kind": "string",
+    "line": 119
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3435,
+    "end": 3463,
+    "value": "Could not update planning.",
+    "kind": "string",
+    "line": 119
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3939,
+    "end": 3964,
+    "value": "Weekly plan regenerated",
+    "kind": "string",
+    "line": 135
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 3976,
+    "end": 4032,
+    "value": "Mapped brand content pillars across approved channels.",
+    "kind": "string",
+    "line": 136
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4138,
+    "end": 4158,
+    "value": "Plan not generated",
+    "kind": "string",
+    "line": 141
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4174,
+    "end": 4221,
+    "value": "Check your plan, credentials, and AI credits.",
+    "kind": "string",
+    "line": 141
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4267,
+    "end": 4293,
+    "value": "Plan request interrupted",
+    "kind": "string",
+    "line": 144
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4295,
+    "end": 4394,
+    "value": "Retry reuses the same request key; an uncertain provider request is never automatically repeated.",
+    "kind": "string",
+    "line": 144
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4849,
+    "end": 4868,
+    "value": "Proposal Approved",
+    "kind": "string",
+    "line": 161
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4871,
+    "end": 4890,
+    "value": "Proposal Rejected",
+    "kind": "string",
+    "line": 161
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 4900,
+    "end": 4941,
+    "value": "Action recorded in workspace audit log.",
+    "kind": "string",
+    "line": 162
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 5037,
+    "end": 5059,
+    "value": "Proposal not changed",
+    "kind": "string",
+    "line": 167
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 5075,
+    "end": 5123,
+    "value": "Review the post and your approval permissions.",
+    "kind": "string",
+    "line": 167
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 5800,
+    "end": 5831,
+    "value": "Autonomous Marketing Strategist",
+    "kind": "jsx",
+    "line": 183
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 6280,
+    "end": 6288,
+    "value": "Paused",
+    "kind": "string",
+    "line": 192
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 6441,
+    "end": 6445,
+    "value": "Max",
+    "kind": "jsx",
+    "line": 196
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 6463,
+    "end": 6476,
+    "value": "posts/week •",
+    "kind": "jsx",
+    "line": 196
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 6502,
+    "end": 6571,
+    "value": "authorized channel(s) • All actions logged",
+    "kind": "jsx",
+    "line": 196
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7104,
+    "end": 7129,
+    "value": "Resume Agent",
+    "kind": "jsx",
+    "line": 213
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7214,
+    "end": 7241,
+    "value": "Pause Planning",
+    "kind": "jsx",
+    "line": 217
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7441,
+    "end": 7454,
+    "value": "Manual Mode",
+    "kind": "string",
+    "line": 228
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7474,
+    "end": 7576,
+    "value": "AI suggests topics and drafts, but humans control every single edit, schedule slot, and publication.",
+    "kind": "string",
+    "line": 229
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7650,
+    "end": 7665,
+    "value": "Assisted Mode",
+    "kind": "string",
+    "line": 233
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7685,
+    "end": 7784,
+    "value": "Generate weekly plan suggestions on demand. Create posts and submit them for approval separately.",
+    "kind": "string",
+    "line": 234
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7859,
+    "end": 7875,
+    "value": "Autopilot Mode",
+    "kind": "string",
+    "line": 238
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 7895,
+    "end": 8076,
+    "value": "Enable recurring weekly AI planning and real generated drafts (Pro/Agency). Every draft requires human approval and a publishing time; no automatic promotional or client approval.",
+    "kind": "string",
+    "line": 239
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 8657,
+    "end": 8698,
+    "value": "surface-card hover:border-violet-500/40",
+    "kind": "string",
+    "line": 255
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 9189,
+    "end": 9216,
+    "value": "Selected",
+    "kind": "jsx",
+    "line": 266
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 9820,
+    "end": 9842,
+    "value": "Agent Approval Inbox (",
+    "kind": "jsx",
+    "line": 284
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 9956,
+    "end": 9973,
+    "value": "Human-in-the-Loop",
+    "kind": "jsx",
+    "line": 286
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 10374,
+    "end": 10510,
+    "value": "No pending agent proposals. Click &ldquo;Regenerate Weekly Plan&rdquo; to generate fresh recommendations.",
+    "kind": "jsx",
+    "line": 297
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 11292,
+    "end": 11308,
+    "value": "Agent Reasoning:",
+    "kind": "jsx",
+    "line": 315
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 11814,
+    "end": 11848,
+    "value": "Approve Draft",
+    "kind": "jsx",
+    "line": 324
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 12230,
+    "end": 12257,
+    "value": "Reject",
+    "kind": "jsx",
+    "line": 331
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 12665,
+    "end": 12695,
+    "value": "Autonomous Weekly Content Plan",
+    "kind": "jsx",
+    "line": 344
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 12784,
+    "end": 12863,
+    "value": "Balanced across your brand content pillars and approved channels",
+    "kind": "jsx",
+    "line": 346
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 13391,
+    "end": 13426,
+    "value": "Regenerate Weekly Plan",
+    "kind": "jsx",
+    "line": 360
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 14877,
+    "end": 14917,
+    "value": "Active Brand Strategy & Guardrail Limits",
+    "kind": "jsx",
+    "line": 394
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 15049,
+    "end": 15081,
+    "value": "Strategic Directive",
+    "kind": "jsx",
+    "line": 398
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 15540,
+    "end": 15582,
+    "value": "Max Autonomous Posts / Week",
+    "kind": "jsx",
+    "line": 411
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 16298,
+    "end": 16392,
+    "value": "All generated drafts require approval, including promotional and client content",
+    "kind": "jsx",
+    "line": 431
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 16563,
+    "end": 16605,
+    "value": "Authorized Channels Allowlist",
+    "kind": "jsx",
+    "line": 438
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 17087,
+    "end": 17131,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 449
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 17578,
+    "end": 17615,
+    "value": "Save Guardrails & Strategy",
+    "kind": "jsx",
+    "line": 464
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 17997,
+    "end": 18043,
+    "value": "Hardcoded Agent Safety Boundaries",
+    "kind": "jsx",
+    "line": 473
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18156,
+    "end": 18212,
+    "value": "• Never publishes outside explicitly authorized channels",
+    "kind": "jsx",
+    "line": 477
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18234,
+    "end": 18271,
+    "value": "• Never exceeds weekly posting caps (",
+    "kind": "jsx",
+    "line": 478
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18288,
+    "end": 18294,
+    "value": "/week)",
+    "kind": "jsx",
+    "line": 478
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18316,
+    "end": 18367,
+    "value": "• Never spends money or upgrades subscription plans",
+    "kind": "jsx",
+    "line": 479
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18389,
+    "end": 18439,
+    "value": "• Never connects/disconnects social OAuth accounts",
+    "kind": "jsx",
+    "line": 480
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18461,
+    "end": 18516,
+    "value": "• Every autonomous action writes an immutable audit log",
+    "kind": "jsx",
+    "line": 481
+  },
+  {
+    "file": "src\\components\\AgentWorkspaceClient.tsx",
+    "start": 18723,
+    "end": 18762,
+    "value": "Auditable Activity History",
+    "kind": "jsx",
+    "line": 486
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 1991,
+    "end": 2084,
+    "value": "Date,Platform,PostType,Impressions,Reach,Engagements,Likes,Comments,Shares,Clicks,Followers",
+    "kind": "string",
+    "line": 66
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 2605,
+    "end": 2626,
+    "value": "CSV Report Exported",
+    "kind": "string",
+    "line": 78
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 2865,
+    "end": 3001,
+    "value": "No detailed recorded analytics are available. Supported provider counters appear above; unavailable metrics are not represented as zero.",
+    "kind": "jsx",
+    "line": 82
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3358,
+    "end": 3387,
+    "value": "Recorded Analytics",
+    "kind": "jsx",
+    "line": 89
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3644,
+    "end": 3657,
+    "value": "All Platforms",
+    "kind": "jsx",
+    "line": 97
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3704,
+    "end": 3712,
+    "value": "LinkedIn",
+    "kind": "jsx",
+    "line": 98
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3752,
+    "end": 3763,
+    "value": "X (Twitter)",
+    "kind": "jsx",
+    "line": 99
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3811,
+    "end": 3820,
+    "value": "Instagram",
+    "kind": "jsx",
+    "line": 100
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 3865,
+    "end": 3871,
+    "value": "TikTok",
+    "kind": "jsx",
+    "line": 101
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4140,
+    "end": 4151,
+    "value": "All Formats",
+    "kind": "jsx",
+    "line": 109
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4206,
+    "end": 4222,
+    "value": "Educational Post",
+    "kind": "jsx",
+    "line": 110
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4281,
+    "end": 4301,
+    "value": "Product Announcement",
+    "kind": "jsx",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4350,
+    "end": 4360,
+    "value": "Case Study",
+    "kind": "jsx",
+    "line": 112
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4407,
+    "end": 4415,
+    "value": "Carousel",
+    "kind": "jsx",
+    "line": 113
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4466,
+    "end": 4478,
+    "value": "Video Script",
+    "kind": "jsx",
+    "line": 114
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4783,
+    "end": 4809,
+    "value": "Export CSV Report",
+    "kind": "jsx",
+    "line": 123
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 4953,
+    "end": 4972,
+    "value": "Total Impressions",
+    "kind": "string",
+    "line": 130
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 5065,
+    "end": 5079,
+    "value": "Unique Reach",
+    "kind": "string",
+    "line": 131
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 5164,
+    "end": 5181,
+    "value": "Engagement Rate",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 5260,
+    "end": 5282,
+    "value": "Outbound Link Clicks",
+    "kind": "string",
+    "line": 133
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 6105,
+    "end": 6149,
+    "value": "Recorded Performance Comparison",
+    "kind": "jsx",
+    "line": 150
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 6268,
+    "end": 6308,
+    "value": "Based on the currently filtered dataset,",
+    "kind": "jsx",
+    "line": 154
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 6421,
+    "end": 6468,
+    "value": "content achieved the highest engagement rate at",
+    "kind": "jsx",
+    "line": 156
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 6719,
+    "end": 6816,
+    "value": ". Compare equivalent date ranges and sample sizes before changing your publishing mix.",
+    "kind": "jsx",
+    "line": 161
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 7107,
+    "end": 7136,
+    "value": "Channel Performance Breakdown",
+    "kind": "jsx",
+    "line": 170
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8316,
+    "end": 8320,
+    "value": "Date",
+    "kind": "jsx",
+    "line": 195
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8370,
+    "end": 8378,
+    "value": "Platform",
+    "kind": "jsx",
+    "line": 196
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8428,
+    "end": 8434,
+    "value": "Format",
+    "kind": "jsx",
+    "line": 197
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8484,
+    "end": 8495,
+    "value": "Impressions",
+    "kind": "jsx",
+    "line": 198
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8545,
+    "end": 8556,
+    "value": "Engagements",
+    "kind": "jsx",
+    "line": 199
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8606,
+    "end": 8612,
+    "value": "Clicks",
+    "kind": "jsx",
+    "line": 200
+  },
+  {
+    "file": "src\\components\\AnalyticsClient.tsx",
+    "start": 8657,
+    "end": 8666,
+    "value": "Followers",
+    "kind": "jsx",
+    "line": 201
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 366,
+    "end": 393,
+    "value": "Create media when scheduled",
+    "kind": "jsx",
+    "line": 5
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 482,
+    "end": 492,
+    "value": "No media",
+    "kind": "string",
+    "line": 7
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 505,
+    "end": 512,
+    "value": "Image",
+    "kind": "string",
+    "line": 7
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 525,
+    "end": 532,
+    "value": "Video",
+    "kind": "string",
+    "line": 7
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 543,
+    "end": 548,
+    "value": "GIF",
+    "kind": "string",
+    "line": 7
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 1096,
+    "end": 1275,
+    "value": "Choose the media type. When you schedule, we create and attach it using your topic, post, and selected brand’s style, colors, and audience. We choose the format for your channels.",
+    "kind": "jsx",
+    "line": 11
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 1368,
+    "end": 1409,
+    "value": "40 managed credits, or your OpenAI key.",
+    "kind": "string",
+    "line": 12
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 1412,
+    "end": 1434,
+    "value": "120 managed credits.",
+    "kind": "string",
+    "line": 12
+  },
+  {
+    "file": "src\\components\\AutomaticMediaSettings.tsx",
+    "start": 1436,
+    "end": 1499,
+    "value": "Your review preference applies to the completed post and media.",
+    "kind": "jsx",
+    "line": 12
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 1145,
+    "end": 1163,
+    "value": "America/New_York",
+    "kind": "string",
+    "line": 53
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 2382,
+    "end": 2400,
+    "value": "Schedule updated",
+    "kind": "string",
+    "line": 91
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 3110,
+    "end": 3139,
+    "value": "Rescheduled via drag & drop",
+    "kind": "string",
+    "line": 115
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 3546,
+    "end": 3563,
+    "value": "Post duplicated",
+    "kind": "string",
+    "line": 129
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 3565,
+    "end": 3618,
+    "value": "Created a draft copy for easy multi-day scheduling.",
+    "kind": "string",
+    "line": 129
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 3951,
+    "end": 3965,
+    "value": "Retry queued",
+    "kind": "string",
+    "line": 142
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 4357,
+    "end": 4381,
+    "value": "Worker sweep completed",
+    "kind": "string",
+    "line": 156
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 5411,
+    "end": 5455,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 184
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 5509,
+    "end": 5526,
+    "value": "View",
+    "kind": "jsx",
+    "line": 187
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 5866,
+    "end": 5878,
+    "value": "All Statuses",
+    "kind": "jsx",
+    "line": 198
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 5926,
+    "end": 5935,
+    "value": "Scheduled",
+    "kind": "jsx",
+    "line": 199
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 5990,
+    "end": 6006,
+    "value": "Pending Approval",
+    "kind": "jsx",
+    "line": 200
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6054,
+    "end": 6063,
+    "value": "Published",
+    "kind": "jsx",
+    "line": 201
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6107,
+    "end": 6112,
+    "value": "Draft",
+    "kind": "jsx",
+    "line": 202
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6157,
+    "end": 6163,
+    "value": "Failed",
+    "kind": "jsx",
+    "line": 203
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6437,
+    "end": 6459,
+    "value": "EST (America/New_York)",
+    "kind": "jsx",
+    "line": 211
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6517,
+    "end": 6542,
+    "value": "PST (America/Los_Angeles)",
+    "kind": "jsx",
+    "line": 212
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6594,
+    "end": 6613,
+    "value": "GMT (Europe/London)",
+    "kind": "jsx",
+    "line": 213
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 6662,
+    "end": 6678,
+    "value": "JST (Asia/Tokyo)",
+    "kind": "jsx",
+    "line": 214
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 7081,
+    "end": 7134,
+    "value": "— Drag posts to reschedule",
+    "kind": "jsx",
+    "line": 224
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 7203,
+    "end": 7225,
+    "value": "Click any post to edit",
+    "kind": "jsx",
+    "line": 227
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 8632,
+    "end": 8660,
+    "value": "TODAY",
+    "kind": "jsx",
+    "line": 256
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 9755,
+    "end": 9769,
+    "value": "Schedule Queue",
+    "kind": "jsx",
+    "line": 285
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 10366,
+    "end": 10385,
+    "value": "Unscheduled Draft",
+    "kind": "string",
+    "line": 297
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 11102,
+    "end": 11166,
+    "value": "Persistent Publishing Job Queue & Failure Telemetry",
+    "kind": "jsx",
+    "line": 315
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 11251,
+    "end": 11364,
+    "value": "Idempotent server-side jobs persisted in MongoDB with retry counters and audit trails.",
+    "kind": "jsx",
+    "line": 318
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 11649,
+    "end": 11680,
+    "value": "Execute Due Jobs Now",
+    "kind": "jsx",
+    "line": 327
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 12502,
+    "end": 12507,
+    "value": "Job #",
+    "kind": "jsx",
+    "line": 347
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 12686,
+    "end": 12691,
+    "value": "key:",
+    "kind": "jsx",
+    "line": 350
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 12855,
+    "end": 12866,
+    "value": "Scheduled:",
+    "kind": "jsx",
+    "line": 354
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 12912,
+    "end": 12923,
+    "value": "• Attempts:",
+    "kind": "jsx",
+    "line": 354
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 14099,
+    "end": 14127,
+    "value": "Retry Job",
+    "kind": "jsx",
+    "line": 381
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 14653,
+    "end": 14672,
+    "value": "Edit Scheduled Post",
+    "kind": "jsx",
+    "line": 395
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 15135,
+    "end": 15157,
+    "value": "Title",
+    "kind": "jsx",
+    "line": 408
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 15569,
+    "end": 15593,
+    "value": "Content",
+    "kind": "jsx",
+    "line": 419
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 16097,
+    "end": 16113,
+    "value": "Scheduled Time (",
+    "kind": "jsx",
+    "line": 432
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 16596,
+    "end": 16631,
+    "value": "Lifecycle Status",
+    "kind": "jsx",
+    "line": 443
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 16936,
+    "end": 16941,
+    "value": "Draft",
+    "kind": "jsx",
+    "line": 450
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17004,
+    "end": 17020,
+    "value": "Pending Approval",
+    "kind": "jsx",
+    "line": 451
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17075,
+    "end": 17083,
+    "value": "Approved",
+    "kind": "jsx",
+    "line": 452
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17139,
+    "end": 17148,
+    "value": "Scheduled",
+    "kind": "jsx",
+    "line": 453
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17204,
+    "end": 17213,
+    "value": "Published",
+    "kind": "jsx",
+    "line": 454
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17269,
+    "end": 17278,
+    "value": "Cancelled",
+    "kind": "jsx",
+    "line": 455
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 17796,
+    "end": 17820,
+    "value": "Duplicate",
+    "kind": "jsx",
+    "line": 467
+  },
+  {
+    "file": "src\\components\\CalendarClient.tsx",
+    "start": 18144,
+    "end": 18171,
+    "value": "Save Changes",
+    "kind": "jsx",
+    "line": 474
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 1011,
+    "end": 1047,
+    "value": "Product Launch & Qualified Signups",
+    "kind": "string",
+    "line": 40
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 2237,
+    "end": 2256,
+    "value": "Campaign AI error",
+    "kind": "string",
+    "line": 71
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 2274,
+    "end": 2305,
+    "value": "Could not generate blueprint.",
+    "kind": "string",
+    "line": 71
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 2402,
+    "end": 2437,
+    "value": "The generated campaign was empty.",
+    "kind": "string",
+    "line": 76
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 3124,
+    "end": 3150,
+    "value": "4-Week Campaign Created!",
+    "kind": "string",
+    "line": 98
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 3385,
+    "end": 3467,
+    "value": "Generated campaign could not be saved. Retry to save without another AI request.",
+    "kind": "string",
+    "line": 104
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 3512,
+    "end": 3537,
+    "value": "Campaign request failed",
+    "kind": "string",
+    "line": 107
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 3580,
+    "end": 3619,
+    "value": "Try again to resume the same request.",
+    "kind": "string",
+    "line": 107
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 4004,
+    "end": 4022,
+    "value": "Campaign updated",
+    "kind": "string",
+    "line": 120
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 4369,
+    "end": 4387,
+    "value": "Campaign deleted",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 4756,
+    "end": 4788,
+    "value": "AI Campaign Architect",
+    "kind": "jsx",
+    "line": 144
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 4885,
+    "end": 5035,
+    "value": "Describe your campaign goal and POSTIF-AI will propose content themes, weekly cadence, messaging strategy, and starter draft posts.",
+    "kind": "jsx",
+    "line": 148
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 5250,
+    "end": 5277,
+    "value": "Campaign Brief",
+    "kind": "jsx",
+    "line": 155
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 5728,
+    "end": 5760,
+    "value": "Primary Objective",
+    "kind": "jsx",
+    "line": 168
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 6156,
+    "end": 6186,
+    "value": "Target Channels",
+    "kind": "jsx",
+    "line": 179
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 6678,
+    "end": 6722,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 190
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 7483,
+    "end": 7516,
+    "value": "Retry Saving Generated Campaign",
+    "kind": "string",
+    "line": 212
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 7519,
+    "end": 7561,
+    "value": "Generate 4-Week Campaign & Starter Posts",
+    "kind": "string",
+    "line": 212
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 8315,
+    "end": 8349,
+    "value": "Sample Campaign",
+    "kind": "jsx",
+    "line": 227
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 8932,
+    "end": 8940,
+    "value": "posts/wk",
+    "kind": "jsx",
+    "line": 240
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 8995,
+    "end": 9009,
+    "value": "linked post(s)",
+    "kind": "jsx",
+    "line": 241
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 10334,
+    "end": 10361,
+    "value": "Activate",
+    "kind": "jsx",
+    "line": 272
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 10702,
+    "end": 10726,
+    "value": "Pause",
+    "kind": "jsx",
+    "line": 281
+  },
+  {
+    "file": "src\\components\\CampaignsClient.tsx",
+    "start": 10983,
+    "end": 11000,
+    "value": "Delete campaign",
+    "kind": "string",
+    "line": 290
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2076,
+    "end": 2097,
+    "value": "Audience Engagement",
+    "kind": "string",
+    "line": 67
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2321,
+    "end": 2335,
+    "value": "Professional",
+    "kind": "string",
+    "line": 72
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2381,
+    "end": 2390,
+    "value": "English",
+    "kind": "string",
+    "line": 73
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2442,
+    "end": 2460,
+    "value": "Educational Post",
+    "kind": "string",
+    "line": 74
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2502,
+    "end": 2510,
+    "value": "Medium",
+    "kind": "string",
+    "line": 75
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 2895,
+    "end": 2900,
+    "value": "UTC",
+    "kind": "string",
+    "line": 82
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 3751,
+    "end": 3772,
+    "value": "Add a topic or idea",
+    "kind": "string",
+    "line": 106
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 3774,
+    "end": 3815,
+    "value": "Describe what the post should be about.",
+    "kind": "string",
+    "line": 106
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 3901,
+    "end": 3930,
+    "value": "Select at least one channel",
+    "kind": "string",
+    "line": 110
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 3932,
+    "end": 3970,
+    "value": "Choose one or more target platforms.",
+    "kind": "string",
+    "line": 110
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 4333,
+    "end": 4340,
+    "value": "Brand",
+    "kind": "string",
+    "line": 121
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 4664,
+    "end": 4682,
+    "value": "Generation error",
+    "kind": "string",
+    "line": 137
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 4698,
+    "end": 4727,
+    "value": "Failed to generate content.",
+    "kind": "string",
+    "line": 137
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 5058,
+    "end": 5088,
+    "value": "Platform variants generated!",
+    "kind": "string",
+    "line": 148
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 5233,
+    "end": 5257,
+    "value": "Generation interrupted",
+    "kind": "string",
+    "line": 153
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 5300,
+    "end": 5331,
+    "value": "Retry to resume this request.",
+    "kind": "string",
+    "line": 153
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 5975,
+    "end": 5984,
+    "value": "English",
+    "kind": "string",
+    "line": 175
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 5987,
+    "end": 5996,
+    "value": "Spanish",
+    "kind": "string",
+    "line": 175
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 6134,
+    "end": 6159,
+    "value": "Editorial action failed",
+    "kind": "string",
+    "line": 181
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 6175,
+    "end": 6202,
+    "value": "Could not transform post.",
+    "kind": "string",
+    "line": 181
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 6715,
+    "end": 6745,
+    "value": "Editorial action interrupted",
+    "kind": "string",
+    "line": 197
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 6788,
+    "end": 6819,
+    "value": "Retry to resume this request.",
+    "kind": "string",
+    "line": 197
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 7054,
+    "end": 7073,
+    "value": "Select a platform",
+    "kind": "string",
+    "line": 207
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 7075,
+    "end": 7119,
+    "value": "Choose at least one channel before saving.",
+    "kind": "string",
+    "line": 207
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 7512,
+    "end": 7527,
+    "value": "Untitled Post",
+    "kind": "string",
+    "line": 219
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8072,
+    "end": 8093,
+    "value": "Could not save post",
+    "kind": "string",
+    "line": 237
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8109,
+    "end": 8149,
+    "value": "Check plan quotas or role permissions.",
+    "kind": "string",
+    "line": 237
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8260,
+    "end": 8277,
+    "value": "Saved to Drafts",
+    "kind": "string",
+    "line": 241
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8323,
+    "end": 8347,
+    "value": "Submitted for Approval",
+    "kind": "string",
+    "line": 242
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8350,
+    "end": 8377,
+    "value": "Scheduled for Your Review",
+    "kind": "string",
+    "line": 242
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8398,
+    "end": 8429,
+    "value": "Scheduled in Content Calendar",
+    "kind": "string",
+    "line": 243
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8450,
+    "end": 8474,
+    "value": "Queued for Publication",
+    "kind": "string",
+    "line": 244
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8548,
+    "end": 8560,
+    "value": "Post saved",
+    "kind": "string",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8601,
+    "end": 8701,
+    "value": "Media generation is queued. The result will be attached automatically before review or publishing.",
+    "kind": "string",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8765,
+    "end": 8817,
+    "value": "Your team will review this post before it is sent.",
+    "kind": "string",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8820,
+    "end": 8866,
+    "value": "We will wait for your review before sending.",
+    "kind": "string",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8870,
+    "end": 8932,
+    "value": "Publishing will wait until a social connection is available.",
+    "kind": "string",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 8993,
+    "end": 9014,
+    "value": "Could not save post",
+    "kind": "string",
+    "line": 249
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 9057,
+    "end": 9076,
+    "value": "Please try again.",
+    "kind": "string",
+    "line": 249
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 9255,
+    "end": 9261,
+    "value": "Post",
+    "kind": "string",
+    "line": 259
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 9720,
+    "end": 9749,
+    "value": "1. Content Brief & Parameters",
+    "kind": "jsx",
+    "line": 271
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 10175,
+    "end": 10201,
+    "value": "Brand Profile",
+    "kind": "jsx",
+    "line": 282
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 10773,
+    "end": 10798,
+    "value": "Content Type",
+    "kind": "jsx",
+    "line": 299
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11068,
+    "end": 11086,
+    "value": "Educational Post",
+    "kind": "string",
+    "line": 307
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11104,
+    "end": 11123,
+    "value": "Product Promotion",
+    "kind": "string",
+    "line": 308
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11141,
+    "end": 11155,
+    "value": "Announcement",
+    "kind": "string",
+    "line": 309
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11173,
+    "end": 11195,
+    "value": "Storytelling Content",
+    "kind": "string",
+    "line": 310
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11213,
+    "end": 11235,
+    "value": "Community Engagement",
+    "kind": "string",
+    "line": 311
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11253,
+    "end": 11268,
+    "value": "Carousel Copy",
+    "kind": "string",
+    "line": 312
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11286,
+    "end": 11306,
+    "value": "Short Video Script",
+    "kind": "string",
+    "line": 313
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 11639,
+    "end": 11666,
+    "value": "Topic / Headline",
+    "kind": "jsx",
+    "line": 325
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12033,
+    "end": 12070,
+    "value": "AI Creative Brief / Prompt",
+    "kind": "jsx",
+    "line": 336
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12515,
+    "end": 12532,
+    "value": "Tone",
+    "kind": "jsx",
+    "line": 349
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12788,
+    "end": 12814,
+    "value": "Professional & Visionary",
+    "kind": "string",
+    "line": 357
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12832,
+    "end": 12847,
+    "value": "Authoritative",
+    "kind": "string",
+    "line": 358
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12865,
+    "end": 12881,
+    "value": "Conversational",
+    "kind": "string",
+    "line": 359
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12899,
+    "end": 12917,
+    "value": "Energetic & Bold",
+    "kind": "string",
+    "line": 360
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 12935,
+    "end": 12948,
+    "value": "Educational",
+    "kind": "string",
+    "line": 361
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13268,
+    "end": 13289,
+    "value": "Language",
+    "kind": "jsx",
+    "line": 372
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13536,
+    "end": 13545,
+    "value": "English",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13547,
+    "end": 13556,
+    "value": "Spanish",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13558,
+    "end": 13566,
+    "value": "French",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13568,
+    "end": 13576,
+    "value": "German",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13578,
+    "end": 13590,
+    "value": "Portuguese",
+    "kind": "string",
+    "line": 379
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 13906,
+    "end": 13925,
+    "value": "Length",
+    "kind": "jsx",
+    "line": 389
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 14168,
+    "end": 14175,
+    "value": "Short",
+    "kind": "string",
+    "line": 396
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 14177,
+    "end": 14185,
+    "value": "Medium",
+    "kind": "string",
+    "line": 396
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 14187,
+    "end": 14198,
+    "value": "Long-Form",
+    "kind": "string",
+    "line": 396
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 14569,
+    "end": 14591,
+    "value": "Objective",
+    "kind": "jsx",
+    "line": 408
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 14965,
+    "end": 14993,
+    "value": "Target Audience",
+    "kind": "jsx",
+    "line": 418
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 15433,
+    "end": 15465,
+    "value": "Keywords / Hashtags",
+    "kind": "jsx",
+    "line": 431
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 15837,
+    "end": 15864,
+    "value": "Call To Action",
+    "kind": "jsx",
+    "line": 441
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 16276,
+    "end": 16309,
+    "value": "Target Social Channels",
+    "kind": "jsx",
+    "line": 454
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 16889,
+    "end": 16933,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 467
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 17623,
+    "end": 17665,
+    "value": "Generate Platform-Optimized Posts",
+    "kind": "jsx",
+    "line": 488
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 17943,
+    "end": 17975,
+    "value": "Attach existing media (optional)",
+    "kind": "jsx",
+    "line": 495
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 18921,
+    "end": 18965,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 512
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 19813,
+    "end": 19831,
+    "value": "chars",
+    "kind": "jsx",
+    "line": 535
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20087,
+    "end": 20110,
+    "value": "AI Refine:",
+    "kind": "jsx",
+    "line": 542
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20189,
+    "end": 20198,
+    "value": "Rewrite",
+    "kind": "string",
+    "line": 546
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20259,
+    "end": 20268,
+    "value": "Improve",
+    "kind": "string",
+    "line": 547
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20328,
+    "end": 20337,
+    "value": "Shorten",
+    "kind": "string",
+    "line": 548
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20396,
+    "end": 20404,
+    "value": "Expand",
+    "kind": "string",
+    "line": 549
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20467,
+    "end": 20478,
+    "value": "Translate",
+    "kind": "string",
+    "line": 550
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20540,
+    "end": 20552,
+    "value": "+ Hashtags",
+    "kind": "string",
+    "line": 551
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 20604,
+    "end": 20611,
+    "value": "+ CTA",
+    "kind": "string",
+    "line": 552
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 22757,
+    "end": 22762,
+    "value": "Live",
+    "kind": "jsx",
+    "line": 609
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 22780,
+    "end": 22794,
+    "value": "Post Preview (",
+    "kind": "jsx",
+    "line": 609
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 23053,
+    "end": 23083,
+    "value": "Channel Formatted",
+    "kind": "jsx",
+    "line": 613
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 23950,
+    "end": 23965,
+    "value": "Brand Account",
+    "kind": "string",
+    "line": 635
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 24079,
+    "end": 24136,
+    "value": "Sponsored / Scheduled Preview • Just now",
+    "kind": "jsx",
+    "line": 638
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 24958,
+    "end": 24977,
+    "value": "Like",
+    "kind": "jsx",
+    "line": 655
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25107,
+    "end": 25129,
+    "value": "Comment",
+    "kind": "jsx",
+    "line": 658
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25253,
+    "end": 25274,
+    "value": "Repost",
+    "kind": "jsx",
+    "line": 661
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25396,
+    "end": 25416,
+    "value": "Share",
+    "kind": "jsx",
+    "line": 664
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25660,
+    "end": 25679,
+    "value": "Review & publishing",
+    "kind": "jsx",
+    "line": 673
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25841,
+    "end": 25869,
+    "value": "Team publishing permission",
+    "kind": "string",
+    "line": 675
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 25872,
+    "end": 25895,
+    "value": "Publishing preference",
+    "kind": "string",
+    "line": 675
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 26164,
+    "end": 26185,
+    "value": "Publish automatically",
+    "kind": "jsx",
+    "line": 677
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 26251,
+    "end": 26293,
+    "value": "Send to team approvers before publishing",
+    "kind": "string",
+    "line": 678
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 26296,
+    "end": 26317,
+    "value": "Let me review first",
+    "kind": "string",
+    "line": 678
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 26546,
+    "end": 26580,
+    "value": "Notify me about publishing results",
+    "kind": "jsx",
+    "line": 681
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 26656,
+    "end": 26800,
+    "value": "Choose email, on-site, or browser push in Settings. Social publishing connections will be added later; scheduled posts remain unsent until then.",
+    "kind": "jsx",
+    "line": 682
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 27005,
+    "end": 27040,
+    "value": "Schedule Date & Time",
+    "kind": "jsx",
+    "line": 686
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 27492,
+    "end": 27515,
+    "value": "Timezone",
+    "kind": "jsx",
+    "line": 697
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 27809,
+    "end": 27835,
+    "value": "America/Montevideo (UTC−3)",
+    "kind": "jsx",
+    "line": 704
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 27894,
+    "end": 27920,
+    "value": "America/New_York (EST/EDT)",
+    "kind": "jsx",
+    "line": 705
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 27982,
+    "end": 28011,
+    "value": "America/Los_Angeles (PST/PDT)",
+    "kind": "jsx",
+    "line": 706
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 28067,
+    "end": 28090,
+    "value": "Europe/London (GMT/BST)",
+    "kind": "jsx",
+    "line": 707
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 28145,
+    "end": 28163,
+    "value": "Europe/Paris (CET)",
+    "kind": "jsx",
+    "line": 708
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 28216,
+    "end": 28232,
+    "value": "Asia/Tokyo (JST)",
+    "kind": "jsx",
+    "line": 709
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 28695,
+    "end": 28718,
+    "value": "Save Draft",
+    "kind": "jsx",
+    "line": 721
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 29116,
+    "end": 29145,
+    "value": "Request Approval",
+    "kind": "jsx",
+    "line": 730
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 29579,
+    "end": 29605,
+    "value": "Submit for Team Approval",
+    "kind": "string",
+    "line": 739
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 29608,
+    "end": 29640,
+    "value": "Schedule & Notify Me to Review",
+    "kind": "string",
+    "line": 739
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 29644,
+    "end": 29659,
+    "value": "Schedule Post",
+    "kind": "string",
+    "line": 739
+  },
+  {
+    "file": "src\\components\\ContentStudioClient.tsx",
+    "start": 30095,
+    "end": 30119,
+    "value": "Publish Now",
+    "kind": "jsx",
+    "line": 748
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 582,
+    "end": 621,
+    "value": "Unable to load notification settings.",
+    "kind": "string",
+    "line": 13
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 975,
+    "end": 990,
+    "value": "serviceWorker",
+    "kind": "string",
+    "line": 22
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 1010,
+    "end": 1023,
+    "value": "PushManager",
+    "kind": "string",
+    "line": 22
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 1052,
+    "end": 1142,
+    "value": "This browser does not support push notifications. Choose email or on-site notifications.",
+    "kind": "string",
+    "line": 22
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 1227,
+    "end": 1305,
+    "value": "Push permission was not granted. Enable it in your browser or turn off push.",
+    "kind": "string",
+    "line": 23
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2039,
+    "end": 2082,
+    "value": "Could not register this browser for push.",
+    "kind": "string",
+    "line": 30
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2303,
+    "end": 2342,
+    "value": "Could not save notification settings.",
+    "kind": "string",
+    "line": 33
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2362,
+    "end": 2382,
+    "value": "Preferences saved.",
+    "kind": "string",
+    "line": 34
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2469,
+    "end": 2546,
+    "value": " Some channels will become available when the administrator finishes setup.",
+    "kind": "string",
+    "line": 34
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2629,
+    "end": 2646,
+    "value": "Unable to save.",
+    "kind": "string",
+    "line": 35
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2795,
+    "end": 2822,
+    "value": "Where should we notify you?",
+    "kind": "jsx",
+    "line": 39
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 2884,
+    "end": 3022,
+    "value": "Choose any combination for review requests and publishing updates. Whether to review before publishing is chosen separately for each post.",
+    "kind": "jsx",
+    "line": 40
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3089,
+    "end": 3098,
+    "value": "On site",
+    "kind": "string",
+    "line": 41
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3111,
+    "end": 3118,
+    "value": "Email",
+    "kind": "string",
+    "line": 41
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3130,
+    "end": 3144,
+    "value": "Browser push",
+    "kind": "string",
+    "line": 41
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3548,
+    "end": 3569,
+    "value": "Service setup pending",
+    "kind": "jsx",
+    "line": 43
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3756,
+    "end": 3765,
+    "value": "Saving…",
+    "kind": "string",
+    "line": 45
+  },
+  {
+    "file": "src\\components\\NotificationSettings.tsx",
+    "start": 3768,
+    "end": 3799,
+    "value": "Save notification preferences",
+    "kind": "string",
+    "line": 45
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 2183,
+    "end": 2214,
+    "value": "Weekly Content Plan Generated",
+    "kind": "string",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 2226,
+    "end": 2290,
+    "value": "AI Marketing Agent updated your 5-day multi-platform schedule.",
+    "kind": "string",
+    "line": 97
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 3164,
+    "end": 3175,
+    "value": "Create Post",
+    "kind": "jsx",
+    "line": 122
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 3243,
+    "end": 3267,
+    "value": "AI Multi-Platform Studio",
+    "kind": "jsx",
+    "line": 123
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 4303,
+    "end": 4326,
+    "value": "Generate Weekly Content",
+    "kind": "jsx",
+    "line": 148
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 4430,
+    "end": 4473,
+    "value": "AI Agent 5-Day Blueprint",
+    "kind": "jsx",
+    "line": 150
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 5209,
+    "end": 5224,
+    "value": "Create Campaign",
+    "kind": "jsx",
+    "line": 170
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 5328,
+    "end": 5370,
+    "value": "4-Week AI Campaign Plan",
+    "kind": "jsx",
+    "line": 172
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 6116,
+    "end": 6138,
+    "value": "Connect Social Account",
+    "kind": "jsx",
+    "line": 192
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 6242,
+    "end": 6280,
+    "value": "8 Platform Adapters",
+    "kind": "jsx",
+    "line": 194
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 6931,
+    "end": 6975,
+    "value": "Engagement & Reach Velocity",
+    "kind": "jsx",
+    "line": 211
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 7143,
+    "end": 7178,
+    "value": "Recorded Analytics",
+    "kind": "jsx",
+    "line": 214
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 7290,
+    "end": 7393,
+    "value": "Stored engagement measurements. Live engagement ingestion must be configured separately.",
+    "kind": "jsx",
+    "line": 218
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 7953,
+    "end": 7997,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 231
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 9494,
+    "end": 9499,
+    "value": "imp •",
+    "kind": "jsx",
+    "line": 260
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 9543,
+    "end": 9567,
+    "value": "eng",
+    "kind": "jsx",
+    "line": 261
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 10834,
+    "end": 10840,
+    "value": "Apr ",
+    "kind": "string",
+    "line": 288
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 11264,
+    "end": 11292,
+    "value": "Impressions",
+    "kind": "jsx",
+    "line": 297
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 11442,
+    "end": 11479,
+    "value": "Weighted Engagements",
+    "kind": "jsx",
+    "line": 300
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 11623,
+    "end": 11667,
+    "value": "Full Analytics & CSV Export →",
+    "kind": "jsx",
+    "line": 304
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 12131,
+    "end": 12149,
+    "value": "AI Marketing Agent",
+    "kind": "jsx",
+    "line": 316
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 12607,
+    "end": 12615,
+    "value": "Paused",
+    "kind": "string",
+    "line": 326
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 12857,
+    "end": 12898,
+    "value": "Grounded AI Recommendation",
+    "kind": "jsx",
+    "line": 332
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 13009,
+    "end": 13037,
+    "value": "Educational posts generated",
+    "kind": "jsx",
+    "line": 335
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 13045,
+    "end": 13060,
+    "value": "4.9% engagement",
+    "kind": "jsx",
+    "line": 335
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 13070,
+    "end": 13206,
+    "value": "vs 2.7% for pure product announcements over the past 14 days. Increase educational breakdowns to 3x/week.",
+    "kind": "jsx",
+    "line": 335
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 13394,
+    "end": 13430,
+    "value": "Recent Agent Activity",
+    "kind": "jsx",
+    "line": 342
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 14567,
+    "end": 14608,
+    "value": "Open Agent Command Workspace →",
+    "kind": "jsx",
+    "line": 369
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 14926,
+    "end": 14954,
+    "value": "Upcoming & Pending Approvals",
+    "kind": "jsx",
+    "line": 378
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 15078,
+    "end": 15106,
+    "value": "Open Calendar →",
+    "kind": "jsx",
+    "line": 380
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 15314,
+    "end": 15404,
+    "value": "No upcoming posts scheduled. Use AI Content Studio to draft your next post.",
+    "kind": "jsx",
+    "line": 386
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 17223,
+    "end": 17242,
+    "value": "Recent Publications",
+    "kind": "jsx",
+    "line": 427
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 17363,
+    "end": 17387,
+    "value": "All Posts →",
+    "kind": "jsx",
+    "line": 429
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 18141,
+    "end": 18154,
+    "value": "Published to",
+    "kind": "jsx",
+    "line": 446
+  },
+  {
+    "file": "src\\components\\OverviewInteractive.tsx",
+    "start": 18413,
+    "end": 18439,
+    "value": "Published",
+    "kind": "jsx",
+    "line": 450
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 396,
+    "end": 439,
+    "value": "Deletion pending. Retry deletion to finish.",
+    "kind": "jsx",
+    "line": 7
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 585,
+    "end": 604,
+    "value": "Generation failed",
+    "kind": "string",
+    "line": 8
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 1681,
+    "end": 1704,
+    "value": "Unable to load media.",
+    "kind": "string",
+    "line": 21
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 2217,
+    "end": 2252,
+    "value": "Choose a file smaller than 50 MB.",
+    "kind": "string",
+    "line": 33
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 2481,
+    "end": 2510,
+    "value": "Upload permission required.",
+    "kind": "string",
+    "line": 36
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 2950,
+    "end": 2975,
+    "value": "Unable to start upload.",
+    "kind": "string",
+    "line": 44
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 3411,
+    "end": 3496,
+    "value": "Private storage rejected the upload. Check storage CORS configuration or try again.",
+    "kind": "string",
+    "line": 51
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 4003,
+    "end": 4016,
+    "value": "X-File-Name",
+    "kind": "string",
+    "line": 59
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 4275,
+    "end": 4312,
+    "value": "Upload saved to your media library.",
+    "kind": "string",
+    "line": 63
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 4315,
+    "end": 4346,
+    "value": "Upload attached to this post.",
+    "kind": "string",
+    "line": 63
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 4423,
+    "end": 4439,
+    "value": "Upload failed.",
+    "kind": "string",
+    "line": 64
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 4883,
+    "end": 4977,
+    "value": "Generation queued. You can leave this page; the completed media will appear in your library.",
+    "kind": "string",
+    "line": 72
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 5054,
+    "end": 5074,
+    "value": "Generation failed.",
+    "kind": "string",
+    "line": 73
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 5583,
+    "end": 5607,
+    "value": "Media deletion failed.",
+    "kind": "string",
+    "line": 82
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 5700,
+    "end": 5716,
+    "value": "Media deleted.",
+    "kind": "string",
+    "line": 84
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 5793,
+    "end": 5817,
+    "value": "Media deletion failed.",
+    "kind": "string",
+    "line": 85
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 5958,
+    "end": 5973,
+    "value": "Images & videos",
+    "kind": "jsx",
+    "line": 89
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 6016,
+    "end": 6061,
+    "value": "Upload an image or video (up to 50 MB)",
+    "kind": "jsx",
+    "line": 90
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 6482,
+    "end": 6532,
+    "value": "Describe the image or video you want to generate",
+    "kind": "string",
+    "line": 93
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 6687,
+    "end": 6699,
+    "value": "Media type",
+    "kind": "string",
+    "line": 95
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 6923,
+    "end": 6928,
+    "value": "Image",
+    "kind": "jsx",
+    "line": 95
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 6959,
+    "end": 6976,
+    "value": "Video (5 seconds)",
+    "kind": "jsx",
+    "line": 95
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7020,
+    "end": 7040,
+    "value": "Media aspect ratio",
+    "kind": "string",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7166,
+    "end": 7175,
+    "value": "Landscape",
+    "kind": "jsx",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7205,
+    "end": 7213,
+    "value": "Portrait",
+    "kind": "jsx",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7263,
+    "end": 7269,
+    "value": "Square",
+    "kind": "jsx",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7455,
+    "end": 7464,
+    "value": "Generate",
+    "kind": "jsx",
+    "line": 97
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 7547,
+    "end": 7740,
+    "value": "Images: 40 managed credits, or your OpenAI key. Videos: 120 managed credits. Failed generations return reserved credits. Your administrator must enable the media provider and background worker.",
+    "kind": "jsx",
+    "line": 99
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 8753,
+    "end": 8769,
+    "value": "Retry deletion",
+    "kind": "string",
+    "line": 104
+  },
+  {
+    "file": "src\\components\\PostMediaPicker.tsx",
+    "start": 8772,
+    "end": 8780,
+    "value": "Delete",
+    "kind": "string",
+    "line": 104
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 1785,
+    "end": 1807,
+    "value": "Awaiting your review",
+    "kind": "string",
+    "line": 52
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 1854,
+    "end": 1864,
+    "value": "Reviewed",
+    "kind": "string",
+    "line": 52
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3139,
+    "end": 3155,
+    "value": "Action blocked",
+    "kind": "string",
+    "line": 85
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3171,
+    "end": 3195,
+    "value": "Could not update post.",
+    "kind": "string",
+    "line": 85
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3243,
+    "end": 3257,
+    "value": "Post updated",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3321,
+    "end": 3349,
+    "value": "Waiting for team approval.",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3352,
+    "end": 3378,
+    "value": "Waiting for your review.",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3418,
+    "end": 3491,
+    "value": "Queued for the scheduled time. Publishing requires a social connection.",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3494,
+    "end": 3510,
+    "value": "Changes saved.",
+    "kind": "string",
+    "line": 88
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3571,
+    "end": 3586,
+    "value": "Action failed",
+    "kind": "string",
+    "line": 91
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 3629,
+    "end": 3648,
+    "value": "Please try again.",
+    "kind": "string",
+    "line": 91
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 4527,
+    "end": 4571,
+    "value": "elevated-card text-[var(--text-secondary)]",
+    "kind": "string",
+    "line": 120
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 4950,
+    "end": 4967,
+    "value": "Search posts...",
+    "kind": "string",
+    "line": 133
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 5302,
+    "end": 5347,
+    "value": "No posts match the current filter.",
+    "kind": "jsx",
+    "line": 143
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 6423,
+    "end": 6452,
+    "value": "AI Agent",
+    "kind": "jsx",
+    "line": 165
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 6867,
+    "end": 6880,
+    "value": "Target Slot:",
+    "kind": "jsx",
+    "line": 176
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7081,
+    "end": 7105,
+    "value": "Team approval required",
+    "kind": "string",
+    "line": 179
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7108,
+    "end": 7144,
+    "value": "You chose to review before sending",
+    "kind": "string",
+    "line": 179
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7148,
+    "end": 7171,
+    "value": "Publish automatically",
+    "kind": "string",
+    "line": 179
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7195,
+    "end": 7214,
+    "value": "media attachment(s)",
+    "kind": "jsx",
+    "line": 179
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7303,
+    "end": 7313,
+    "value": "Automatic",
+    "kind": "jsx",
+    "line": 180
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7371,
+    "end": 7401,
+    "value": "will generate when scheduled",
+    "kind": "string",
+    "line": 180
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7536,
+    "end": 7623,
+    "value": "Media generation needs attention. Choose a new publishing time if needed, then retry.",
+    "kind": "string",
+    "line": 181
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7794,
+    "end": 7809,
+    "value": "Close preview",
+    "kind": "string",
+    "line": 182
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 7812,
+    "end": 7838,
+    "value": "Review full post & media",
+    "kind": "string",
+    "line": 182
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 8632,
+    "end": 8660,
+    "value": "Team publishing permission",
+    "kind": "string",
+    "line": 188
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 8663,
+    "end": 8686,
+    "value": "Publishing preference",
+    "kind": "string",
+    "line": 188
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 9136,
+    "end": 9157,
+    "value": "Publish automatically",
+    "kind": "jsx",
+    "line": 190
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 9208,
+    "end": 9232,
+    "value": "Send to team approvers",
+    "kind": "string",
+    "line": 190
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 9235,
+    "end": 9256,
+    "value": "Let me review first",
+    "kind": "string",
+    "line": 190
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 9835,
+    "end": 9864,
+    "value": "Save automatic media settings",
+    "kind": "jsx",
+    "line": 194
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 10030,
+    "end": 10047,
+    "value": "Publishing time (",
+    "kind": "jsx",
+    "line": 197
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 10806,
+    "end": 10824,
+    "value": "Invalid schedule",
+    "kind": "string",
+    "line": 201
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 10867,
+    "end": 10883,
+    "value": "Choose a time.",
+    "kind": "string",
+    "line": 201
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 10918,
+    "end": 10927,
+    "value": "Save time",
+    "kind": "jsx",
+    "line": 202
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 11609,
+    "end": 11618,
+    "value": "Approve",
+    "kind": "string",
+    "line": 214
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 11621,
+    "end": 11633,
+    "value": "Looks Good",
+    "kind": "string",
+    "line": 214
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 11654,
+    "end": 11667,
+    "value": " & Schedule",
+    "kind": "string",
+    "line": 214
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 12426,
+    "end": 12453,
+    "value": "Schedule",
+    "kind": "jsx",
+    "line": 230
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 13038,
+    "end": 13068,
+    "value": "Publish Now",
+    "kind": "jsx",
+    "line": 241
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 13375,
+    "end": 13397,
+    "value": "Retry media generation",
+    "kind": "jsx",
+    "line": 244
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 13722,
+    "end": 13730,
+    "value": "Reject",
+    "kind": "string",
+    "line": 245
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 13733,
+    "end": 13741,
+    "value": "Cancel",
+    "kind": "string",
+    "line": 245
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 14070,
+    "end": 14086,
+    "value": "Duplicate post",
+    "kind": "string",
+    "line": 252
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 14156,
+    "end": 14182,
+    "value": "Duplicate",
+    "kind": "jsx",
+    "line": 254
+  },
+  {
+    "file": "src\\components\\PostsManagerClient.tsx",
+    "start": 14547,
+    "end": 14560,
+    "value": "Delete post",
+    "kind": "string",
+    "line": 262
+  },
+  {
+    "file": "src\\components\\ProviderAnalyticsSync.tsx",
+    "start": 626,
+    "end": 661,
+    "value": "Synchronization could not finish.",
+    "kind": "string",
+    "line": 13
+  },
+  {
+    "file": "src\\components\\ProviderAnalyticsSync.tsx",
+    "start": 715,
+    "end": 765,
+    "value": "Synchronization unavailable. Please retry later.",
+    "kind": "string",
+    "line": 15
+  },
+  {
+    "file": "src\\components\\ProviderAnalyticsSync.tsx",
+    "start": 991,
+    "end": 1001,
+    "value": "Syncing…",
+    "kind": "string",
+    "line": 18
+  },
+  {
+    "file": "src\\components\\ProviderAnalyticsSync.tsx",
+    "start": 1004,
+    "end": 1029,
+    "value": "Sync provider analytics",
+    "kind": "string",
+    "line": 18
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 1842,
+    "end": 1904,
+    "value": "elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2.5 text-sm",
+    "kind": "string",
+    "line": 33
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 3372,
+    "end": 3404,
+    "value": "Authorization could not start.",
+    "kind": "string",
+    "line": 57
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 3876,
+    "end": 3924,
+    "value": "The provider could not verify this connection.",
+    "kind": "string",
+    "line": 64
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 3966,
+    "end": 3986,
+    "value": "Connection removed",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 3989,
+    "end": 4007,
+    "value": "Account verified",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 4035,
+    "end": 4131,
+    "value": "Stored credentials were deleted. Revoke the token with the provider if it is no longer needed.",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 4134,
+    "end": 4231,
+    "value": "Your provider identity was verified. Publishing still requires the listed provider permissions.",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 4454,
+    "end": 4473,
+    "value": "Connection failed",
+    "kind": "string",
+    "line": 69
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 4516,
+    "end": 4537,
+    "value": "The request failed.",
+    "kind": "string",
+    "line": 69
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 4756,
+    "end": 5018,
+    "value": "Connect your own platform-issued access token. Credentials are encrypted per workspace/account and are never returned to the browser. No shared social-provider keys are required in the server environment. Do not enter your social account password.",
+    "kind": "jsx",
+    "line": 75
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 5071,
+    "end": 5352,
+    "value": "Tokens must have publishing permissions and your own app&apos;s required API access/approval. Automatic renewal requires a supported refresh grant or explicitly declared long-lived token. Disconnect removes local secrets; revoke permissions in the provider&apos;s own settings too.",
+    "kind": "jsx",
+    "line": 77
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 5482,
+    "end": 5502,
+    "value": "connected channels (",
+    "kind": "jsx",
+    "line": 78
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 5739,
+    "end": 5757,
+    "value": "Platform",
+    "kind": "jsx",
+    "line": 81
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 6350,
+    "end": 6398,
+    "value": "Intended Facebook Page ID (required for OAuth)",
+    "kind": "string",
+    "line": 86
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 6428,
+    "end": 6493,
+    "value": "Intended Instagram professional account ID (required for OAuth)",
+    "kind": "string",
+    "line": 86
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 6496,
+    "end": 6571,
+    "value": "Provider account ID / LinkedIn author URN (optional; detected from token)",
+    "kind": "string",
+    "line": 86
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 6795,
+    "end": 6813,
+    "value": "Your access token",
+    "kind": "jsx",
+    "line": 89
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 6840,
+    "end": 6879,
+    "value": "(Page token, not personal user token)",
+    "kind": "string",
+    "line": 89
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 7233,
+    "end": 7244,
+    "value": "Analytics:",
+    "kind": "jsx",
+    "line": 94
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 7419,
+    "end": 7449,
+    "value": "Official provider requirements",
+    "kind": "jsx",
+    "line": 95
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 7654,
+    "end": 7727,
+    "value": "OAuth is unavailable until a public HTTPS APP_URL origin is configured.",
+    "kind": "string",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 7729,
+    "end": 7839,
+    "value": "Complete declarations below before authorizing. Client credentials belong to you, never a shared platform app.",
+    "kind": "jsx",
+    "line": 96
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 7965,
+    "end": 7985,
+    "value": "Your OAuth client ID",
+    "kind": "jsx",
+    "line": 99
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 8160,
+    "end": 8185,
+    "value": "Your OAuth client secret",
+    "kind": "jsx",
+    "line": 100
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 8205,
+    "end": 8248,
+    "value": "(omit only for registered public clients)",
+    "kind": "string",
+    "line": 100
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 8476,
+    "end": 8525,
+    "value": "Refresh token (optional when manually connecting)",
+    "kind": "jsx",
+    "line": 101
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 8852,
+    "end": 9041,
+    "value": "Request approved analytics scopes during OAuth (LinkedIn/Instagram/Threads). Disable if your own app lacks that product; read metrics will then be limited to its actual granted permissions.",
+    "kind": "jsx",
+    "line": 102
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 9259,
+    "end": 9343,
+    "value": "I obtained a long-lived token through my own provider app (not a short-lived token).",
+    "kind": "jsx",
+    "line": 104
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 9426,
+    "end": 9446,
+    "value": "Destination board ID",
+    "kind": "jsx",
+    "line": 105
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 9669,
+    "end": 9690,
+    "value": "Provider API version",
+    "kind": "jsx",
+    "line": 106
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 9717,
+    "end": 9737,
+    "value": "(required, YYYYMM)",
+    "kind": "string",
+    "line": 106
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 9740,
+    "end": 9764,
+    "value": "(optional, e.g. v27.0)",
+    "kind": "string",
+    "line": 106
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10048,
+    "end": 10075,
+    "value": "Are videos made for kids?",
+    "kind": "string",
+    "line": 109
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10078,
+    "end": 10131,
+    "value": "Do your uploaded videos contain AI-generated media?",
+    "kind": "string",
+    "line": 109
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10296,
+    "end": 10316,
+    "value": "Choose a declaration",
+    "kind": "jsx",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10345,
+    "end": 10348,
+    "value": "Yes",
+    "kind": "jsx",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10376,
+    "end": 10378,
+    "value": "No",
+    "kind": "jsx",
+    "line": 111
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10457,
+    "end": 10609,
+    "value": "Applies to this connection. Reconnect before publishing content with a different declaration. App-generated TikTok media is always labeled AI-generated.",
+    "kind": "jsx",
+    "line": 113
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10723,
+    "end": 10754,
+    "value": "Publishing visibility",
+    "kind": "jsx",
+    "line": 115
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 10900,
+    "end": 10917,
+    "value": "Choose visibility",
+    "kind": "jsx",
+    "line": 117
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11002,
+    "end": 11013,
+    "value": "SELF_ONLY",
+    "kind": "string",
+    "line": 118
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11015,
+    "end": 11038,
+    "value": "MUTUAL_FOLLOW_FRIENDS",
+    "kind": "string",
+    "line": 118
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11040,
+    "end": 11061,
+    "value": "FOLLOWER_OF_CREATOR",
+    "kind": "string",
+    "line": 118
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11063,
+    "end": 11083,
+    "value": "PUBLIC_TO_EVERYONE",
+    "kind": "string",
+    "line": 118
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11253,
+    "end": 11300,
+    "value": "Token expiration (if provided by your platform)",
+    "kind": "jsx",
+    "line": 121
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11551,
+    "end": 11573,
+    "value": "Required permissions:",
+    "kind": "jsx",
+    "line": 122
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 11811,
+    "end": 11829,
+    "value": "Verify and connect",
+    "kind": "jsx",
+    "line": 123
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 12118,
+    "end": 12145,
+    "value": "Authorize with my OAuth app",
+    "kind": "jsx",
+    "line": 124
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 12287,
+    "end": 12356,
+    "value": "No accounts connected. Add your own credentials to enable publishing.",
+    "kind": "jsx",
+    "line": 126
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 12719,
+    "end": 12747,
+    "value": "Customer-owned credentials",
+    "kind": "string",
+    "line": 129
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 12750,
+    "end": 12802,
+    "value": "Legacy connection: reconnect with your credentials",
+    "kind": "string",
+    "line": 129
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 12970,
+    "end": 12979,
+    "value": "Renewal:",
+    "kind": "jsx",
+    "line": 131
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13027,
+    "end": 13040,
+    "value": "not checked",
+    "kind": "string",
+    "line": 131
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13138,
+    "end": 13149,
+    "value": "Analytics:",
+    "kind": "jsx",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13177,
+    "end": 13189,
+    "value": "not synced",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13479,
+    "end": 13491,
+    "value": "Verify token",
+    "kind": "jsx",
+    "line": 134
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13639,
+    "end": 13650,
+    "value": "Renew token",
+    "kind": "jsx",
+    "line": 135
+  },
+  {
+    "file": "src\\components\\SocialAccountsClient.tsx",
+    "start": 13843,
+    "end": 13853,
+    "value": "Disconnect",
+    "kind": "jsx",
+    "line": 136
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1040,
+    "end": 1059,
+    "value": "SaaS & Technology",
+    "kind": "string",
+    "line": 53
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1638,
+    "end": 1672,
+    "value": "Invitation could not be updated.",
+    "kind": "string",
+    "line": 61
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1696,
+    "end": 1717,
+    "value": "Invitation accepted",
+    "kind": "string",
+    "line": 62
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1720,
+    "end": 1741,
+    "value": "Invitation declined",
+    "kind": "string",
+    "line": 62
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1752,
+    "end": 1793,
+    "value": "Your active workspace has been updated.",
+    "kind": "string",
+    "line": 62
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1796,
+    "end": 1817,
+    "value": "Invitation removed.",
+    "kind": "string",
+    "line": 62
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1878,
+    "end": 1897,
+    "value": "Invitation failed",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 1940,
+    "end": 1974,
+    "value": "Invitation could not be updated.",
+    "kind": "string",
+    "line": 65
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 2416,
+    "end": 2437,
+    "value": "Brand quota reached",
+    "kind": "string",
+    "line": 83
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 2453,
+    "end": 2487,
+    "value": "Upgrade plan to add more brands.",
+    "kind": "string",
+    "line": 83
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 2529,
+    "end": 2544,
+    "value": "Brand created",
+    "kind": "string",
+    "line": 86
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3078,
+    "end": 3098,
+    "value": "Invitation blocked",
+    "kind": "string",
+    "line": 105
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3114,
+    "end": 3139,
+    "value": "Check your permissions.",
+    "kind": "string",
+    "line": 105
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3181,
+    "end": 3201,
+    "value": "Invitation created",
+    "kind": "string",
+    "line": 108
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3657,
+    "end": 3671,
+    "value": "Role updated",
+    "kind": "string",
+    "line": 120
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3809,
+    "end": 3830,
+    "value": "Role update blocked",
+    "kind": "string",
+    "line": 124
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 3846,
+    "end": 3871,
+    "value": "Check your permissions.",
+    "kind": "string",
+    "line": 124
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 4248,
+    "end": 4278,
+    "value": "Access could not be revoked.",
+    "kind": "string",
+    "line": 131
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 4293,
+    "end": 4309,
+    "value": "Access revoked",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 4311,
+    "end": 4363,
+    "value": "The member or pending invitation has been removed.",
+    "kind": "string",
+    "line": 132
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 4424,
+    "end": 4441,
+    "value": "Removal blocked",
+    "kind": "string",
+    "line": 135
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 4484,
+    "end": 4502,
+    "value": "Try again later.",
+    "kind": "string",
+    "line": 135
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5154,
+    "end": 5179,
+    "value": "Workspace data exported",
+    "kind": "string",
+    "line": 156
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5181,
+    "end": 5216,
+    "value": "Downloaded complete JSON archive.",
+    "kind": "string",
+    "line": 156
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5398,
+    "end": 5419,
+    "value": "Workspace invitations",
+    "kind": "jsx",
+    "line": 163
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5583,
+    "end": 5591,
+    "value": "&mdash;",
+    "kind": "jsx",
+    "line": 165
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5725,
+    "end": 5731,
+    "value": "Accept",
+    "kind": "jsx",
+    "line": 166
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 5816,
+    "end": 5823,
+    "value": "Decline",
+    "kind": "jsx",
+    "line": 166
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 6216,
+    "end": 6232,
+    "value": "Managed Brands (",
+    "kind": "jsx",
+    "line": 175
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 6262,
+    "end": 6265,
+    "value": "on",
+    "kind": "jsx",
+    "line": 175
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 6608,
+    "end": 6640,
+    "value": "Export Workspace JSON",
+    "kind": "jsx",
+    "line": 184
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 7396,
+    "end": 7410,
+    "value": "Voice & Tone:",
+    "kind": "jsx",
+    "line": 201
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 8172,
+    "end": 8199,
+    "value": "New Brand Name",
+    "kind": "jsx",
+    "line": 223
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 8369,
+    "end": 8390,
+    "value": "Client or Sub-Brand",
+    "kind": "string",
+    "line": 229
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 8631,
+    "end": 8655,
+    "value": "Website URL",
+    "kind": "jsx",
+    "line": 235
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 9070,
+    "end": 9091,
+    "value": "Industry",
+    "kind": "jsx",
+    "line": 246
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 9619,
+    "end": 9639,
+    "value": "Add Brand",
+    "kind": "jsx",
+    "line": 259
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 9965,
+    "end": 10020,
+    "value": "Team Collaboration & Client Approval Roles (Your Role:",
+    "kind": "jsx",
+    "line": 269
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10156,
+    "end": 10184,
+    "value": "Assign granular RBAC roles:",
+    "kind": "jsx",
+    "line": 273
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10192,
+    "end": 10197,
+    "value": "Owner",
+    "kind": "jsx",
+    "line": 273
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10216,
+    "end": 10229,
+    "value": "Administrator",
+    "kind": "jsx",
+    "line": 273
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10263,
+    "end": 10269,
+    "value": "Editor",
+    "kind": "jsx",
+    "line": 274
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10288,
+    "end": 10296,
+    "value": "Approver",
+    "kind": "jsx",
+    "line": 274
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10306,
+    "end": 10328,
+    "value": "(client sign-off), and",
+    "kind": "jsx",
+    "line": 274
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10352,
+    "end": 10358,
+    "value": "Viewer",
+    "kind": "jsx",
+    "line": 275
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10594,
+    "end": 10699,
+    "value": "A Pro or Agency subscription is required to invite or edit team members. Existing data remains available.",
+    "kind": "jsx",
+    "line": 282
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 10856,
+    "end": 10896,
+    "value": "Team Member or Client Email",
+    "kind": "jsx",
+    "line": 285
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 11391,
+    "end": 11413,
+    "value": "RBAC Role",
+    "kind": "jsx",
+    "line": 298
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 11706,
+    "end": 11719,
+    "value": "Administrator",
+    "kind": "jsx",
+    "line": 305
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 11767,
+    "end": 11773,
+    "value": "Editor",
+    "kind": "jsx",
+    "line": 306
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 11822,
+    "end": 11848,
+    "value": "Approver (Client Sign-off)",
+    "kind": "jsx",
+    "line": 307
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 11895,
+    "end": 11913,
+    "value": "Viewer (Read-Only)",
+    "kind": "jsx",
+    "line": 308
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 12331,
+    "end": 12361,
+    "value": "Create Invitation",
+    "kind": "jsx",
+    "line": 317
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13393,
+    "end": 13398,
+    "value": "Owner",
+    "kind": "jsx",
+    "line": 341
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13482,
+    "end": 13495,
+    "value": "Administrator",
+    "kind": "jsx",
+    "line": 342
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13544,
+    "end": 13550,
+    "value": "Editor",
+    "kind": "jsx",
+    "line": 343
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13601,
+    "end": 13609,
+    "value": "Approver",
+    "kind": "jsx",
+    "line": 344
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13658,
+    "end": 13664,
+    "value": "Viewer",
+    "kind": "jsx",
+    "line": 345
+  },
+  {
+    "file": "src\\components\\WorkspacesClient.tsx",
+    "start": 13921,
+    "end": 13934,
+    "value": "Revoke access",
+    "kind": "jsx",
+    "line": 347
+  }
+]

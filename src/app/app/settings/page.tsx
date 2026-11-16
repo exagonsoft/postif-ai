@@ -1,3 +1,4 @@
+import { getServerI18n } from "@/i18n/server";
 import React from "react";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import Link from "next/link";
@@ -8,6 +9,9 @@ import { ShieldCheck, KeyRound, Server, ArrowRight } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  const { t } = await getServerI18n();
+  const displayStatus = (value: string) => ["owner","admin","editor","approver","viewer","member","user","operator"].includes(value) ? t(`customer.status.${value}`) : value;
+
   const ctx = await getAuthContext();
   if (!ctx || !ctx.workspace || !ctx.user) {
     redirect("/login");
@@ -15,23 +19,23 @@ export default async function SettingsPage() {
 
   const envChecks = [
     {
-      name: "MongoDB Persistence",
-      status: Boolean(process.env.MONGODB_URI) ? "Operational" : "Unconfigured",
+      name: t("customer.environment.mongo"),
+      status: Boolean(process.env.MONGODB_URI) ? t("customer.text.84") : t("customer.text.85"),
       active: Boolean(process.env.MONGODB_URI),
     },
     {
-      name: "Managed OpenAI API Key (OPENAI_API_KEY)",
-      status: process.env.OPENAI_API_KEY ? "Configured (provider access required)" : "Not configured; use BYOK",
+      name: t("customer.environment.openai"),
+      status: process.env.OPENAI_API_KEY ? t("customer.text.86") : t("customer.text.87"),
       active: Boolean(process.env.OPENAI_API_KEY),
     },
     {
-      name: "Paid Checkout",
-      status: "Not available",
+      name: t("customer.environment.checkout"),
+      status: t("customer.environment.unavailable"),
       active: false,
     },
     {
-      name: "Social Platform Credentials",
-      status: "Customer-owned; configure per account",
+      name: t("customer.environment.social"),
+      status: t("customer.environment.customer"),
       active: true,
     },
   ];
@@ -41,10 +45,10 @@ export default async function SettingsPage() {
       <NotificationSettings />
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Account, Security & Environment Architecture
+          {t("customer.text.88")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          Inspect user session details, credential vault security, and runtime integration status.
+          {t("customer.text.89")}
         </p>
       </div>
 
@@ -52,26 +56,26 @@ export default async function SettingsPage() {
         <div className="surface-card space-y-4 rounded-3xl p-6">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-base font-extrabold">User & Workspace Profile</h2>
+            <h2 className="text-base font-extrabold">{t("customer.text.90")}</h2>
           </div>
 
           <div className="space-y-2.5 text-xs">
             <div className="elevated-card flex justify-between rounded-xl p-3">
-              <span className="text-[var(--text-muted)]">Full Name</span>
+              <span className="text-[var(--text-muted)]">{t("customer.text.91")}</span>
               <span className="font-bold">{ctx.user.name}</span>
             </div>
             <div className="elevated-card flex justify-between rounded-xl p-3">
-              <span className="text-[var(--text-muted)]">Email Address</span>
+              <span className="text-[var(--text-muted)]">{t("customer.text.92")}</span>
               <span className="font-bold">{ctx.user.email}</span>
             </div>
             <div className="elevated-card flex justify-between rounded-xl p-3">
-              <span className="text-[var(--text-muted)]">Workspace Role</span>
-              <span className="font-bold uppercase text-cyan-400">{ctx.memberRole}</span>
+              <span className="text-[var(--text-muted)]">{t("customer.text.93")}</span>
+              <span className="font-bold uppercase text-cyan-400">{displayStatus(ctx.memberRole)}</span>
             </div>
             <div className="elevated-card flex justify-between rounded-xl p-3">
-              <span className="text-[var(--text-muted)]">System Access Level</span>
+              <span className="text-[var(--text-muted)]">{t("customer.text.94")}</span>
               <span className="font-bold uppercase text-violet-400">
-                {ctx.user.systemRole}
+                {displayStatus(ctx.user.systemRole)}
               </span>
             </div>
           </div>
@@ -81,13 +85,13 @@ export default async function SettingsPage() {
               href="/app/billing"
               className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white"
             >
-              <KeyRound className="h-3.5 w-3.5" /> Configure BYOK OpenAI Vault
+              <KeyRound className="h-3.5 w-3.5" /> {t("customer.text.95")}
             </Link>
             <Link
               href="/app/workspaces"
               className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold"
             >
-              Export Workspace Data <ArrowRight className="h-3.5 w-3.5" />
+              {t("customer.text.96")}{" "} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
@@ -97,11 +101,11 @@ export default async function SettingsPage() {
           <div className="flex items-center gap-2">
             <Server className="h-5 w-5 text-cyan-400" />
             <h2 className="text-base font-extrabold">
-              Runtime Integration & Environment Readiness
+              {t("customer.text.97")}
             </h2>
           </div>
           <p className="text-xs text-[var(--text-secondary)]">
-            Services require real configuration. Social credentials are managed per workspace/account, not through shared server keys.
+            {t("customer.text.98")}
           </p>
 
           <div className="space-y-2.5">
@@ -125,7 +129,6 @@ export default async function SettingsPage() {
           </div>
         </div>
       </div>
-
 
     </div>
   );

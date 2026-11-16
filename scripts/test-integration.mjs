@@ -39,6 +39,13 @@ try {
   const anonymous = await fetch(origin + "/app", { redirect: "manual" });
   assert.ok([303, 307].includes(anonymous.status));
   assert.ok(anonymous.headers.get("location").endsWith("/login"), "Retired demo flags must not bypass authentication");
+  const anonymousOnboarding = await fetch(origin + "/onboarding", { redirect: "manual" });
+  assert.equal(anonymousOnboarding.status, 307);
+  assert.equal(anonymousOnboarding.headers.get("location"), "/login?next=/onboarding");
+  await request("/api/onboarding", null, { action: "complete", workspaceName: "Anonymous" }, 401);
+  const landing = await (await fetch(origin)).text();
+  assert.match(landing, /href="\/register"[^>]*>Create Your Free Account<\/a>/);
+  assert.match(landing, /href="\/login\?next=\/onboarding"[^>]*>Sign In to Continue Setup<\/a>/);
   await request("/api/auth", null, { action: "demo_login" }, 400);
   await request("/api/auth", null, { action: "recover_password", email: "recovery@example.test" }, 501);
   await request("/api/auth", null, { action: "register", email: "short@example.test", name: "Short password", password: "short" }, 400);
@@ -51,6 +58,53 @@ try {
   await request("/api/agent", cookie, { action: "update_config", mode: "autopilot" }, 501);
   await request("/api/onboarding", cookie, { action: "complete", planSlug: "agency" }, 501);
   assert.equal((await db.find(schema.workspaces, { id: user.workspaceId }))[0].aiCreditsBalance, 0);
+  const setupUser = await account();
+  const [initialBrand] = await db.find(schema.brands, { workspaceId: setupUser.workspaceId });
+  const [initialWorkspace] = await db.find(schema.workspaces, { id: setupUser.workspaceId });
+  const setupPage = await fetch(origin + "/onboarding", { headers: { Cookie: setupUser.cookie } });
+  assert.equal(setupPage.status, 200);
+  assert.ok((await setupPage.text()).replace(/<!--.*?-->/g, "").includes("Configure Your Workspace"));
+  await db.update(schema.workspaces, { id: setupUser.workspaceId }, { aiCreditsBalance: 17, postsPublishedThisMonth: 3 });
+  await db.update(schema.aiConfigurations, { workspaceId: setupUser.workspaceId }, { encryptedApiKey: "preserved-test-ciphertext", keyLast4: "test", preferredModel: "gpt-4o" });
+  const setupInput = { action: "complete", workspaceId: setupUser.workspaceId, workspaceName: "Configured Workspace", brandName: "Configured Brand", description: "Customer supplied brand details", platforms: ["linkedin"], aiBillingMode: "byok" };
+  await request("/api/onboarding", setupUser.cookie, { ...setupInput, workspaceId: user.workspaceId }, 409);
+  const completedSetups = await Promise.all([
+    request("/api/onboarding", setupUser.cookie, setupInput),
+    request("/api/onboarding", setupUser.cookie, setupInput),
+  ]);
+  assert.ok(completedSetups.every(result => result.data.workspaceId === setupUser.workspaceId));
+  assert.equal((await db.find(schema.workspaces, { ownerId: setupUser.userId })).length, 1, "Registration plus onboarding must create only one workspace");
+  const [configuredWorkspace] = await db.find(schema.workspaces, { id: setupUser.workspaceId });
+  assert.equal(configuredWorkspace.name, "Configured Workspace");
+  assert.equal(configuredWorkspace.slug, initialWorkspace.slug);
+  assert.equal(configuredWorkspace.aiCreditsBalance, 17);
+  assert.equal(configuredWorkspace.postsPublishedThisMonth, 3);
+  const configuredBrands = await db.find(schema.brands, { workspaceId: setupUser.workspaceId });
+  assert.equal(configuredBrands.length, 1);
+  assert.equal(configuredBrands[0].id, initialBrand.id);
+  assert.equal(configuredBrands[0].name, "Configured Brand");
+  const [configuredAi] = await db.find(schema.aiConfigurations, { workspaceId: setupUser.workspaceId });
+  assert.equal(configuredAi.encryptedApiKey, "preserved-test-ciphertext", "Leaving the key blank must preserve an existing provider configuration");
+  assert.equal(configuredAi.preferredModel, "gpt-4o");
+  assert.equal((await db.find(schema.agentConfigurations, { workspaceId: setupUser.workspaceId })).length, 1);
+  assert.equal((await db.find(schema.workspaceMembers, { workspaceId: setupUser.workspaceId })).length, 1);
+  assert.equal((await db.find(schema.notifications, { workspaceId: setupUser.workspaceId })).length, 1);
+  assert.equal((await db.find(schema.auditLogs, { workspaceId: setupUser.workspaceId, action: "onboarding.completed" })).length, 1, "Concurrent completion must have only one set of side effects");
+  await request("/api/onboarding", setupUser.cookie, { ...setupInput, brandName: "Do not overwrite completed setup" });
+  assert.equal((await db.find(schema.brands, { id: initialBrand.id }))[0].name, "Configured Brand");
+  const finishedSetup = await fetch(origin + "/onboarding", { headers: { Cookie: setupUser.cookie }, redirect: "manual" });
+  assert.equal(finishedSetup.status, 307);
+  assert.equal(finishedSetup.headers.get("location"), "/app");
+  const additionalSetup = await fetch(origin + "/onboarding?mode=create", { headers: { Cookie: setupUser.cookie } });
+  assert.equal(additionalSetup.status, 200);
+  const { data: additionalWorkspace } = await request("/api/onboarding", setupUser.cookie, {
+    ...setupInput, createWorkspace: true, workspaceName: "Additional Workspace", brandName: "Additional Brand",
+  });
+  workspaceIds.push(additionalWorkspace.workspaceId);
+  assert.notEqual(additionalWorkspace.workspaceId, setupUser.workspaceId);
+  assert.equal((await db.find(schema.workspaces, { ownerId: setupUser.userId })).length, 2, "Creating another workspace must be explicit");
+  assert.equal((await db.find(schema.workspaces, { id: setupUser.workspaceId }))[0].name, "Configured Workspace");
+  assert.equal((await db.find(schema.sessions, { userId: setupUser.userId }))[0].activeWorkspaceId, additionalWorkspace.workspaceId);
   const future = new Date(Date.now() + 86400000).toISOString();
   const input = { action: "create", title: "Integration approval post", topic: "Gardening", baseContent: "Three ways to grow herbs indoors.", platforms: ["linkedin"], status: "scheduled", scheduledAt: future, requiresApproval: true };
   await ((args)=>db.insert(schema.workspaceMembers,{workspaceId:args[0],invitedEmail:"pending@example.test",memberName:"Pending invite",role:"editor",status:"invited"}).then(rows=>({rows})))([user.workspaceId]);
@@ -74,6 +128,10 @@ try {
   assert.ok(teamStudio.includes("Team publishing permission")); assert.ok(teamStudio.includes("Request Approval"));
   await db.update(schema.workspaceMembers, { workspaceId: user.workspaceId, userId: other.userId }, { role: "editor" });
   await request("/api/auth", other.cookie, { action: "switch_workspace", workspaceId: user.workspaceId });
+  await request("/api/onboarding", other.cookie, { action: "complete", workspaceName: "Not the owner" }, 403);
+  const memberSetup = await fetch(origin + "/onboarding", { headers: { Cookie: other.cookie }, redirect: "manual" });
+  assert.equal(memberSetup.status, 307);
+  assert.equal(memberSetup.headers.get("location"), "/app");
   await request("/api/posts", other.cookie, { action: "update", postId: id, status: "approved" }, 403);
   await request("/api/posts", other.cookie, { ...input, requiresApproval: false }, 403);
   await request("/api/auth", other.cookie, { action: "switch_workspace", workspaceId: other.workspaceId });
@@ -116,7 +174,7 @@ try {
   assert.deepEqual((await ((args)=>db.find(schema.notificationDeliveries,{userId:args[0]},{sort:{channel:1}}).then(rows=>({rows})))([user.userId])).rows.map(row => row.channel), ["email", "push"]);
   assert.equal((await fetch(origin + "/api/worker", { method: "POST" })).status, 401);
   for (const route of ["/app/studio", "/app/posts", "/app/calendar", "/app/settings", "/app/social", "/app/agent", "/app/analytics", "/app/campaigns"]) assert.equal((await fetch(origin + route, { headers: { Cookie: cookie } })).status, 200, route);
-  console.log("Integration checks passed: approvals, roles, rescheduling, invalidation, worker concurrency, no false publication, uploads, tenant isolation, notification channels, worker authorization, and page rendering.");
+  console.log("Integration checks passed: account-gated onboarding, workspace reuse and explicit creation, concurrent completion, approvals, roles, rescheduling, invalidation, worker concurrency, no false publication, uploads, tenant isolation, notification channels, worker authorization, and page rendering.");
 } finally {
   if (workspaceIds.length) await ((args)=>db.remove(schema.auditLogs,{workspaceId:{$in:args[0]}}).then(rows=>({rows})))([workspaceIds]);
   if (accounts.length) await ((args)=>db.remove(schema.users,{email:{$in:args[0]}}).then(rows=>({rows})))([accounts]);

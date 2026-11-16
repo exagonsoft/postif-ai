@@ -54,7 +54,7 @@ export default function HomePage() {
             <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
               Your Social Media.{" "}
               <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                On Autopilot.
+                Planned. Created. Scheduled.
               </span>
             </h1>
           </FadeInUp>
@@ -70,19 +70,19 @@ export default function HomePage() {
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
               <HoverLiftCard>
                 <Link
-                  href="/onboarding"
+                  href="/register"
                   className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-7 py-4 text-sm font-bold text-white shadow-xl shadow-violet-600/30 sm:text-base"
                 >
-                  Start for Free
+                  Create a Free Account
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </HoverLiftCard>
               <HoverLiftCard>
                 <Link
-                  href="/app"
+                  href="/login"
                   className="surface-card inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-sm font-bold transition-colors hover:border-violet-500/50 sm:text-base"
                 >
-                  Explore the Platform
+                  Sign In
                 </Link>
               </HoverLiftCard>
             </div>
@@ -135,8 +135,8 @@ export default function HomePage() {
           {[
             {
               icon: Bot,
-              title: "Autonomous AI Marketing Agent",
-              desc: "Move from manual posting to Manual, Assisted, or rule-bounded Autopilot execution with weekly plans, approval inboxes, and auditable guardrails.",
+              title: "AI-Assisted Marketing Agent",
+              desc: "Generate plans on demand, review suggestions, and schedule approved content with auditable publishing guardrails.",
             },
             {
               icon: Wand2,
@@ -312,7 +312,7 @@ export default function HomePage() {
                   </ul>
                 </div>
                 <Link
-                  href="/onboarding"
+                  href="/register"
                   className={`mt-6 block rounded-xl py-2.5 text-center text-xs font-bold transition-all ${
                     plan.popular
                       ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
@@ -334,13 +334,13 @@ export default function HomePage() {
             <div className="mx-auto max-w-2xl">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1 text-xs font-bold">
                 <ShieldCheck className="h-4 w-4" />
-                No Credit Card Required to Explore
+                No Credit Card Required to Sign Up
               </div>
               <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Put Your Social Growth on Intelligent Autopilot
+                Build Your Brand with AI-Assisted Content
               </h2>
               <p className="mt-3 text-sm text-white/85 sm:text-base">
-                Create a workspace, configure your brand, and connect your own social accounts.
+                Create a free account, configure your workspace and brand, and connect your own social accounts.
                 AI suggestions require your configured provider and are always available for review.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -349,15 +349,15 @@ export default function HomePage() {
                     href="/register"
                     className="inline-block rounded-2xl bg-slate-950 px-7 py-3.5 text-sm font-bold text-white shadow-xl"
                   >
-                    Create Your Workspace
+                    Create Your Free Account
                   </Link>
                 </HoverLiftCard>
                 <HoverLiftCard>
                   <Link
-                    href="/onboarding"
+                    href="/login?next=/onboarding"
                     className="inline-block rounded-2xl bg-white/15 px-7 py-3.5 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/25"
                   >
-                    Start Brand Onboarding
+                    Sign In to Continue Setup
                   </Link>
                 </HoverLiftCard>
               </div>

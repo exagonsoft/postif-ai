@@ -14,6 +14,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const body = await req.json();
+        const createWorkspace = body.createWorkspace === true;
+        if (!createWorkspace && ctx.memberRole !== "owner") {
+            return NextResponse.json({ error: "Only the workspace owner can complete brand onboarding." }, { status: 403 });
+        }
+        if (body.workspaceId !== undefined && body.workspaceId !== ctx.workspace.id) {
+            return NextResponse.json({ error: "Your active workspace changed. Reload onboarding before continuing." }, { status: 409 });
+        }
         const action = body.action as string;
         if (action === "discover") {
             const brandName = String(body.brandName || "").trim();
@@ -56,34 +63,36 @@ export async function POST(req: Request) {
             if (!workspaceName || !brandName) return NextResponse.json({ error: "Workspace and brand names are required." }, { status: 400 });
             if (byokApiKey && !/^sk-\S+$/.test(byokApiKey)) return NextResponse.json({ error: "Enter a valid OpenAI API key or leave it empty." }, { status: 400 });
             const plan = getPlanDefinition(planSlug);
-            const cookieStore = await cookies();
-            const rawToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-            const slug = `${workspaceName
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-|-$/g, "")}-${crypto.randomUUID()}`;
-            const newWorkspace = await db.transaction(async tx => {
-            const [newWorkspace] = await tx.insert(workspaces, {
+            const rawToken = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+            const workspaceId = await db.transaction(async tx => {
+            let workspace;
+            if (createWorkspace) {
+                [workspace] = await tx.insert(workspaces, {
+                    name: workspaceName,
+                    slug: `${workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${crypto.randomUUID()}`,
+                    ownerId: ctx.user.id,
+                    planSlug: plan.slug,
+                    aiBillingMode,
+                });
+                await tx.insert(workspaceMembers, {
+                    workspaceId: workspace.id,
+                    userId: ctx.user.id,
+                    invitedEmail: ctx.user.email,
+                    memberName: ctx.user.name,
+                    role: "owner",
+                    status: "active",
+                });
+            } else {
+                [workspace] = await tx.find(workspaces, { id: ctx.workspace.id, ownerId: ctx.user.id }, { lock: true });
+                if (!workspace) return null;
+                const [completed] = await tx.find(auditLogs, { workspaceId: workspace.id, action: "onboarding.completed" }, { limit: 1 });
+                if (completed) return workspace.id;
+            }
+            await tx.update(workspaces, eq("id", workspace.id), {
                 name: workspaceName,
-                slug,
-                ownerId: ctx.user.id,
-                planSlug: plan.slug,
-                billingCycle: "monthly",
                 aiBillingMode,
-                aiCreditsBalance: 0,
-                aiCreditsMonthlyAllowance: 0,
-                postsPublishedThisMonth: 0,
             });
-            await tx.insert(workspaceMembers, {
-                workspaceId: newWorkspace.id,
-                userId: ctx.user.id,
-                invitedEmail: ctx.user.email,
-                memberName: ctx.user.name,
-                role: "owner",
-                status: "active",
-            });
-            const [newBrand] = await tx.insert(brands, {
-                workspaceId: newWorkspace.id,
+            const brandValues = {
                 name: brandName,
                 websiteUrl,
                 industry,
@@ -96,26 +105,35 @@ export async function POST(req: Request) {
                 contentPillars,
                 suggestedHashtags,
                 isActive: true,
-            });
-            await tx.insert(aiConfigurations, {
-                workspaceId: newWorkspace.id,
+            };
+            const [existingBrand] = await tx.find(brands, eq("workspaceId", workspace.id), { sort: { id: 1 }, limit: 1 });
+            const [brand] = existingBrand
+                ? await tx.update(brands, { id: existingBrand.id, workspaceId: workspace.id }, brandValues)
+                : await tx.insert(brands, { workspaceId: workspace.id, ...brandValues });
+            await tx.upsert(aiConfigurations, "workspaceId", {
+                workspaceId: workspace.id,
+            }, {
                 provider: "openai",
                 mode: aiBillingMode,
-                encryptedApiKey: aiBillingMode === "byok" && byokApiKey.startsWith("sk-") ? encryptSecret(byokApiKey) : null,
-                keyLast4: aiBillingMode === "byok" && byokApiKey.startsWith("sk-") ? byokApiKey.slice(-4) : null,
-                keyValidated: false,
-                preferredModel: "gpt-4o-mini",
+                ...(aiBillingMode === "byok" && byokApiKey ? {
+                    encryptedApiKey: encryptSecret(byokApiKey),
+                    keyLast4: byokApiKey.slice(-4),
+                    keyValidated: false,
+                } : {}),
+                updatedAt: new Date(),
             });
-            await tx.insert(agentConfigurations, {
-                workspaceId: newWorkspace.id,
-                brandId: newBrand.id,
+            await tx.upsert(agentConfigurations, "workspaceId", {
+                workspaceId: workspace.id,
+            }, {
+                brandId: brand.id,
                 mode: plan.autopilotEnabled ? "assisted" : "manual",
                 allowedPlatforms: selectedPlatforms,
                 objectives: marketingGoals,
                 currentStrategy: `Execute multi-platform growth across ${selectedPlatforms.join(", ")} aligned with ${brandName}'s core pillars.`,
+                updatedAt: new Date(),
             });
             await tx.insert(notifications, {
-                workspaceId: newWorkspace.id,
+                workspaceId: workspace.id,
                 userId: ctx.user.id,
                 type: "agent_action",
                 title: `Workspace '${workspaceName}' is ready`,
@@ -123,21 +141,24 @@ export async function POST(req: Request) {
                 actionHref: "/app/social",
             });
             await tx.insert(auditLogs, {
-                workspaceId: newWorkspace.id,
+                workspaceId: workspace.id,
                 actorEmail: ctx.user.email,
                 action: "onboarding.completed",
                 resourceType: "workspace",
-                resourceId: String(newWorkspace.id),
+                resourceId: String(workspace.id),
                 metadata: { planSlug: plan.slug, aiBillingMode },
             });
-            if (rawToken) {
-                await tx.update(sessions, eq("tokenHash", hashToken(rawToken)), { activeWorkspaceId: newWorkspace.id });
+            if (createWorkspace && rawToken) {
+                await tx.update(sessions, eq("tokenHash", hashToken(rawToken)), { activeWorkspaceId: workspace.id });
             }
-            return newWorkspace;
+            return workspace.id;
             });
+            if (workspaceId === null) {
+                return NextResponse.json({ error: "Workspace ownership changed. Reload before continuing." }, { status: 403 });
+            }
             return NextResponse.json({
                 ok: true,
-                workspaceId: newWorkspace.id,
+                workspaceId,
                 redirectTo: "/app",
             });
         }

@@ -260,7 +260,7 @@ export function AppShell({
                   </button>
                 ))}
                 <Link
-                  href="/onboarding"
+                  href="/onboarding?mode=create"
                   onClick={() => setWsOpen(false)}
                   className="mt-1 flex items-center gap-1.5 rounded-xl border-t border-[var(--border-subtle)] px-2.5 py-2 text-xs font-bold text-cyan-400 hover:bg-cyan-500/10"
                 >

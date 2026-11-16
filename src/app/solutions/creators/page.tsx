@@ -49,10 +49,10 @@ export default function CreatorsSolutionPage() {
 
         <div className="mt-10">
           <Link
-            href="/onboarding"
+            href="/register"
             className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3.5 text-sm font-bold text-white"
           >
-            Launch Creator Workspace <ArrowRight className="h-4 w-4" />
+            Create a Free Creator Account <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>

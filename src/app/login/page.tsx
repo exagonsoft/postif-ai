@@ -19,7 +19,8 @@ export default function LoginPage() {
       const response = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "login", email, password }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Check your credentials.");
-      router.push("/app");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next === "/onboarding" || next === "/onboarding?mode=create" ? next : "/app");
       router.refresh();
     } catch (error) {
       toast("Login failed", error instanceof Error ? error.message : "The request failed.", "error");

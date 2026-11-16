@@ -131,7 +131,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             </Link>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link
-                href="/app"
+                href="/register"
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition-all hover:opacity-95"
               >
                 <Sparkles className="h-4 w-4" />
@@ -222,11 +222,11 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                   Login
                 </Link>
                 <Link
-                  href="/app"
+                  href="/register"
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-center text-sm font-semibold text-white"
                 >
-                  Open Live Demo
+                  Create Free Account
                 </Link>
               </div>
             </motion.div>
@@ -307,8 +307,8 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/onboarding" className="hover:text-[var(--text-primary)]">
-                    AI Brand Discovery Wizard
+                  <Link href="/register" className="hover:text-[var(--text-primary)]">
+                    Sign Up for Brand Setup
                   </Link>
                 </li>
               </ul>

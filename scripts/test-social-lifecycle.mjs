@@ -626,9 +626,13 @@ for (const platform of ["x", "linkedin", "threads", "pinterest", "youtube", "tik
         if (platform === "pinterest") assert.equal(init.body.get("continuous_refresh"), "true");
         return reply({ access_token: "private-managed-access", refresh_token: "private-managed-refresh", expires_in: 7200, refresh_expires_in: 864000, open_id: "creator-id" });
       }
-      if (["api.instagram.com", "graph.threads.com"].includes(url.hostname) && url.pathname === "/oauth/access_token") return reply({ access_token: "private-short-token", user_id: "123",
-        permissions: platform === "instagram" ? "instagram_business_basic,instagram_business_content_publish" : "threads_basic,threads_content_publish" });
+      if (["api.instagram.com", "graph.threads.com"].includes(url.hostname) && url.pathname === "/oauth/access_token") return reply({ access_token: "private-short-token", user_id: "123" });
       if (url.pathname === "/access_token") return reply({ access_token: "private-long-token", expires_in: 5184000 });
+      if (url.pathname === "/v1.0/debug_token") {
+        assert.equal(url.searchParams.get("access_token"), "TH|managed-app|server-only-managed-secret");
+        assert.equal(url.searchParams.get("input_token"), "private-long-token");
+        return reply({ data: { type: "USER", is_valid: true, user_id: "123", expires_at: Math.floor(Date.now() / 1000) + 3600, scopes: ["threads_basic", "threads_content_publish"] } });
+      }
       if (url.pathname === "/2/users/me") return reply({ data: { id: "managed-x-id", name: "Managed X", username: "managed-x" } });
       if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Member" });
       if (url.hostname === "graph.instagram.com") return reply({ user_id: "123", username: "professional", account_type: "BUSINESS" });
@@ -669,8 +673,139 @@ for (const platform of ["x", "linkedin", "threads", "pinterest", "youtube", "tik
     assert.equal(stored.oauthMode, "managed");
     assert.equal(stored.clientSecret, undefined);
     assert.equal(stored.analyticsEnabled, false);
+    if (platform === "threads") {
+      assert.deepEqual(stored.grantedScopes, ["threads_basic", "threads_content_publish"]);
+      assert.equal(stored.tokenKind, "long_lived");
+      assert.ok(new Date(stored.expiresAt).getTime() > Date.now() + 50 * 86400000);
+    }
   });
 }
+test("Threads local tester OAuth confirms provider grants and rejects missing, unknown or invalid token data", async () => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+  process.env.SOCIAL_MANAGED_PROVIDERS = "threads";
+  process.env.THREADS_OAUTH_CLIENT_ID = "threads-app";
+  process.env.THREADS_OAUTH_CLIENT_SECRET = "threads-secret";
+  const context = { params: Promise.resolve({ platform: "threads" }) };
+  let token = { type: "USER", is_valid: true, user_id: "123", expires_at: Math.floor(Date.now() / 1000) + 3600, scopes: ["threads_basic", "threads_content_publish"] };
+  transport = async (url, init) => {
+    if (url.pathname === "/oauth/access_token") {
+      assert.equal(init.body.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/threads/callback`);
+      assert.equal(init.body.get("client_id"), "threads-app");
+      return reply({ access_token: "private-short-token", user_id: "123" });
+    }
+    if (url.pathname === "/access_token") return reply({ access_token: "private-long-token", expires_in: 5184000 });
+    if (url.pathname === "/v1.0/debug_token") return reply({ data: token });
+    if (url.pathname === "/v1.0/me") return reply({ id: "123", username: "threads-user" });
+    throw new Error("Unmocked Threads request");
+  };
+  async function authorize() {
+    const started = await start(new Request(`${process.env.APP_URL}/api/social/oauth/threads/start`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "managed" }),
+    }), context);
+    assert.equal(started.status, 200);
+    const auth = new URL((await started.json()).url);
+    assert.equal(auth.origin, "https://threads.com");
+    assert.equal(auth.searchParams.get("scope"), "threads_basic,threads_content_publish");
+    const response = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/threads/callback?state=${auth.searchParams.get("state")}&code=provider-code`), context);
+    const repeated = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/threads/callback?state=${auth.searchParams.get("state")}&code=provider-code`), context);
+    assert.equal(new URL(repeated.headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+    return new URL(response.headers.get("location")).searchParams;
+  }
+  try {
+    const ticket = (await authorize()).get("social_selection");
+    assert.ok(ticket);
+    const discovery = await listManaged(new Request(`${process.env.APP_URL}/api/social/oauth/threads/select?ticket=${ticket}`), context);
+    const result = await discovery.json();
+    assert.deepEqual(result.destinations[0].permissions, ["threads_basic", "threads_content_publish"]);
+    token = { ...token, scopes: ["threads_basic"] };
+    assert.equal((await (await chooseManaged(context, { ticket, destinationId: "123" })).json()).code, "PERMISSION_MISSING");
+    for (const [change, expected] of [
+      [{ scopes: ["threads_basic"] }, "PERMISSION_MISSING"],
+      [{ scopes: undefined }, "PROVIDER_UNAVAILABLE"],
+      [{ is_valid: false }, "TOKEN_EXPIRED"],
+      [{ user_id: "456" }, "TOKEN_EXPIRED"],
+      [{ expires_at: 1 }, "TOKEN_EXPIRED"],
+      [{ data_access_expires_at: 1 }, "TOKEN_EXPIRED"],
+    ]) {
+      token = { type: "USER", is_valid: true, user_id: "123", expires_at: Math.floor(Date.now() / 1000) + 3600, scopes: ["threads_basic", "threads_content_publish"], ...change };
+      assert.equal((await authorize()).get("social_error"), expected);
+    }
+    assert.equal(list(socialCredentials).length, 1, "No invalid token may be persisted");
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous;
+  }
+});
+
+test("Threads development diagnostics identify the failed stage without exposing provider secrets", async () => {
+  const previous = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.warn = (...args) => logs.push(args.join(" "));
+  process.env.NODE_ENV = "development";
+  process.env.SOCIAL_MANAGED_PROVIDERS = "threads";
+  process.env.THREADS_OAUTH_CLIENT_ID = "threads-app";
+  process.env.THREADS_OAUTH_CLIENT_SECRET = "threads-private-secret";
+  const context = { params: Promise.resolve({ platform: "threads" }) };
+  transport = async () => Response.json({ code: 100, error_message: "Invalid client secret: threads-private-secret private-code private-token" }, { status: 400 });
+  try {
+    const started = await start(new Request(`${process.env.APP_URL}/api/social/oauth/threads/start`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    }), context);
+    const state = new URL((await started.json()).url).searchParams.get("state");
+    const result = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/threads/callback?state=${state}&code=private-code`), context);
+    assert.equal(new URL(result.headers.get("location")).searchParams.get("social_error"), "AUTHORIZATION_FAILED");
+    const output = logs.join("\n");
+    assert.match(output, /"stage":"code_exchange","status":"provider_rejected","httpStatus":400,"providerCode":100/);
+    assert.match(output, /"hint":"client_secret"/);
+    assert.match(output, /"stage":"callback_discovery","outcome":"rejected"/);
+    assert.doesNotMatch(output, /threads-private-secret|private-code|private-token|m_[A-Za-z0-9_-]+/);
+    logs.length = 0;
+    process.env.NODE_ENV = "production";
+    await assert.rejects(() => providerJson("https://graph.threads.com/v1.0/debug_token", {}, Date.now() + 5000, undefined, undefined, "token_debug"));
+    assert.equal(logs.length, 0);
+  } finally {
+    console.warn = originalWarn;
+    if (previous === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous;
+  }
+});
+
+test("Threads publishing checks quota before creating or publishing containers", async () => {
+  const credentials = { accessToken: "private-threads-token", accountId: "123" };
+  const post = { workspaceId: 1, title: "Test", baseContent: "caption", variants: {} };
+  let used = 0;
+  let writes = 0;
+  let state;
+  transport = async (url, init) => {
+    if (url.pathname.endsWith("/threads_publishing_limit")) return reply({ data: [{ quota_usage: used, config: { quota_total: 250, quota_duration: 86400 } }] });
+    if (url.pathname.endsWith("/threads")) { writes++; return reply({ id: "threads-container" }); }
+    if (url.pathname.endsWith("/threads-container")) return reply({ status: "FINISHED" });
+    if (url.pathname.endsWith("/threads_publish")) { writes++; return reply({ id: "threads-post" }); }
+    throw new Error(`Unexpected Threads request ${init.method}`);
+  };
+  const checkpoint = async value => { state = structuredClone(value); };
+  for (const [type, mime] of [["text", null], ["image", "image/png"], ["video", "video/mp4"]]) {
+    const assets = mime ? [{ id: 11, workspaceId: 1, assetType: type, mimeType: mime, storageKey: "stored", generationStatus: "ready" }] : [];
+    assert.equal((await publishToCustomerAccount("threads", credentials, post, assets, checkpoint)).status, "processing");
+    assert.equal((await publishToCustomerAccount("threads", credentials, post, assets, checkpoint, state)).status, "completed");
+  }
+  used = 250;
+  const before = writes;
+  await assert.rejects(() => publishToCustomerAccount("threads", credentials, post, [], checkpoint), /quota is exhausted/);
+  assert.equal(writes, before);
+  state = { stage: "container", id: "threads-container", createdAt: Date.now() };
+  await assert.rejects(() => publishToCustomerAccount("threads", credentials, post, [], checkpoint, state), /quota is exhausted/);
+  assert.equal(writes, before, "A full quota must not publish the saved container");
+  assert.equal(state.stage, "container");
+  for (const response of [Response.json({ data: [] }), Response.json({ error: "unavailable" }, { status: 503 })]) {
+    transport = async url => {
+      assert.ok(url.pathname.endsWith("/threads_publishing_limit"));
+      return response;
+    };
+    await assert.rejects(() => publishToCustomerAccount("threads", credentials, post, [], checkpoint));
+    assert.equal(writes, before, "Unknown quota must not cause a provider write");
+  }
+});
 async function unifiedInstagram(options = {}) {
   process.env.SOCIAL_MANAGED_PROVIDERS = "instagram";
   process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "instagram";
@@ -915,6 +1050,13 @@ test("managed configuration is optional until enabled and validates the selected
   assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), /numeric Meta configuration ID/);
   assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), "not_configured");
   assert.equal(status({ ...facebook, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "x", X_OAUTH_CLIENT_ID: "id", X_OAUTH_CLIENT_SECRET: "secret" }, "x"), "approval_required");
+  const threads = { SOCIAL_MANAGED_PROVIDERS: "threads", THREADS_OAUTH_CLIENT_ID: "threads-app", THREADS_OAUTH_CLIENT_SECRET: "threads-secret", APP_URL: process.env.APP_URL };
+  assert.equal(status({ ...threads, NODE_ENV: "development" }, "threads"), "testing");
+  assert.equal(status({ ...threads, NODE_ENV: "production" }, "threads"), "approval_required");
+  assert.equal(status({ ...threads, NODE_ENV: "test" }, "threads"), "approval_required");
+  assert.equal(status({ ...threads, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "threads" }, "threads"), "available");
+  assert.equal(status({ ...threads, NODE_ENV: "development", THREADS_OAUTH_CLIENT_SECRET: "" }, "threads"), "not_configured");
+  assert.equal(status({ ...threads, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "" }, "threads"), "not_configured");
 });
 test("managed analytics opt-out performs no provider calls and does not prevent token renewal", async () => {
   rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({ ...secret, analyticsEnabled: false }));

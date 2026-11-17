@@ -77,6 +77,7 @@ globalThis.fetch = async (input, options = {}) => {
   if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/instagram-container")) return reply({ status_code: "FINISHED" });
   if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/media_publish")) return reply({ id: "confirmed-instagram-post" });
   if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/me")) return reply({ id: "threads-user", username: "verified-threads" });
+  if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads_publishing_limit")) return reply({ data: [{ quota_usage: 0, config: { quota_total: 250, quota_duration: 86400 } }] });
   if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads")) return reply({ id: "threads-container" });
   if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads-container")) return reply({ status: "FINISHED" });
   if (url.hostname === "graph.threads.com" && url.pathname.endsWith("/threads_publish")) return reply({ id: "confirmed-threads-post" });

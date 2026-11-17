@@ -248,7 +248,7 @@ an app review, or actual authorization.
 | TikTok | Login Kit + creator-info query; `user.info.basic video.publish`, optional reviewed `user.info.stats`. Real creator privacy options; explicit AI declaration. Unreviewed managed posting is restricted to `SELF_ONLY`. | **REQUIRES PROVIDER APPROVAL** for required products/scopes; public Direct Post is **BLOCKED** until the app audit and complete product-compliance review. Connection-level choices alone do not certify TikTok's per-post privacy, preview/edit, commercial/music consent and interaction UX requirements. The existing publishing adapter is preserved, not certified as passing that audit. Rotating refresh token and `open_id` are validated. |
 | Pinterest | Discover owned boards, excluding other users' collaborator boards. `boards:read pins:write user_accounts:read`; optional analytics adds `pins:read`. Each board is a distinct destination and channel. | **REQUIRES PROVIDER APPROVAL** / appropriate production API access. Business-account eligibility and actual board access remain provider-enforced. Continuous refresh explicitly requested; preserve returned rotated token and expiry. `/oauth/token/revoke` in the current official schema is **system-user only**, so do not use it for these user grants. |
 | YouTube | Discover authorized channels, not a pasted ID; `youtube.upload youtube.readonly`, S256 PKCE and offline consent. Explicit made-for-kids and visibility selection. | **REQUIRES PROVIDER APPROVAL** where Google OAuth verification/upload audit applies. Default managed visibility is private-only. Non-private posting requires the operator's attestation of the necessary audit. Google can still restrict actual visibility; existing processing/visibility checks remain. |
-| Threads | Verified `/me` account; `threads_basic threads_content_publish`, optional reviewed `threads_manage_insights`. Current official hosts are `threads.com` and `graph.threads.com`. | **REQUIRES PROVIDER APPROVAL** for required external-account access. Real long-lived exchange/expiry and documented unexpired-token refresh; no generic refresh-token grant. |
+| Threads | `/debug_token` verifies the actual user, validity and granted scopes, then `/me` verifies the same account; `threads_basic threads_content_publish`, optional reviewed `threads_manage_insights`. Current official hosts are `threads.com` and `graph.threads.com`. | **REQUIRES PROVIDER APPROVAL** for required external-account access. Development tester access does not assert approval. Real long-lived exchange/expiry and documented unexpired-token refresh; no generic refresh-token grant. |
 
 Threads insights and LinkedIn analytics are requested only after both operator
 approval configuration and user opt-in. Instagram Unified Login requests the
@@ -274,6 +274,8 @@ still apply even when scopes are granted.
   [migration](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/migration),
   and [content publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing).
 - [Threads access tokens and permissions](https://developers.facebook.com/documentation/threads/get-started/get-access-tokens-and-permissions).
+- [Threads token debugging](https://developers.facebook.com/documentation/threads/troubleshooting/debug-access-token)
+  and [publishing quota](https://developers.facebook.com/documentation/threads/troubleshooting#retrieve-quota-limits).
 - [LinkedIn organization ACLs](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/organizations/organization-access-control-by-role)
   and [native-only PKCE flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow-native).
   Native PKCE endpoints are not substituted for the confidential web flow.
@@ -318,6 +320,16 @@ Enabling any managed provider requires its complete client pair and public HTTPS
 Approval flags are operator attestations, not a provider review API and not proof
 that a provider will authorize those scopes. Secrets never use `NEXT_PUBLIC_`.
 No customer access/refresh token belongs in environment configuration.
+
+For local Threads testing, include `threads` in `SOCIAL_MANAGED_PROVIDERS` in
+development and use the Threads-specific app ID and secret. The Threads profile must accept the
+tester invitation. This is not App Review approval and must not be added to
+`SOCIAL_OAUTH_APPROVED_PROVIDERS` unless genuinely approved. The local callback
+is `${APP_URL}/api/social/oauth/threads/callback`. Threads deauthorization and
+automated deletion callbacks are not implemented; do not register invented URLs.
+Threads publication checks the provider's rolling quota before container creation
+and again before publication. An exhausted or unverifiable quota stops the write;
+concurrent requests can still race, and Threads remains authoritative.
 
 For local Instagram testing, register the exact public HTTPS callback under the
 Unified Login configuration, set the Meta app ID, secret and configuration ID

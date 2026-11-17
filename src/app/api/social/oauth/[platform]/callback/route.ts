@@ -18,6 +18,7 @@ import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import { managedSocialConfiguration } from "@/lib/social-managed-config";
 import { facebookDiagnosticsEnabled, reportFacebookEntry, reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
 import { reportInstagramRejection } from "@/lib/instagram-oauth-diagnostics";
+import { reportThreadsRejection } from "@/lib/threads-oauth-diagnostics";
 
 const diagnosticInstance = randomBytes(16).toString("hex");
 export async function GET(req: Request, context: { params: Promise<{ platform: string }> }) {
@@ -82,6 +83,7 @@ async function completeAuthorization(req: Request, context: { params: Promise<{ 
   } catch (error) {
     if (platform === "facebook") reportFacebookRejection(stage, managedSocialErrorCode(error));
     if (platform === "instagram") reportInstagramRejection(stage, managedSocialErrorCode(error, platform));
+    if (platform === "threads") reportThreadsRejection(stage, managedSocialErrorCode(error, platform));
     if (managed && Object.hasOwn(SOCIAL_PLATFORM_SPECS, platform)) {
       let callback: string;
       try { callback = oauthCallbackUrl(platform); } catch (configurationError) {

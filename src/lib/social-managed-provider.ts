@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { managedSocialAvailability, managedSocialConfiguration } from "./social-managed-config";
 import { customerCredentials, SocialProviderError, verifyCustomerConnection, type CustomerCredentials } from "./social-provider";
-import { exchangeFacebookUserToken, exchangeInstagramUnifiedToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, metaVersion, providerJson } from "./social-oauth-provider";
+import { exchangeFacebookUserToken, exchangeInstagramUnifiedToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectThreadsToken, metaVersion, providerJson } from "./social-oauth-provider";
 import type { SocialPlatform } from "./social-adapters";
 import type { ManagedSocialDestination } from "./social-managed-types";
 import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookAuthorization, reportFacebookGrantCheck, reportFacebookPageDiscovery, reportFacebookPageRestrictions, reportFacebookPageTasks, reportFacebookPermissions } from "./facebook-oauth-diagnostics";
 import { instagramDiagnosticRequest } from "./instagram-oauth-diagnostics";
+import { threadsDiagnosticRequest } from "./threads-oauth-diagnostics";
 
 export class ManagedSocialOAuthError extends SocialProviderError {
   constructor(public code: string, status = 400) { super(code, status); }
@@ -165,7 +166,9 @@ export async function instagramAssignedAccounts(credentials: CustomerCredentials
 async function discoverOtherDestinations(platform: Exclude<SocialPlatform, "facebook">, settings: Omit<CustomerCredentials, "accessToken">,
   grant: { code: string; verifier: string }, organizations: boolean, deadline: number): Promise<AuthorizedSocialDestination[]> {
   const credentials = await exchangeSocialToken(platform, { ...settings, accessToken: "pending-authorization" }, grant, deadline);
-  const permissions = credentials.grantedScopes || managedScopes(platform, !!settings.analyticsEnabled, organizations);
+  const permissions = platform === "threads"
+    ? (await inspectThreadsToken(credentials, deadline)).scopes
+    : credentials.grantedScopes || managedScopes(platform, !!settings.analyticsEnabled, organizations);
   if (managedScopes(platform, !!settings.analyticsEnabled, organizations).some(scope => !permissions.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
   const withIdentity = (id: string, name: string, handle: string, accountType: string, extra: Partial<CustomerCredentials> = {}): AuthorizedSocialDestination => ({
     id, name, handle, accountType, permissions,
@@ -252,6 +255,8 @@ async function discoverOtherDestinations(platform: Exclude<SocialPlatform, "face
     if (!["BUSINESS", "MEDIA_CREATOR", "CREATOR"].includes(result.account_type)) throw new ManagedSocialOAuthError("ACCOUNT_UNSUPPORTED", 422);
     return [withIdentity(result.user_id, result.username, `@${result.username}`, "professional", { accountId: result.user_id })];
   }
-  const verified = await verifyCustomerConnection(platform, credentials);
+  const verified = platform === "threads"
+    ? await threadsDiagnosticRequest("account_discovery", () => verifyCustomerConnection(platform, credentials))
+    : await verifyCustomerConnection(platform, credentials);
   return [withIdentity(verified.credentials.accountId!, verified.name, verified.handle, platform === "linkedin" ? "member" : "account", { accountId: verified.credentials.accountId })];
 }

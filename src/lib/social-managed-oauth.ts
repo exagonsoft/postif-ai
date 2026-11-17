@@ -11,7 +11,7 @@ import { managedSocialConfiguration } from "./social-managed-config";
 import { instagramAssignedAccounts, managedCredentials, managedScopes, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
 import type { ManagedSocialSelection } from "./social-managed-types";
 import { WorkflowError } from "./post-policy";
-import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectInstagramUnifiedToken } from "./social-oauth-provider";
+import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectInstagramUnifiedToken, inspectThreadsToken } from "./social-oauth-provider";
 import { reportFacebookGrantCheck } from "./facebook-oauth-diagnostics";
 
 const ticketFormat = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -102,6 +102,11 @@ export async function selectManagedDestination(input: z.infer<typeof managedSele
   const current = managedCredentials(platform, payload.analyticsEnabled, payload.organizations);
   if (destination.credentials.oauthMode !== "managed" || current.clientId !== destination.credentials.clientId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
   const credentials = { ...destination.credentials };
+  if (platform === "threads") {
+    const token = await inspectThreadsToken(credentials, Date.now() + 20000);
+    if (managedScopes("threads", payload.analyticsEnabled, false).some(scope => !token.scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+    credentials.grantedScopes = token.scopes;
+  }
   if (platform === "instagram") {
     if (credentials.instagramLogin !== "unified" || credentials.instagramConfigId !== current.instagramConfigId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
     const deadline = Date.now() + 20000;

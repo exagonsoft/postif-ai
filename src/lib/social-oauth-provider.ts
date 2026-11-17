@@ -6,6 +6,7 @@ import { workerFetch as fetch } from "./worker-network";
 import { managedSocialConfiguration } from "./social-managed-config";
 import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookLongTokenShape, reportFacebookPermissions, reportFacebookProviderError, reportFacebookTokenType } from "./facebook-oauth-diagnostics";
 import { instagramDiagnosticRequest, reportInstagramProviderError, reportInstagramToken, type InstagramDiagnosticStage } from "./instagram-oauth-diagnostics";
+import { threadsDiagnosticRequest, reportThreadsProviderError, type ThreadsDiagnosticStage, type ThreadsErrorHint } from "./threads-oauth-diagnostics";
 
 const configs = {
   x: { authorize: "https://x.com/i/oauth2/authorize", token: "https://api.x.com/2/oauth2/token", scope: "tweet.read tweet.write users.read media.write offline.access" },
@@ -72,6 +73,28 @@ export function resolveSocialOAuthClient(platform: SocialPlatform, credentials: 
   if (!client.clientId?.trim() || !client.clientSecret?.trim()) throw new SocialProviderError("Managed provider application is not configured.", 503);
   if (credentials.clientId !== client.clientId.trim()) throw new SocialProviderError("Managed provider application changed. Reconnect this account.", 422);
   return { ...credentials, clientId: client.clientId.trim(), clientSecret: client.clientSecret };
+}
+export async function inspectThreadsToken(input: CustomerCredentials, deadline: number) {
+  const credentials = resolveSocialOAuthClient("threads", input);
+  if (!credentials.clientId || !credentials.clientSecret) throw new SocialProviderError("Threads app credentials are required to verify permissions.", 422);
+  const url = new URL("https://graph.threads.com/v1.0/debug_token");
+  url.search = new URLSearchParams({ access_token: `TH|${credentials.clientId}|${credentials.clientSecret}`, input_token: credentials.accessToken }).toString();
+  return threadsDiagnosticRequest("token_debug", async () => {
+    const parsed = z.object({ data: z.object({
+      type: z.string(), is_valid: z.boolean(), user_id: metaId,
+      expires_at: z.number().int().nonnegative().max(253402300799),
+      data_access_expires_at: z.number().int().nonnegative().max(253402300799).optional(),
+      scopes: z.array(z.string().min(1).max(200)).max(100),
+    }) }).safeParse(await providerJson(url.toString(), { method: "GET" }, deadline, undefined, undefined, "token_debug"));
+    if (!parsed.success) throw new SocialProviderError("Threads did not confirm token identity or permissions. Reauthorize or try again later.", 502);
+    const token = parsed.data.data;
+    if (!token.is_valid || token.type !== "USER" || !token.expires_at || token.expires_at * 1000 <= Date.now() ||
+      token.data_access_expires_at !== undefined && token.data_access_expires_at * 1000 <= Date.now() ||
+      input.accountId && token.user_id !== input.accountId) {
+      throw new SocialProviderError("Threads did not confirm a valid token for the selected account. Reauthorize.", 401);
+    }
+    return token;
+  });
 }
 export async function inspectFacebookToken(input: CustomerCredentials, token: string, deadline: number, diagnosticStage?: string) {
   const credentials = resolveSocialOAuthClient("facebook", input);
@@ -166,16 +189,19 @@ async function exchangeMetaCode(platform: "facebook" | "instagram" | "threads", 
   const shortSchema = z.object({ access_token: z.string().min(10).max(10000), user_id: metaId,
     permissions: z.union([z.string().max(20000), z.array(z.string().max(200)).max(100)]).optional() });
   const body = platform === "instagram" ? (() => { const form = new FormData(); fields.forEach((value, key) => form.set(key, value)); return form; })() : fields;
-  const result = await providerJson(oauthConfig(platform).token, { method: "POST", body, ...(platform === "threads" ? { headers: { "Content-Type": "application/x-www-form-urlencoded" } } : {}) }, deadline);
-  const short = z.union([shortSchema, z.object({ data: z.array(shortSchema).length(1) }).transform(value => value.data[0])]).parse(result);
+  const exchangeShort = async () => z.union([shortSchema, z.object({ data: z.array(shortSchema).length(1) }).transform(value => value.data[0])])
+    .parse(await providerJson(oauthConfig(platform).token, { method: "POST", body, ...(platform === "threads" ? { headers: { "Content-Type": "application/x-www-form-urlencoded" } } : {}) }, deadline, undefined, undefined, platform === "threads" && credentials.oauthMode === "managed" ? "code_exchange" : undefined));
+  const short = platform === "threads" && credentials.oauthMode === "managed" ? await threadsDiagnosticRequest("code_exchange", exchangeShort) : await exchangeShort();
   const grantedScopes = typeof short.permissions === "string" ? short.permissions.split(/[,\s]+/).filter(Boolean) : short.permissions;
   if (platform === "instagram" && credentials.oauthMode === "managed" && !grantedScopes) throw new SocialProviderError("Instagram did not confirm the granted permissions. Authorize the required permissions again.", 403);
   if (platform === "threads" && credentials.accountId && short.user_id !== credentials.accountId) throw new SocialProviderError("The authorized Threads account does not match your intended account.", 422);
   const longUrl = new URL(platform === "instagram" ? "https://graph.instagram.com/access_token" : "https://graph.threads.com/access_token");
   longUrl.search = new URLSearchParams({ grant_type: platform === "instagram" ? "ig_exchange_token" : "th_exchange_token", client_secret: credentials.clientSecret!, access_token: short.access_token }).toString();
-  const long = metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline));
+  const exchangeLong = async () => metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline, undefined, undefined, platform === "threads" && credentials.oauthMode === "managed" ? "long_token_exchange" : undefined));
+  const long = platform === "threads" && credentials.oauthMode === "managed" ? await threadsDiagnosticRequest("long_token_exchange", exchangeLong) : await exchangeLong();
   if (long.token_type && long.token_type.toLowerCase() !== "bearer") throw new SocialProviderError("Provider returned an unsupported token type.", 502);
-  return customerCredentials.parse({ ...credentials, ...(credentials.oauthMode === "managed" && grantedScopes ? { grantedScopes } : {}),
+  return customerCredentials.parse({ ...credentials, ...(platform === "threads" ? { accountId: short.user_id } : {}),
+    ...(credentials.oauthMode === "managed" && grantedScopes && platform !== "threads" ? { grantedScopes } : {}),
     accessToken: long.access_token, tokenKind: "long_lived", expiresAt: new Date(Date.now() + long.expires_in * 1000).toISOString(), refreshToken: undefined, refreshExpiresAt: undefined });
 }
 const tokenResponse = z.object({
@@ -223,9 +249,10 @@ async function exchangeWithClient(platform: SocialPlatform, credentials: Custome
       ? { refreshExpiresAt: new Date(Date.now() + refreshSeconds * 1000).toISOString() }
       : data.refresh_token_expires_at !== undefined ? { refreshExpiresAt: new Date(data.refresh_token_expires_at * 1000).toISOString() } : {}) });
 }
-async function reportMetaError(response: Response, stage: string, report: (stage: string, httpStatus: number, code: number | null, subcode: number | null) => void) {
+async function reportMetaError(response: Response, stage: string, report: (stage: string, httpStatus: number, code: number | null, subcode: number | null, hint?: ThreadsErrorHint) => void, threads = false) {
   let code: number | null = null;
   let subcode: number | null = null;
+  let hint: ThreadsErrorHint | undefined;
   try {
     const reader = response.body?.getReader();
     if (reader) {
@@ -241,16 +268,21 @@ async function reportMetaError(response: Response, stage: string, report: (stage
       else {
         const body = JSON.parse(new TextDecoder().decode(Buffer.concat(chunks)));
         const numericCode = z.number().int().nonnegative().max(2147483647);
-        code = numericCode.safeParse(body?.error?.code).data ?? null;
+        code = numericCode.safeParse(body?.error?.code).data ?? (threads ? numericCode.safeParse(body?.code).data : undefined) ?? null;
         subcode = numericCode.safeParse(body?.error?.error_subcode).data ?? null;
+        if (threads) {
+          const message = typeof body?.error_message === "string" ? body.error_message : typeof body?.error?.message === "string" ? body.error.message : "";
+          hint = /client[\s_-]*secret/i.test(message) ? "client_secret" : /client[\s_-]*id/i.test(message) ? "client_id" :
+            /redirect[\s_-]*(?:uri|url)/i.test(message) ? "redirect_uri" : /(?:verification|authorization|matching)\s+code/i.test(message) ? "authorization_code" : "other";
+        }
       }
     }
   } catch {
     // Error details are optional; the HTTP status is still reported.
   }
-  report(stage, response.status, code, subcode);
+  report(stage, response.status, code, subcode, hint);
 }
-export async function providerResponse(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string, instagramDiagnosticStage?: InstagramDiagnosticStage): Promise<Response> {
+export async function providerResponse(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string, instagramDiagnosticStage?: InstagramDiagnosticStage, threadsDiagnosticStage?: ThreadsDiagnosticStage): Promise<Response> {
   if (deadline <= Date.now()) throw new SocialProviderError("Provider operation deadline reached.", 503);
   let response: Response;
   try { response = await fetch(url, { ...init, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(Math.max(1, Math.min(15000, deadline - Date.now()))) }); }
@@ -258,12 +290,13 @@ export async function providerResponse(url: string, init: RequestInit, deadline 
   if (!response.ok) {
     if (facebookDiagnosticStage && facebookDiagnosticsEnabled()) await reportMetaError(response, facebookDiagnosticStage, reportFacebookProviderError);
     if (instagramDiagnosticStage && process.env.NODE_ENV === "development") await reportMetaError(response, instagramDiagnosticStage, reportInstagramProviderError);
+    if (threadsDiagnosticStage && process.env.NODE_ENV === "development") await reportMetaError(response, threadsDiagnosticStage, reportThreadsProviderError, true);
     throw new SocialProviderError(response.status === 401 || response.status === 403 ? "Provider denied authorization. Reauthorize or review approved permissions." : `Provider request failed (HTTP ${response.status}).`, response.status);
   }
   return response;
 }
-export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string, instagramDiagnosticStage?: InstagramDiagnosticStage): Promise<unknown> {
-  const response = await providerResponse(url, init, deadline, facebookDiagnosticStage, instagramDiagnosticStage);
+export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string, instagramDiagnosticStage?: InstagramDiagnosticStage, threadsDiagnosticStage?: ThreadsDiagnosticStage): Promise<unknown> {
+  const response = await providerResponse(url, init, deadline, facebookDiagnosticStage, instagramDiagnosticStage, threadsDiagnosticStage);
   try {
     // Some Meta token endpoints encode 17-digit account IDs as JSON numbers.
     // Preserve unsafe integer lexemes instead of silently rounding a tenant identity.

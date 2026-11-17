@@ -196,6 +196,12 @@ async function mediaBytes(asset: MediaAssetsDocument) {
 const processing = (state: ProviderState): ProviderResult => ({ status: "processing", state });
 const completed = (id: string): ProviderResult => ({ status: "completed", id });
 const instagramBase = (credentials: CustomerCredentials) => `https://${credentials.instagramLogin === "unified" ? "graph.facebook.com" : "graph.instagram.com"}/${graphVersion(credentials)}`;
+async function assertThreadsPublishingQuota(credentials: CustomerCredentials) {
+  const quota = await json(`https://graph.threads.com/v1.0/${target(credentials)}/threads_publishing_limit?fields=quota_usage,config`,
+    credentials, z.object({ data: z.array(z.object({ quota_usage: z.number().int().nonnegative(),
+      config: z.object({ quota_total: z.number().int().positive(), quota_duration: z.number().int().positive() }) })).length(1) }));
+  if (quota.data[0].quota_usage >= quota.data[0].config.quota_total) throw new SocialProviderError("Threads publishing quota is exhausted. Wait for the rolling quota to reset before retrying.", 429);
+}
 
 async function instagramCarousel(credentials: CustomerCredentials, text: string, media: MediaAssetsDocument[], checkpoint: Checkpoint, state: ProviderState): Promise<ProviderResult> {
   if (state.pending) throw new SocialProviderError("A previous Instagram container request may have completed. Check the platform before retrying.", 409, true);
@@ -320,6 +326,7 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
       }
     }
     if (asset?.assetType === "gif") throw new SocialProviderError("Convert the GIF to MP4 before publishing to Instagram or Threads.");
+    if (platform === "threads") await assertThreadsPublishingQuota(credentials);
     const base = platform === "instagram" ? instagramBase(credentials) : "https://graph.threads.com/v1.0";
     const content = asset ? { [asset.assetType === "video" ? "video_url" : "image_url"]: publishingMediaUrl(asset.id, platform === "instagram" && asset.assetType === "image" ? "jpeg" : "original") } : {};
     const result = await json(`${base}/${target(credentials)}/${platform === "instagram" ? "media" : "threads"}`, credentials, idResponse, platform === "instagram" ? { ...content, caption: text, ...(asset.assetType === "video" ? { media_type: "REELS" } : {}) } : { ...content, text, media_type: asset ? asset.assetType === "video" ? "VIDEO" : "IMAGE" : "TEXT" });
@@ -381,6 +388,7 @@ async function resume(platform: SocialPlatform, credentials: CustomerCredentials
     if (status === "ERROR" || status === "EXPIRED") throw new SocialProviderError("The platform rejected or expired the media container.");
     if (status === "PUBLISHED") throw new SocialProviderError("The container is already published. Check the platform for its final post reference.", 409, true);
     if (status !== "FINISHED") return processing(state);
+    if (platform === "threads") await assertThreadsPublishingQuota(credentials);
     await checkpoint({ stage: "sending", id: state.id, createdAt: state.createdAt });
     const published = await json(`${base}/${target(credentials)}/${platform === "instagram" ? "media_publish" : "threads_publish"}`, credentials, idResponse, { creation_id: state.id });
     return completed(published.id);

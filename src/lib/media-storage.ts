@@ -4,7 +4,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, CopyObjectCommand, ListObjectVersionsCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
-import { getMediaStorageConfig, type MediaStorageConfig } from "./media-storage-config";
+import { getMediaStorageConfig, getS3Credentials, type MediaStorageConfig } from "./media-storage-config";
 import { getWorkerDeadline } from "./worker-network";
 import { deadlineSignal } from "./worker-budget";
 
@@ -35,7 +35,7 @@ export class MediaStorageError extends Error {
 }
 export async function checkMediaStorageCredentials(config: MediaStorageConfig) {
   if (config.provider !== "s3") return;
-  const client = new S3Client({ region: config.region });
+  const client = new S3Client({ region: config.region, credentials: getS3Credentials() });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
@@ -100,13 +100,13 @@ function storageSignal(timeout: number) {
 }
 function s3Client(region: string) {
   let client = clients.get(region);
-  if (!client) { client = new S3Client({ region, maxAttempts: 1 }); clients.set(region, client); }
+  if (!client) { client = new S3Client({ region, maxAttempts: 1, credentials: getS3Credentials() }); clients.set(region, client); }
   return client;
 }
 function s3Storage(config: Extract<MediaStorageConfig, { provider: "s3" }>): MediaStorageProvider {
   let client = clients.get(config.region);
   if (!client) {
-    client = new S3Client({ region: config.region });
+    client = new S3Client({ region: config.region, credentials: getS3Credentials() });
     clients.set(config.region, client);
   }
   const s3 = client;

@@ -12,11 +12,15 @@ MONGODB_DB=
 # Required: public HTTPS origin, also used for SEO canonical URLs, sitemap and social images.
 # Set the canonical production domain on deployment; loopback HTTP is for local testing only.
 APP_URL=
-# Production on Amplify: SDK default credential chain uses the SSR Compute role.
+# S3 uses the SDK credential provider (for example an SSR Compute role) unless
+# the following application-specific credentials are set together.
 MEDIA_STORAGE_PROVIDER=s3
 S3_MEDIA_REGION=sa-east-1
 S3_MEDIA_BUCKET=
 S3_MEDIA_PREFIX=media/
+# POSTIF_S3_ACCESS_KEY_ID=
+# POSTIF_S3_SECRET_ACCESS_KEY=
+# POSTIF_S3_SESSION_TOKEN=
 # Local development: select local and optionally set an absolute directory.
 # Not required for S3; never use Amplify's ephemeral disk for permanent storage.
 # MEDIA_STORAGE_DIR=
@@ -63,6 +67,8 @@ FACEBOOK_OAUTH_CLIENT_SECRET=
 FACEBOOK_OAUTH_CONFIG_ID=
 INSTAGRAM_OAUTH_CLIENT_ID=
 INSTAGRAM_OAUTH_CLIENT_SECRET=
+# Required for managed Instagram Unified Login (Meta app credentials, not Instagram Login credentials).
+INSTAGRAM_OAUTH_CONFIG_ID=
 LINKEDIN_OAUTH_CLIENT_ID=
 LINKEDIN_OAUTH_CLIENT_SECRET=
 # Required YYYYMM when managed LinkedIn is enabled; use an actually supported version.

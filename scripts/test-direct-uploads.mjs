@@ -10,7 +10,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 Object.assign(process.env, {
   MEDIA_STORAGE_PROVIDER: "s3", S3_MEDIA_REGION: "sa-east-1",
   S3_MEDIA_BUCKET: "postif-isolated-media-test", S3_MEDIA_PREFIX: "media/",
-  AWS_ACCESS_KEY_ID: "isolated-test-key", AWS_SECRET_ACCESS_KEY: "isolated-test-secret",
+  POSTIF_S3_ACCESS_KEY_ID: "isolated-test-key", POSTIF_S3_SECRET_ACCESS_KEY: "isolated-test-secret",
   AWS_EC2_METADATA_DISABLED: "true",
 });
 globalThis.fetch = async () => { throw new Error("Live network is forbidden in direct-upload tests"); };
@@ -173,6 +173,7 @@ test("POST policy pins private workspace key, MIME, exact bounded size and five-
   assert.deepEqual(policy.conditions.find(item => item[0] === "content-length-range"), ["content-length-range", png.length, png.length]);
   assert.ok(policy.conditions.some(item => item[0] === "eq" && item[1] === "$Content-Type" && item[2] === "image/png"));
   assert.equal(created.post.fields.key, row.quarantineKey);
+  assert.match(created.post.fields["X-Amz-Credential"], /^isolated-test-key\//);
   assert.match(row.quarantineKey, /^media\/workspaces\/1\/quarantine\/[a-f0-9-]+\.png$/);
   assert.notEqual(row.storageKey, row.quarantineKey);
   assert.equal(created.post.fields.acl, undefined);

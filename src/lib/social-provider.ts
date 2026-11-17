@@ -24,11 +24,17 @@ export const customerCredentials = z.object({
   analyticsEnabled: z.boolean().optional(),
   oauthMode: z.enum(["managed", "advanced"]).optional(),
   grantedScopes: z.array(z.string().min(1).max(200)).max(100).optional(),
+  instagramLogin: z.literal("unified").optional(),
+  instagramConfigId: z.string().regex(/^\d{1,32}$/).optional(),
+  instagramBusinessId: identifier.optional(),
 }).strict();
 export type CustomerCredentials = z.infer<typeof customerCredentials>;
 export const providerState = z.object({
-  stage: z.enum(["sending", "container", "x-media", "linkedin-video", "tiktok-upload", "youtube-upload", "youtube-processing"]),
+  stage: z.enum(["sending", "container", "instagram-carousel", "x-media", "linkedin-video", "tiktok-upload", "youtube-upload", "youtube-processing"]),
   id: z.string().optional(),
+  children: z.array(z.string().min(1)).max(10).optional(),
+  mediaIds: z.array(z.number().int().positive()).max(10).optional(),
+  pending: z.boolean().optional(),
   uploadUrl: z.string().url().optional(),
   size: z.number().int().positive().optional(),
   createdAt: z.number(),
@@ -132,6 +138,11 @@ export async function verifyCustomerConnection(platform: SocialPlatform, input: 
       break;
     }
     case "instagram": {
+      if (credentials.instagramLogin === "unified") {
+        const account = await json(`https://graph.facebook.com/${graphVersion(credentials)}/${target(credentials)}?fields=id,username`, credentials, z.object({ id: z.string(), username: z.string() }));
+        identity = { id: account.id, name: account.username, handle: `@${account.username}` };
+        break;
+      }
       const identityResponse = z.object({ user_id: z.union([z.string(), z.number().int().safe()]).transform(String), username: z.string() });
       const me = await json(`https://graph.instagram.com/${graphVersion(credentials)}/me?fields=user_id,username`, credentials, z.union([identityResponse, z.object({ data: z.array(identityResponse).length(1) }).transform(result => result.data[0])]));
       identity = { id: me.user_id, name: me.username, handle: `@${me.username}` };
@@ -184,6 +195,38 @@ async function mediaBytes(asset: MediaAssetsDocument) {
 }
 const processing = (state: ProviderState): ProviderResult => ({ status: "processing", state });
 const completed = (id: string): ProviderResult => ({ status: "completed", id });
+const instagramBase = (credentials: CustomerCredentials) => `https://${credentials.instagramLogin === "unified" ? "graph.facebook.com" : "graph.instagram.com"}/${graphVersion(credentials)}`;
+
+async function instagramCarousel(credentials: CustomerCredentials, text: string, media: MediaAssetsDocument[], checkpoint: Checkpoint, state: ProviderState): Promise<ProviderResult> {
+  if (state.pending) throw new SocialProviderError("A previous Instagram container request may have completed. Check the platform before retrying.", 409, true);
+  if (!state.children || !state.mediaIds || JSON.stringify(media.map(item => item.id)) !== JSON.stringify(state.mediaIds) || state.children.length > media.length) {
+    throw new SocialProviderError("Instagram carousel attachments changed during publishing. Check the platform before retrying.", 409, true);
+  }
+  const base = instagramBase(credentials);
+  let current = state;
+  for (let index = state.children.length; index < media.length; index++) {
+    const item = media[index];
+    await checkpoint({ ...current, pending: true });
+    const content = item.assetType === "video"
+      ? { video_url: publishingMediaUrl(item.id), media_type: "VIDEO" }
+      : { image_url: publishingMediaUrl(item.id, "jpeg") };
+    const created = await json(`${base}/${target(credentials)}/media`, credentials, idResponse, { ...content, is_carousel_item: true });
+    current = { ...current, children: [...current.children!, created.id], pending: false };
+    await checkpoint(current);
+  }
+  for (const id of current.children!) {
+    const result = await json(`${base}/${encodeURIComponent(id)}?fields=status_code`, credentials, z.object({ status_code: z.string() }));
+    if (["ERROR", "EXPIRED"].includes(result.status_code)) throw new SocialProviderError("Instagram rejected or expired a carousel media container.");
+    if (result.status_code === "PUBLISHED") throw new SocialProviderError("An Instagram carousel item is already published. Check the platform before retrying.", 409, true);
+    if (result.status_code !== "FINISHED") return processing(current);
+  }
+  await checkpoint({ ...current, pending: true });
+  const container = await json(`${base}/${target(credentials)}/media`, credentials, idResponse,
+    { media_type: "CAROUSEL", children: current.children!.join(","), caption: text });
+  const next: ProviderState = { stage: "container", id: container.id, createdAt: current.createdAt };
+  await checkpoint(next);
+  return processing(next);
+}
 
 async function sendX(text: string, mediaIds: string[], credentials: CustomerCredentials, checkpoint: Checkpoint) {
   await checkpoint({ stage: "sending", createdAt: Date.now() });
@@ -207,10 +250,10 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
     if (platform === "linkedin" && credentials.accountId?.startsWith("urn:li:organization:") && !config.linkedinOrganizations) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
   }
   const text = textFor(post, platform);
-  if (savedState) return resume(platform, credentials, post, text, checkpoint, savedState);
   if (media.some(asset => asset.workspaceId !== post.workspaceId)) throw new SocialProviderError("Media does not belong to this workspace.", 403);
+  if (savedState) return resume(platform, credentials, post, text, media, checkpoint, savedState);
   const asset = media[0];
-  if (platform !== "x" && media.length > 1) throw new SocialProviderError("This adapter currently accepts one attachment per post. Create separate posts for additional media.");
+  if (platform !== "x" && !(platform === "instagram" && credentials.instagramLogin === "unified") && media.length > 1) throw new SocialProviderError("This adapter currently accepts one attachment per post. Create separate posts for additional media.");
   if (platform === "x") {
     if (media.length > 4 || (media.length > 1 && media.some(asset => asset.assetType !== "image"))) throw new SocialProviderError("X supports up to four images or one video/GIF.");
     const ids: string[] = [];
@@ -266,8 +309,18 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
   }
   if (platform === "instagram" || platform === "threads") {
     if (platform === "instagram" && !asset) throw new SocialProviderError("Instagram requires an image or video.");
+    if (platform === "instagram" && credentials.instagramLogin === "unified") {
+      if (media.length > 10 || media.some(item => item.generationStatus !== "ready" || !item.storageKey || !item.mimeType || !["image", "video"].includes(item.assetType) || item.assetType === "video" && item.mimeType !== "video/mp4")) {
+        throw new SocialProviderError("Instagram requires ready images or MP4 videos; GIFs must be converted to MP4.");
+      }
+      if (media.length > 1) {
+        const state: ProviderState = { stage: "instagram-carousel", children: [], mediaIds: media.map(item => item.id), pending: false, createdAt: Date.now() };
+        await checkpoint(state);
+        return instagramCarousel(credentials, text, media, checkpoint, state);
+      }
+    }
     if (asset?.assetType === "gif") throw new SocialProviderError("Convert the GIF to MP4 before publishing to Instagram or Threads.");
-    const base = platform === "instagram" ? `https://graph.instagram.com/${graphVersion(credentials)}` : "https://graph.threads.com/v1.0";
+    const base = platform === "instagram" ? instagramBase(credentials) : "https://graph.threads.com/v1.0";
     const content = asset ? { [asset.assetType === "video" ? "video_url" : "image_url"]: publishingMediaUrl(asset.id, platform === "instagram" && asset.assetType === "image" ? "jpeg" : "original") } : {};
     const result = await json(`${base}/${target(credentials)}/${platform === "instagram" ? "media" : "threads"}`, credentials, idResponse, platform === "instagram" ? { ...content, caption: text, ...(asset.assetType === "video" ? { media_type: "REELS" } : {}) } : { ...content, text, media_type: asset ? asset.assetType === "video" ? "VIDEO" : "IMAGE" : "TEXT" });
     const state: ProviderState = { stage: "container", id: result.id, createdAt: Date.now() };
@@ -306,9 +359,10 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
   return processing(state);
 }
 
-async function resume(platform: SocialPlatform, credentials: CustomerCredentials, post: PostsDocument, text: string, checkpoint: Checkpoint, state: ProviderState): Promise<ProviderResult> {
+async function resume(platform: SocialPlatform, credentials: CustomerCredentials, post: PostsDocument, text: string, media: MediaAssetsDocument[], checkpoint: Checkpoint, state: ProviderState): Promise<ProviderResult> {
   if (state.stage === "sending") throw new SocialProviderError("A previous publishing request may have been accepted. Check the platform before creating a new post.", 409, true);
   if (Date.now() - state.createdAt > 24 * 3600000) throw new SocialProviderError("Provider processing exceeded 24 hours. Verify the account before retrying.", 409, true);
+  if (platform === "instagram" && credentials.instagramLogin === "unified" && state.stage === "instagram-carousel") return instagramCarousel(credentials, text, media, checkpoint, state);
   if (platform === "x" && state.stage === "x-media" && state.id) {
     const result = await json(`https://api.x.com/2/media/upload?command=STATUS&media_id=${encodeURIComponent(state.id)}`, credentials, z.object({ data: z.object({ processing_info: z.object({ state: z.string() }).optional() }) }));
     if (result.data.processing_info?.state === "failed") throw new SocialProviderError("X rejected the uploaded media.");
@@ -321,7 +375,7 @@ async function resume(platform: SocialPlatform, credentials: CustomerCredentials
     return result.status === "AVAILABLE" ? sendLinkedIn(post, text, credentials, checkpoint, state.id) : processing(state);
   }
   if ((platform === "instagram" || platform === "threads") && state.stage === "container" && state.id) {
-    const base = platform === "instagram" ? `https://graph.instagram.com/${graphVersion(credentials)}` : "https://graph.threads.com/v1.0";
+    const base = platform === "instagram" ? instagramBase(credentials) : "https://graph.threads.com/v1.0";
     const result = await json(`${base}/${encodeURIComponent(state.id)}?fields=${platform === "instagram" ? "status_code" : "status"}`, credentials, z.object({ status_code: z.string().optional(), status: z.string().optional() }));
     const status = result.status_code || result.status;
     if (status === "ERROR" || status === "EXPIRED") throw new SocialProviderError("The platform rejected or expired the media container.");

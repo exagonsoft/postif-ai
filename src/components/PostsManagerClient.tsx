@@ -9,6 +9,7 @@ import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
 import { ScheduleFields } from "./ScheduleFields";
 import { MediaDraftRunner } from "./MediaDraftRunner";
 import { AutomaticMediaSettings, AutomaticMedia } from "./AutomaticMediaSettings";
+import { ImmediatePublishingProgress, type ImmediatePublishingJob } from "./ImmediatePublishingProgress";
 import {
   CheckCircle2,
   Send,
@@ -61,6 +62,7 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [immediateJobs, setImmediateJobs] = useState<ImmediatePublishingJob[]>([]);
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
   const [mediaSettings, setMediaSettings] = useState<Record<number, AutomaticMedia>>({});
@@ -92,6 +94,7 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
         return;
       }
       const immediate = extra?.status === "published" && data.publishing;
+      if (immediate) setImmediateJobs(current => [...current, ...data.publishing.filter((job: ImmediatePublishingJob) => ["queued", "processing"].includes(job.status))]);
       const issue = immediate && data.publishing.find((job: { status: string }) => ["failed", "blocked", "uncertain"].includes(job.status));
       toast(t("customer.text.566"), data.post?.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.567") : t("customer.text.568")) : immediate ? (issue ? `${t("customer.publish.problem")} ${issue.errorMessage || ""}` : data.post?.status === "published" ? t("customer.publish.confirmed") : t("customer.publish.pending")) : data.post?.status === "scheduled" ? t("customer.text.569") : t("customer.text.570"), issue ? "error" : undefined);
       router.refresh();
@@ -104,6 +107,7 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
 
   return (
     <div className="space-y-6">
+      {immediateJobs.map(job => <ImmediatePublishingProgress key={job.id} job={job} />)}
       {/* Filter & Search Toolbar */}
       <div className="surface-card flex flex-wrap items-center justify-between gap-4 rounded-3xl p-4">
         <div className="flex flex-wrap gap-1.5">

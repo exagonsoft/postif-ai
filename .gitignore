@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-/docs/*
+/docs
 !/docs/AMPLIFY_ENV_CONFIGURATION.md
 !/docs/SOCIAL_MANAGED_OAUTH_MIGRATION.md
 !/docs/LEGAL_COMPLIANCE_REVIEW.md

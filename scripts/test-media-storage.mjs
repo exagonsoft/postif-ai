@@ -7,11 +7,19 @@ import path from "node:path";
 process.env.MEDIA_STORAGE_UNIT_TEST = "true";
 const { objects, calls, failS3 } = await import("./fixtures/mock-s3.mjs");
 const { storeMedia, readMedia, deleteMedia, mediaDownloadUrl, checkMediaStorageCredentials, MAX_MEDIA_BYTES } = await import("../src/lib/media-storage.ts");
-const { getMediaStorageConfig } = await import("../src/lib/media-storage-config.ts");
+const { getMediaStorageConfig, getS3Credentials } = await import("../src/lib/media-storage-config.ts");
 const { validateRuntimeConfig } = await import("../src/lib/runtime-config.ts");
 const png = Buffer.from("89504e470d0a1a0a0000000000000000", "hex");
 const directory = await mkdtemp(path.join(tmpdir(), "postif-storage-unit-"));
 let stored;
+test("S3 custom credential names are paired, support session tokens, and preserve the SDK default chain", () => {
+  assert.equal(getS3Credentials({}), undefined);
+  assert.deepEqual(getS3Credentials({ POSTIF_S3_ACCESS_KEY_ID: "test-key", POSTIF_S3_SECRET_ACCESS_KEY: "test-secret", POSTIF_S3_SESSION_TOKEN: "test-session" }),
+    { accessKeyId: "test-key", secretAccessKey: "test-secret", sessionToken: "test-session" });
+  for (const env of [{ POSTIF_S3_ACCESS_KEY_ID: "test-key" }, { POSTIF_S3_SECRET_ACCESS_KEY: "test-secret" }, { POSTIF_S3_SESSION_TOKEN: "test-session" }]) {
+    assert.throws(() => getS3Credentials(env), /Configure both POSTIF_S3/);
+  }
+});
 test("S3 credential readiness resolves without contacting the bucket", async () => {
   const before = calls.length;
   await checkMediaStorageCredentials(getMediaStorageConfig());

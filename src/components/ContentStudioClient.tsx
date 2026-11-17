@@ -14,6 +14,7 @@ import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
 import { nextScheduleSlot } from "@/lib/schedule-slots";
 import { ScheduleFields } from "./ScheduleFields";
 import { AutomaticMediaSettings, AutomaticMedia } from "./AutomaticMediaSettings";
+import { ImmediatePublishingProgress, type ImmediatePublishingJob } from "./ImmediatePublishingProgress";
 import {
   Wand2,
   Sparkles,
@@ -120,6 +121,7 @@ export function ContentStudioClient({
   const [generating, setGenerating] = useState(false);
   const [transforming, setTransforming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [immediateJobs, setImmediateJobs] = useState<ImmediatePublishingJob[]>([]);
   const [lastExecutionBadge, setLastExecutionBadge] = useState<string>("");
   const [requestAi] = useState(createIdempotentFetcher);
 
@@ -361,6 +363,7 @@ export function ContentStudioClient({
         published: t("customer.status.published"),
       };
       const immediate = status === "published" && data.publishing;
+      if (immediate) setImmediateJobs(current => [...current, ...data.publishing.filter((job: ImmediatePublishingJob) => ["queued", "processing"].includes(job.status))]);
       const issue = immediate && data.publishing.find((job: { status: string }) => ["failed", "blocked", "uncertain"].includes(job.status));
       toast(statusLabels[data.post.status as typeof status] || t("customer.text.394"), data.post.status === "waiting_media" ? t("customer.text.395") : data.post.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.396") : t("customer.text.397")) : immediate ? (issue ? `${t("customer.publish.problem")} ${issue.errorMessage || ""}` : data.post.status === "published" ? t("customer.publish.confirmed") : t("customer.publish.pending")) : data.post.status === "scheduled" ? t("customer.text.569") : t("customer.text.570"), issue ? "error" : undefined);
       router.refresh();
@@ -385,6 +388,7 @@ export function ContentStudioClient({
 
   return (
     <div className="grid gap-6 xl:grid-cols-12">
+      {immediateJobs.length > 0 && <div className="space-y-2 xl:col-span-12">{immediateJobs.map(job => <ImmediatePublishingProgress key={job.id} job={job} />)}</div>}
       {/* Left Configuration & Generation Controls */}
       <div className="surface-card space-y-5 rounded-3xl p-6 xl:col-span-5">
         <div className="flex items-center justify-between">

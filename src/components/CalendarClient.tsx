@@ -367,7 +367,7 @@ export function CalendarClient({
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                  {t("customer.text.322")}{" "} {formatDate(new Date(job.scheduledFor))} {t("customer.text.323")}{" "}
+                  {job.deliveryMode === "immediate" ? t("customer.publish.immediateStarted") : t("customer.text.322")}{" "} {formatDate(new Date(job.scheduledFor))} {t("customer.text.323")}{" "}
                   {formatNumber(job.attempts)}/{formatNumber(job.maxAttempts)}
                 </div>
                 {job.errorMessage && (

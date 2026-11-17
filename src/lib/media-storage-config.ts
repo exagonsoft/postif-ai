@@ -2,9 +2,20 @@ import path from "node:path";
 
 export type MediaStorageConfig = { provider: "local"; directory: string } | { provider: "s3"; region: string; bucket: string; prefix: string };
 
+export function getS3Credentials(env: NodeJS.ProcessEnv = process.env) {
+  const accessKeyId = env.POSTIF_S3_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.POSTIF_S3_SECRET_ACCESS_KEY?.trim();
+  const sessionToken = env.POSTIF_S3_SESSION_TOKEN?.trim();
+  if (!accessKeyId && !secretAccessKey && !sessionToken) return undefined;
+  if (!accessKeyId || !secretAccessKey) throw new Error("Configure both POSTIF_S3_ACCESS_KEY_ID and POSTIF_S3_SECRET_ACCESS_KEY, or omit all POSTIF S3 credentials to use the SDK credential provider.");
+  if ([accessKeyId, secretAccessKey, sessionToken].some(value => value && /\s/.test(value))) throw new Error("POSTIF S3 credentials must not contain whitespace.");
+  return { accessKeyId, secretAccessKey, ...(sessionToken ? { sessionToken } : {}) };
+}
+
 export function getMediaStorageConfig(env: NodeJS.ProcessEnv = process.env): MediaStorageConfig {
   const provider = env.MEDIA_STORAGE_PROVIDER || "local";
   if (provider === "s3") {
+    getS3Credentials(env);
     const region = env.S3_MEDIA_REGION || "";
     const bucket = env.S3_MEDIA_BUCKET || "";
     const prefix = env.S3_MEDIA_PREFIX || "";

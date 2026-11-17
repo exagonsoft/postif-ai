@@ -17,6 +17,7 @@ const env = {
   ENCRYPTION_SECRET: "test-encryption-$MONGODB_DB-${UNSET}-configuration",
   WORKER_SECRET: "test-worker-configuration-that-is-not-production",
   MEDIA_STORAGE_PROVIDER: "s3", S3_MEDIA_REGION: "sa-east-1", S3_MEDIA_BUCKET: "example-media-test", S3_MEDIA_PREFIX: "media/",
+  POSTIF_S3_ACCESS_KEY_ID: "isolated-s3-key", POSTIF_S3_SECRET_ACCESS_KEY: "isolated-s3-secret",
   MAIL_FROM: '"Example Support" <support@example.test>',
   SMTP_URL: "smtps://mailer:quoted'password@example.test:465",
   BILLING_ENABLED: "false",
@@ -49,6 +50,8 @@ const serialized = serializeAmplifyEnvironment({ ...env, FFMPEG_PATH: "", RUNWAY
 const parsed = parse(serialized);
 assert.equal(parsed.MAIL_FROM, env.MAIL_FROM);
 assert.equal(parsed.SMTP_URL, env.SMTP_URL);
+assert.equal(parsed.POSTIF_S3_ACCESS_KEY_ID, env.POSTIF_S3_ACCESS_KEY_ID);
+assert.equal(parsed.POSTIF_S3_SECRET_ACCESS_KEY, env.POSTIF_S3_SECRET_ACCESS_KEY);
 assert.equal(parsed.FFMPEG_PATH, undefined);
 assert.equal(parsed.RUNWAY_API_KEY, undefined);
 assert.equal(new Set(Object.keys(parsed)).size, serialized.trim().split("\n").length);
@@ -56,6 +59,7 @@ assert.doesNotMatch(serialized, /must-not-copy/);
 assert.equal(parsed.NODE_ENV, undefined);
 assert.throws(() => serializeAmplifyEnvironment({ ...env, MONGODB_URI: "" }), /MONGODB_URI/);
 assert.throws(() => serializeAmplifyEnvironment({ ...env, S3_MEDIA_BUCKET: "" }), /S3_MEDIA_BUCKET/);
+assert.throws(() => serializeAmplifyEnvironment({ ...env, POSTIF_S3_SECRET_ACCESS_KEY: "" }), /POSTIF_S3_SECRET_ACCESS_KEY/);
 assert.throws(() => serializeAmplifyEnvironment({ ...env, MEDIA_STORAGE_PROVIDER: "local" }), /must use S3/);
 assert.throws(() => serializeAmplifyEnvironment({ ...env, APP_URL: "http://localhost:3000" }), /HTTPS on Amplify/);
 assert.throws(() => serializeAmplifyEnvironment({ ...env, WORKER_SECRET: "too-short" }), /32 characters/);

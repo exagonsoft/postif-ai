@@ -14,6 +14,7 @@ import { managedSocialErrorCode, readManagedSelection } from "@/lib/social-manag
 import type { ManagedSocialSelection } from "@/lib/social-managed-types";
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import { reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
+import { reportInstagramRejection } from "@/lib/instagram-oauth-diagnostics";
 export const dynamic = "force-dynamic";
 export default async function SocialAccountsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t } = await getServerI18n();
@@ -26,7 +27,7 @@ export default async function SocialAccountsPage({ searchParams }: { searchParam
     const query = await searchParams;
     const canManage = ["owner", "admin"].includes(ctx.memberRole);
     let managedSelection: ManagedSocialSelection | null = null;
-    const safeErrors = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "FACEBOOK_PAGE_ACCESS_MISSING", "FACEBOOK_PUBLISH_ACCESS_MISSING", "FACEBOOK_TOKEN_INVALID", "FACEBOOK_USER_TOKEN_REQUIRED", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "BRAND_LIMIT", "REQUEST_BLOCKED", "REQUEST_FORMAT", "REQUEST_CROSS_SITE", "REQUEST_ORIGIN", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
+    const safeErrors = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "FACEBOOK_PAGE_ACCESS_MISSING", "FACEBOOK_PUBLISH_ACCESS_MISSING", "FACEBOOK_TOKEN_INVALID", "FACEBOOK_USER_TOKEN_REQUIRED", "INSTAGRAM_TOKEN_INVALID", "INSTAGRAM_ASSET_MISSING", "INSTAGRAM_PROVIDER_REJECTED", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "BRAND_LIMIT", "REQUEST_BLOCKED", "REQUEST_FORMAT", "REQUEST_CROSS_SITE", "REQUEST_ORIGIN", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
     let managedError = typeof query.social_error === "string" ? (safeErrors.includes(query.social_error) ? query.social_error : "AUTHORIZATION_FAILED") : null;
     if (canManage && query.social_selection !== undefined) {
       if (typeof query.social_provider === "string" && Object.hasOwn(SOCIAL_PLATFORM_SPECS, query.social_provider) &&
@@ -36,6 +37,7 @@ export default async function SocialAccountsPage({ searchParams }: { searchParam
         } catch (error) {
           managedError = managedSocialErrorCode(error);
           if (query.social_provider === "facebook") reportFacebookRejection("selection_page", managedError);
+          if (query.social_provider === "instagram") reportInstagramRejection("selection_page", managedError);
         }
       } else managedError = "INVALID_REQUEST";
     } else if (canManage && !managedError && query.social_provider !== undefined) managedError = "INVALID_REQUEST";

@@ -41,7 +41,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     if (!process.env.AWS_APP_ID || !process.env.AWS_BRANCH) throw new Error("This command is only for an Amplify build environment.");
     await writeAmplifyEnvironment(process.env);
-    console.log("Prepared audited SSR configuration. Values were not logged; AWS credentials were not copied.");
+    console.log("Prepared audited SSR configuration. Values were not logged; AWS platform credentials were not copied.");
     console.log("Security: the deployment artifact contains server secrets. Restrict build/artifact access and retention.");
   } catch (error) {
     console.error(error instanceof Error ? error.message : "SSR environment preparation failed.");

@@ -74,7 +74,7 @@ export async function POST(req: Request) {
                 }
                 [post] = await db.find(posts, { id: post.id, workspaceId: ctx.workspace.id });
                 const jobs = await db.find(publishingJobs, { postId: post.id, workspaceId: ctx.workspace.id, deliveryMode: "immediate", status: { $ne: "cancelled" } });
-                return NextResponse.json({ ok: true, post, publishing: jobs.map(({ platform, status, errorMessage }) => ({ platform, status, errorMessage })) });
+                return NextResponse.json({ ok: true, post, publishing: jobs.map(({ id, platform, status, errorMessage }) => ({ id, platform, status, errorMessage })) });
             }
             return NextResponse.json({ ok: true, post });
         }

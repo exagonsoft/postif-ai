@@ -192,7 +192,7 @@ test("stable text request keys settle once, replay saved results, and reject cha
 
 test("media preflight rejects missing S3 credentials before generation", async () => {
   const { rows } = fakeDatabase();
-  const names = ["MEDIA_STORAGE_PROVIDER", "S3_MEDIA_REGION", "S3_MEDIA_BUCKET", "S3_MEDIA_PREFIX", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_EC2_METADATA_DISABLED", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_WEB_IDENTITY_TOKEN_FILE"];
+  const names = ["MEDIA_STORAGE_PROVIDER", "S3_MEDIA_REGION", "S3_MEDIA_BUCKET", "S3_MEDIA_PREFIX", "POSTIF_S3_ACCESS_KEY_ID", "POSTIF_S3_SECRET_ACCESS_KEY", "POSTIF_S3_SESSION_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_EC2_METADATA_DISABLED", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_WEB_IDENTITY_TOKEN_FILE"];
   const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
   for (const name of names) delete process.env[name];
   Object.assign(process.env, {

@@ -122,10 +122,16 @@ export async function readExtendedSocialAnalytics(platform: SocialPlatform, cred
     return { metrics: ensureMetrics(metrics), coverage: `Facebook Page lifetime followers/Page likes plus engagement on Page-authored published posts within at most 100 returned feed items; excludes Reels, hidden counters and visitor posts. Reactions are not likes; missing share counters are unavailable, not zero. Requires the exact Page token and pages_read_engagement/pages_read_user_content.${warnings.length ? " Feed engagement unavailable: review approved read permissions." : ""}` };
   }
   if (platform === "instagram") {
-    const root = `https://graph.instagram.com/${metaVersion(credentials)}`;
-    const profileSchema = z.object({ user_id: providerId, followers_count: count.optional(), media_count: count.optional() });
-    const profile = z.union([profileSchema, z.object({ data: z.array(profileSchema).length(1) }).transform(value => value.data[0])]).parse(await providerJson(`${root}/me?fields=user_id,followers_count,media_count`, { headers }, deadline));
-    if (profile.user_id !== accountId) throw new SocialProviderError("Instagram analytics identity mismatch.", 422);
+    const unified = credentials.instagramLogin === "unified";
+    const root = `https://${unified ? "graph.facebook.com" : "graph.instagram.com"}/${metaVersion(credentials)}`;
+    const profile = unified
+      ? z.object({ id: providerId, followers_count: count.optional(), media_count: count.optional() }).parse(await providerJson(`${root}/${target}?fields=id,followers_count,media_count`, { headers }, deadline))
+      : await (async () => {
+        const schema = z.object({ user_id: providerId, followers_count: count.optional(), media_count: count.optional() });
+        const value = z.union([schema, z.object({ data: z.array(schema).length(1) }).transform(result => result.data[0])]).parse(await providerJson(`${root}/me?fields=user_id,followers_count,media_count`, { headers }, deadline));
+        return { ...value, id: value.user_id };
+      })();
+    if (profile.id !== accountId) throw new SocialProviderError("Instagram analytics identity mismatch.", 422);
     const metrics: Record<string, number> = {};
     if (profile.followers_count !== undefined) metrics.followers = profile.followers_count;
     if (profile.media_count !== undefined) metrics.posts = profile.media_count;
@@ -133,7 +139,7 @@ export async function readExtendedSocialAnalytics(platform: SocialPlatform, cred
     const url = new URL(`${root}/${target}/insights`);
     url.search = new URLSearchParams({ metric: "views,reach,total_interactions,likes,comments,shares", period: "day", metric_type: "total_value", since: period.since, until: period.until }).toString();
     Object.assign(metrics, await optionalInsights(async () => insightMetrics(await providerJson(url.toString(), { headers }, deadline), { views: "views", reach: "reach", total_interactions: "engagements", likes: "likes", comments: "comments", shares: "shares" }), warnings));
-    return { metrics: ensureMetrics(metrics), coverage: `Instagram Login professional-account insights for UTC ${period.day}, plus current lifetime followers/media counters. instagram_business_manage_insights and approved access are required. Reach is a provider estimate, views are in development; data can lag 48 hours and some metrics require 100 followers. Deprecated impressions are not requested.${warnings.length ? " Period insights unavailable: review approved insights permissions." : ""}` };
+    return { metrics: ensureMetrics(metrics), coverage: `${unified ? "Instagram Unified Login" : "Instagram Login"} professional-account insights for UTC ${period.day}, plus current lifetime followers/media counters. ${unified ? "instagram_manage_insights" : "instagram_business_manage_insights"} and approved access are required. Reach is a provider estimate, views are in development; data can lag 48 hours and some metrics require 100 followers. Deprecated impressions are not requested.${warnings.length ? " Period insights unavailable: review approved insights permissions." : ""}` };
   }
   if (platform === "threads") {
     const root = "https://graph.threads.com/v1.0";

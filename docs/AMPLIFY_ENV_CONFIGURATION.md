@@ -12,7 +12,7 @@ The initial environment-only task updated the buildspec, allowlist, audit/prepar
 
 ## Application inventory
 
-There are **27 application variables**. The reviewed runtime list is `config\amplify-env.json`; `env_sample` documents exactly the same names, enforced by tests. Five optional/defaulted overrides are commented out instead of adding unnecessary active assignments: `WORKER_BUDGET_MS`, `MEDIA_STORAGE_DIR`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_RESPONSE_MODEL` and `FFMPEG_PATH`. Feature credentials remain documented because they are needed when those features are enabled.
+The reviewed runtime list is `config\amplify-env.json`; `env_sample` documents exactly the same names, enforced by tests. Optional/defaulted overrides are commented out instead of adding unnecessary active assignments. Feature credentials remain documented because they are needed when those features are enabled.
 
 Classification: **S** required at startup; **F** required when the relevant feature is enabled/used; **O** optional/defaulted; **P** deliberately client-public; **K** server secret; **B** build/platform control; **W** worker-only setting. Variables without K are still server-side configuration unless explicitly marked P. A feature requirement can also become a startup requirement through the existing conditional validator.
 
@@ -29,6 +29,8 @@ Classification: **S** required at startup; **F** required when the relevant feat
 | `S3_MEDIA_REGION` | F, startup on Amplify | S3 region; production target is `sa-east-1`. Not `AWS_REGION`. |
 | `S3_MEDIA_BUCKET` | F, startup on Amplify | Actual private production bucket name, with no hardcoded application fallback. |
 | `S3_MEDIA_PREFIX` | F, startup on Amplify | Validated safe prefix ending with `/`; configured convention is `media/`. |
+| `POSTIF_S3_ACCESS_KEY_ID`, `POSTIF_S3_SECRET_ACCESS_KEY` | O, K | Explicit S3 credentials; set both together, or omit both to use the SDK credential provider. Prefer the compute role where available. |
+| `POSTIF_S3_SESSION_TOKEN` | O, K | Session token for temporary explicit S3 credentials; requires the access key pair. |
 | `OPENAI_API_KEY` | F, K | Platform-managed text/image generation. BYOK keys are encrypted per workspace in MongoDB, not supplied through this variable. |
 | `OPENAI_IMAGE_MODEL` | O | Image model selection; existing default is `gpt-image-1.5`. |
 | `OPENAI_IMAGE_RESPONSE_MODEL` | O | Responses model for supported asynchronous image generation; existing default is `gpt-5.2`. |
@@ -98,6 +100,7 @@ These are not additional application variables to copy into `.env.production`.
 | Names | Classification | Treatment |
 | --- | --- | --- |
 | `NODE_ENV` | B, runtime platform control | Set to production by Next.js production commands; `production:check` explicitly selects production loading. Used for instrumentation, secure cookies and FFmpeg/storage guards. Do not configure it as an Amplify custom secret. |
+| `FACEBOOK_OAUTH_DIAGNOSTICS` | Development-only control | Only read in development; classified but never copied into the production SSR environment. |
 | `NEXT_RUNTIME` | B, runtime framework control | Next.js selects the instrumentation runtime. Do not supply it as custom configuration. |
 | `AWS_APP_ID`, `AWS_BRANCH` | B, O runtime host markers | Amplify-owned build identifiers. Required by the environment-preparation CLI; also consulted by the FFmpeg host guard. Not serialized. |
 | `AWS_EXECUTION_ENV` | O, platform runtime marker | AWS-owned FFmpeg host-detection signal; not serialized or required from Console. |
@@ -153,7 +156,7 @@ Instead of raw `printenv | grep >>`, the helper performs the same documented roo
 
 1. Audit `src` and `next.config.ts` using the TypeScript AST. Cover direct, bracket, optional-chain, aliased, destructured, typed `ProcessEnv` and literal-loop accesses.
 2. Compare every discovered name to the reviewed policy. PayPal uses static accesses and supported literal loops; no dynamic Price resolver remains. New unclassified names, stale entries, duplicate entries and unsupported dynamic lookups fail the build rather than being silently omitted or automatically published.
-3. Keep only the explicit runtime allowlist. Omit unset/blank optional values; never copy arbitrary variables, platform markers, AWS credentials or `NEXT_PUBLIC_*` prefixes.
+3. Keep only the explicit runtime allowlist. Omit unset/blank optional values; never copy arbitrary variables, platform markers, `AWS_*` credentials or `NEXT_PUBLIC_*` prefixes.
 4. Run the existing full runtime validator against the selected values with production semantics. Require S3 on Amplify and HTTPS for its application origin. Do not require permanent `MEDIA_STORAGE_DIR` in S3 mode.
 5. Encode one assignment per line, preserving quotes, hashes, backslashes and literal dollar signs under Next.js dotenv expansion. Reject actual CR/LF/NUL and values that cannot be represented losslessly; report names, never values.
 6. Write a new restricted-permission temporary file and atomically replace `.env.production`. Repeated runs replace, not append; failed validation leaves an existing valid file untouched. Remove the named temporary file even on failure. POSIX mode is 0600; Windows does not enforce these POSIX mode bits.
@@ -204,9 +207,9 @@ Absent defaulted settings are not errors. Local billing is disabled, Runway and 
 
 ## AWS and browser isolation
 
-S3 configuration comes from `S3_MEDIA_REGION`, `S3_MEDIA_BUCKET` and `S3_MEDIA_PREFIX`. Both S3 client constructors use the SDK default credential chain with an explicit region and no embedded credentials. The intended production identity is the already attached Amplify SSR compute role. This task did not inspect its live policy or credential source; temporary-role authentication and bucket access still need live confirmation.
+S3 configuration comes from `S3_MEDIA_REGION`, `S3_MEDIA_BUCKET` and `S3_MEDIA_PREFIX`. S3 clients use the explicit `POSTIF_S3_ACCESS_KEY_ID` and `POSTIF_S3_SECRET_ACCESS_KEY` pair, with optional `POSTIF_S3_SESSION_TOKEN`, when configured. Otherwise they use the SDK default credential chain, such as the Amplify SSR compute role. Partial explicit credentials fail validation instead of falling back silently. Live credential and bucket access still need confirmation.
 
-Do not add `AWS_REGION` as a custom Amplify variable or introduce static AWS keys. Maintain least-privilege bucket/prefix access through the compute role. SDK-managed credential-provider context must remain runtime-managed, not copied from the build.
+Do not add `AWS_REGION` or `AWS_*` credential names as custom Amplify variables. Prefer least-privilege access through the compute role. If explicit POSTIF S3 credentials are configured, they are copied into the sensitive server deployment artifact and require restricted artifact access and rotation; SDK-managed credential-provider context remains runtime-managed.
 
 `next.config.ts` has no `env` object that would inline server credentials into browser bundles. No public-prefixed environment variables are propagated. Only the VAPID public key has a justified browser delivery path through authenticated settings; private VAPID/provider/DB/encryption values remain server configuration. The output directory is `.next`, not a public directory containing `.env.production`.
 

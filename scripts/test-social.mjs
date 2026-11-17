@@ -38,6 +38,9 @@ let rejectFacebookPost = false;
 let rejectAI = false;
 let uncertainWrites = 0;
 let xWrites = 0;
+let facebookImageWrites = 0;
+let instagramPublishes = 0;
+let instagramStatus = "IN_PROGRESS";
 let providerCalls = 0;
 let rejectYouTubeStatus = false;
 let transientYouTubeStatus = false;
@@ -60,6 +63,10 @@ globalThis.fetch = async (input, options = {}) => {
   }
   if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/me")) return reply({ id: "facebook-page", name: "Verified Page", category: "Business" });
   if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/feed")) return rejectFacebookPost ? reply({ error: "rejected" }, 400) : reply({ id: "confirmed-facebook-post" });
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/photos")) { facebookImageWrites++; return reply({ id: "confirmed-facebook-photo" }); }
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/instagram-user/media")) return reply({ id: "unified-instagram-container" });
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/unified-instagram-container")) return reply({ status_code: instagramStatus });
+  if (url.hostname === "graph.facebook.com" && url.pathname.endsWith("/instagram-user/media_publish")) { instagramPublishes++; return reply({ id: "confirmed-unified-instagram-post" }); }
   if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/me")) return reply({ user_id: "instagram-user", username: "verified-ig" });
   if (url.hostname === "graph.instagram.com" && url.pathname.endsWith("/media")) {
     const signed = new URL(body.image_url);
@@ -264,7 +271,32 @@ try {
   await db.update(schema.publishingJobs, { id: multiPending.id }, { nextCheckAt: new Date(0) });
   await jobRequest({ action: "check_immediate", jobId: multiPending.id });
   assert.equal((await db.find(schema.posts, { id: multi.post.id }))[0].status, "published");
+  const [instagramCredential] = await db.find(schema.socialCredentials, { socialAccountId: accountIds.instagram });
+  const instagramCredentials = JSON.parse(decryptSecret(instagramCredential.encryptedCredentials));
+  await db.update(schema.socialCredentials, { socialAccountId: instagramCredential.socialAccountId }, { encryptedCredentials: encryptSecret(JSON.stringify({ ...instagramCredentials, instagramLogin: "unified" })) });
+  const mixedImages = await (await postRequest({ ...immediateInput, title: "Mixed Instagram immediate", platforms: ["facebook", "instagram"], mediaIds: [image.id] })).json();
+  const instagramJob = mixedImages.publishing.find(job => job.platform === "instagram");
+  assert.equal(mixedImages.publishing.find(job => job.platform === "facebook").status, "completed");
+  assert.equal(instagramJob.status, "processing");
+  assert.ok(Number.isSafeInteger(instagramJob.id), "Clients need the job ID to resume the existing container");
+  const writesBeforeResume = facebookImageWrites;
+  const publishesBeforeResume = instagramPublishes;
+  instagramStatus = "FINISHED";
+  await db.update(schema.publishingJobs, { id: instagramJob.id }, { nextCheckAt: new Date(0) });
+  const checks = await Promise.all([jobRequest({ action: "check_immediate", jobId: instagramJob.id }), jobRequest({ action: "check_immediate", jobId: instagramJob.id })]);
+  assert.ok(checks.every(response => response.status === 200));
+  assert.equal(facebookImageWrites, writesBeforeResume, "Continuing Instagram must not resend Facebook");
+  assert.equal(instagramPublishes, publishesBeforeResume + 1, "Concurrent checks must publish the Instagram container once");
+  assert.equal((await db.find(schema.posts, { id: mixedImages.post.id }))[0].status, "published");
+  const beforeImmediateInstagram = instagramPublishes;
+  const readyImages = await (await postRequest({ ...immediateInput, title: "Ready Instagram immediate", platforms: ["facebook", "instagram"], mediaIds: [image.id] })).json();
+  assert.equal(readyImages.post.status, "published", "A ready Instagram container must publish within the original request");
+  assert.equal(readyImages.publishing.find(job => job.platform === "instagram").status, "completed");
+  assert.equal(instagramPublishes, beforeImmediateInstagram + 1);
+  instagramStatus = "IN_PROGRESS";
+  await db.update(schema.socialCredentials, { socialAccountId: instagramCredential.socialAccountId }, { encryptedCredentials: instagramCredential.encryptedCredentials });
   const uploaded = await (await postRequest({ ...immediateInput, title: "Immediate video", platforms: ["youtube"], mediaIds: [video.id] })).json();
+  assert.equal(uploaded.publishing[0].status, "processing", uploaded.publishing[0].errorMessage);
   const [uploadedJob] = await db.find(schema.publishingJobs, { postId: uploaded.post.id });
   const uploadsAfterSend = youtubeUploads;
   await db.update(schema.publishingJobs, { id: uploadedJob.id }, { nextCheckAt: new Date(0) });

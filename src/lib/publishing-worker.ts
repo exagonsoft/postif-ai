@@ -4,7 +4,7 @@ import { increment } from "@/db/filters";
 import { isPublishable, WorkflowError } from "./post-policy";
 import { queueWorkspaceNotification } from "./notification-service";
 import { encryptSecret, decryptSecret } from "./crypto";
-import { customerCredentials, providerState, publishToCustomerAccount, SocialProviderError } from "./social-provider";
+import { customerCredentials, providerState, publishToCustomerAccount, SocialProviderError, type ProviderState } from "./social-provider";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "./social-adapters";
 import { assertPublishingEntitlement, consumePublishingReservation, releasePublishingReservation } from "./entitlements";
 import { hasTime, type WorkerOptions } from "./worker-budget";
@@ -52,7 +52,7 @@ export async function processImmediatePost(workspaceId: number, postId: number, 
   for (const job of interrupted) {
     await db.update(publishingJobs, { id: job.id, status: "processing", encryptedProviderState: null, startedAt: job.startedAt }, { status: "uncertain", errorMessage: "Publishing was interrupted. Check the platform before creating a new post." });
   }
-  const processed = await processPublishingJobs(scope, Date.now() + 55000, jobId ? 1 : 8, true);
+  const processed = await processPublishingJobs(scope, Date.now() + 25000, jobId ? 1 : 8, true);
   await updatePostResult(postId);
   return processed;
 }
@@ -109,12 +109,17 @@ async function processPublishingJobs(scope: object, deadline: number, limit: num
         if (media.length !== post.mediaIds.length) throw new SocialProviderError("An attached media asset is missing.");
         const orderedMedia = post.mediaIds.map(id => media.find(asset => asset.id === id)!);
         attempted = true;
-        const result = await withWorkerDeadline(deadline - 500, () => publishToCustomerAccount(account.platform as SocialPlatform, credentials, post, orderedMedia, async state => {
+        const checkpoint = async (state: ProviderState) => {
           const [checkpoint] = await db.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, { encryptedProviderState: encryptSecret(JSON.stringify(state)), nextCheckAt: new Date(Date.now() + 60000) });
           if (!checkpoint) throw new SocialProviderError("Publishing claim was lost. Verify the platform before retrying.", 409, true);
           checkpointed = true;
           checkpointStage = state.stage;
-        }, state));
+        };
+        let result = await withWorkerDeadline(deadline - 500, () => publishToCustomerAccount(account.platform as SocialPlatform, credentials, post, orderedMedia, checkpoint, state));
+        if (immediate && account.platform === "instagram" && !state && result.status === "processing" && result.state.stage === "container" && hasTime(deadline, 2000)) {
+          const createdState = result.state;
+          result = await withWorkerDeadline(deadline - 500, () => publishToCustomerAccount("instagram", credentials, post, orderedMedia, checkpoint, createdState));
+        }
         await db.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, result.status === "completed"
           ? { status: "completed", externalPostId: result.id, executedAt: new Date(), encryptedProviderState: null, errorMessage: null }
           : { encryptedProviderState: encryptSecret(JSON.stringify(result.state)), nextCheckAt: new Date(Date.now() + 60000) });

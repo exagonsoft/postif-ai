@@ -5,6 +5,7 @@ import { SocialProviderError } from "@/lib/social-provider";
 import { WorkflowError } from "@/lib/post-policy";
 import { withWorkerDeadline } from "@/lib/worker-network";
 import { reportFacebookEntry, reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
+import { reportInstagramRejection } from "@/lib/instagram-oauth-diagnostics";
 
 const headers = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
 export async function GET(req: Request, context: { params: Promise<{ platform: string }> }) {
@@ -16,7 +17,8 @@ export async function GET(req: Request, context: { params: Promise<{ platform: s
       ticket: new URL(req.url).searchParams.get("ticket") || "" }), { headers });
   } catch (error) {
     if (platform === "facebook") reportFacebookRejection("selection_read", managedSocialErrorCode(error));
-    return NextResponse.json({ code: managedSocialErrorCode(error) }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers });
+    if (platform === "instagram") reportInstagramRejection("selection_read", managedSocialErrorCode(error, platform));
+    return NextResponse.json({ code: managedSocialErrorCode(error, platform) }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers });
   }
 }
 export async function POST(req: Request, context: { params: Promise<{ platform: string }> }) {
@@ -35,7 +37,8 @@ export async function POST(req: Request, context: { params: Promise<{ platform: 
       return NextResponse.json({ ok: true }, { headers });
     } catch (error) {
       if (platform === "facebook") reportFacebookRejection("selection", managedSocialErrorCode(error));
-      return NextResponse.json({ code: managedSocialErrorCode(error) }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers });
+      if (platform === "instagram") reportInstagramRejection("selection", managedSocialErrorCode(error, platform));
+      return NextResponse.json({ code: managedSocialErrorCode(error, platform) }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers });
     }
   });
 }

@@ -26,6 +26,7 @@ export function managedSocialConfiguration(env: NodeJS.ProcessEnv = process.env)
   };
   return { enabled, approved, analytics, publicPosting, clients,
     facebookConfigId: env.FACEBOOK_OAUTH_CONFIG_ID?.trim() || undefined,
+    instagramConfigId: env.INSTAGRAM_OAUTH_CONFIG_ID?.trim() || undefined,
     graphVersion: env.META_GRAPH_API_VERSION?.trim() || "v27.0",
     linkedinVersion: env.LINKEDIN_API_VERSION?.trim(),
     linkedinOrganizations: env.LINKEDIN_ORGANIZATIONS_ENABLED === "true",
@@ -36,6 +37,9 @@ export function validateManagedSocialConfiguration(env: NodeJS.ProcessEnv = proc
   const config = managedSocialConfiguration(env);
   if (config.enabled.includes("facebook") && config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)) {
     throw new Error("FACEBOOK_OAUTH_CONFIG_ID must be a numeric Meta configuration ID.");
+  }
+  if (config.enabled.includes("instagram") && !/^\d{1,32}$/.test(config.instagramConfigId || "")) {
+    throw new Error("INSTAGRAM_OAUTH_CONFIG_ID must be a numeric Meta Unified Login configuration ID.");
   }
   if (env.LINKEDIN_ORGANIZATIONS_ENABLED && !["true", "false"].includes(env.LINKEDIN_ORGANIZATIONS_ENABLED)) {
     throw new Error("LINKEDIN_ORGANIZATIONS_ENABLED must be true or false.");
@@ -66,8 +70,9 @@ export function managedSocialAvailability(env: NodeJS.ProcessEnv = process.env):
     platform,
     status: !config.enabled.includes(platform) || !config.clients[platform].clientId?.trim() || !config.clients[platform].clientSecret?.trim() ||
       platform === "facebook" && !!config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)
+      || platform === "instagram" && !/^\d{1,32}$/.test(config.instagramConfigId || "")
       ? "not_configured" : config.approved.includes(platform) ? "available"
-        : platform === "facebook" && env.NODE_ENV === "development" ? "testing" : "approval_required",
+        : ["facebook", "instagram"].includes(platform) && env.NODE_ENV === "development" ? "testing" : "approval_required",
     analyticsAvailable: config.analytics.includes(platform),
     organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations,
     publicPostingAvailable: config.publicPosting.includes(platform),

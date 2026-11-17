@@ -17,6 +17,7 @@ import { createManagedSelection, managedSocialErrorCode } from "@/lib/social-man
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import { managedSocialConfiguration } from "@/lib/social-managed-config";
 import { facebookDiagnosticsEnabled, reportFacebookEntry, reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
+import { reportInstagramRejection } from "@/lib/instagram-oauth-diagnostics";
 
 const diagnosticInstance = randomBytes(16).toString("hex");
 export async function GET(req: Request, context: { params: Promise<{ platform: string }> }) {
@@ -51,6 +52,7 @@ async function completeAuthorization(req: Request, context: { params: Promise<{ 
     managed = payload.mode === "managed";
     if (managed !== (payload.credentials.oauthMode === "managed") || payload.redirectUri && payload.redirectUri !== oauthCallbackUrl(platform)) throw new ManagedSocialOAuthError("STATE_INVALID");
     if (managed && platform === "facebook" && payload.facebookConfigId !== managedSocialConfiguration().facebookConfigId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
+    if (managed && platform === "instagram" && (payload.credentials.instagramLogin !== "unified" || payload.credentials.instagramConfigId !== managedSocialConfiguration().instagramConfigId)) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
     await assertBrandEntitlement(ctx.workspace.id, pending.brandId);
     const [attempt] = await db.update(socialOAuthAttempts, { ...filter, expiresAt: { $gt: new Date() } }, { consumedAt: new Date(), encryptedPayload: "" });
     if (!attempt) throw new ManagedSocialOAuthError("STATE_INVALID");
@@ -79,6 +81,7 @@ async function completeAuthorization(req: Request, context: { params: Promise<{ 
     return NextResponse.redirect(new URL("/app/social", oauthCallbackUrl(platform)), { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
     if (platform === "facebook") reportFacebookRejection(stage, managedSocialErrorCode(error));
+    if (platform === "instagram") reportInstagramRejection(stage, managedSocialErrorCode(error, platform));
     if (managed && Object.hasOwn(SOCIAL_PLATFORM_SPECS, platform)) {
       let callback: string;
       try { callback = oauthCallbackUrl(platform); } catch (configurationError) {
@@ -87,7 +90,7 @@ async function completeAuthorization(req: Request, context: { params: Promise<{ 
           { status: 503, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
       }
       const target = new URL("/app/social", callback);
-      target.search = new URLSearchParams({ social_error: managedSocialErrorCode(error), social_provider: platform }).toString();
+      target.search = new URLSearchParams({ social_error: managedSocialErrorCode(error, platform), social_provider: platform }).toString();
       return NextResponse.redirect(target, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
     return NextResponse.json({ error: error instanceof SocialProviderError || error instanceof WorkflowError ? error.message : "Authorization failed. Start again and check your app permissions." }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });

@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { managedSocialAvailability, managedSocialConfiguration } from "./social-managed-config";
 import { customerCredentials, SocialProviderError, verifyCustomerConnection, type CustomerCredentials } from "./social-provider";
-import { exchangeFacebookUserToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, metaVersion, providerJson } from "./social-oauth-provider";
+import { exchangeFacebookUserToken, exchangeInstagramUnifiedToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, metaVersion, providerJson } from "./social-oauth-provider";
 import type { SocialPlatform } from "./social-adapters";
 import type { ManagedSocialDestination } from "./social-managed-types";
 import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookAuthorization, reportFacebookGrantCheck, reportFacebookPageDiscovery, reportFacebookPageRestrictions, reportFacebookPageTasks, reportFacebookPermissions } from "./facebook-oauth-diagnostics";
+import { instagramDiagnosticRequest } from "./instagram-oauth-diagnostics";
 
 export class ManagedSocialOAuthError extends SocialProviderError {
   constructor(public code: string, status = 400) { super(code, status); }
@@ -23,13 +24,14 @@ export function managedCredentials(platform: SocialPlatform, analyticsEnabled: b
   return customerCredentials.omit({ accessToken: true }).parse({
     clientId, oauthMode: "managed", analyticsEnabled,
     ...(["facebook", "instagram"].includes(platform) ? { apiVersion: config.graphVersion } : {}),
+    ...(platform === "instagram" ? { instagramLogin: "unified", instagramConfigId: config.instagramConfigId } : {}),
     ...(platform === "linkedin" ? { apiVersion: config.linkedinVersion } : {}),
   });
 }
 export function managedScopes(platform: SocialPlatform, analytics: boolean, organizations: boolean): string[] {
   switch (platform) {
     case "facebook": return ["pages_show_list", "pages_manage_posts", "pages_read_engagement", ...(analytics ? ["pages_read_user_content"] : [])];
-    case "instagram": return ["instagram_business_basic", "instagram_business_content_publish", ...(analytics ? ["instagram_business_manage_insights"] : [])];
+    case "instagram": return ["instagram_basic", "instagram_content_publish", ...(analytics ? ["instagram_manage_insights"] : [])];
     case "threads": return ["threads_basic", "threads_content_publish", ...(analytics ? ["threads_manage_insights"] : [])];
     case "x": return ["tweet.read", "tweet.write", "users.read", "media.write", "offline.access"];
     case "youtube": return ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"];
@@ -44,6 +46,19 @@ const scopeGrants = z.object({ data: z.array(z.object({ permission: z.string(), 
 
 export async function discoverManagedDestinations(platform: SocialPlatform, settings: Omit<CustomerCredentials, "accessToken">,
   grant: { code: string; verifier: string }, organizations: boolean, deadline = Date.now() + 20000, facebookBusiness = false): Promise<AuthorizedSocialDestination[]> {
+  if (platform === "instagram" && settings.instagramLogin === "unified") {
+    const credentials = await exchangeInstagramUnifiedToken(customerCredentials.parse({ ...settings, accessToken: "pending-authorization" }), grant.code, deadline);
+    if (managedScopes("instagram", !!settings.analyticsEnabled, false).some(scope => !credentials.grantedScopes?.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+    const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
+    const headers = { Authorization: `Bearer ${credentials.accessToken}` };
+    const business = await instagramDiagnosticRequest("client_business", async () =>
+      z.object({ client_business_id: identifier.optional() }).parse(await providerJson(`${root}/me?fields=client_business_id`, { headers }, deadline, undefined, "client_business")));
+    if (!business.client_business_id) throw new ManagedSocialOAuthError("INSTAGRAM_ASSET_MISSING", 422);
+    const accounts = await instagramAssignedAccounts(credentials, deadline);
+    if (!accounts.length) throw new ManagedSocialOAuthError("INSTAGRAM_ASSET_MISSING", 422);
+    return accounts.map(account => ({ id: account.id, name: account.username, handle: `@${account.username}`, accountType: "professional",
+      permissions: credentials.grantedScopes!, credentials: customerCredentials.parse({ ...credentials, accountId: account.id, instagramBusinessId: business.client_business_id }) }));
+  }
   if (platform !== "facebook") return discoverOtherDestinations(platform, settings, grant, organizations, deadline);
   const credentials = customerCredentials.parse({ ...settings, accessToken: "pending-authorization" });
   const required = managedScopes(platform, !!credentials.analyticsEnabled, organizations);
@@ -126,6 +141,25 @@ export async function discoverManagedDestinations(platform: SocialPlatform, sett
   if (facebookBusiness && ["pages_manage_posts", "pages_read_engagement"].some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("FACEBOOK_PUBLISH_ACCESS_MISSING", 403);
   if (facebookBusiness && managedScopes(platform, !!credentials.analyticsEnabled, organizations).some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
   return destinations;
+}
+
+export async function instagramAssignedAccounts(credentials: CustomerCredentials, deadline: number) {
+  const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
+  const accounts: { id: string; username: string }[] = [];
+  let after: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const url = new URL(`${root}/me/assigned_instagram_accounts`);
+    url.search = new URLSearchParams({ fields: "id,username", limit: "100", ...(after ? { after } : {}) }).toString();
+    const result = await instagramDiagnosticRequest("account_discovery", async () => z.object({ data: z.array(z.object({ id: identifier, username: z.string().min(1).max(250) })).max(100),
+      paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().max(4000).optional() }).optional() }).optional() })
+      .parse(await providerJson(url.toString(), { headers: { Authorization: `Bearer ${credentials.accessToken}` } }, deadline, undefined, "account_discovery")));
+    for (const account of result.data) if (!accounts.some(item => item.id === account.id)) accounts.push(account);
+    if (!result.paging?.next) return accounts;
+    const cursor = result.paging.cursors?.after;
+    if (!cursor || cursor === after || page === 4) throw new ManagedSocialOAuthError("DISCOVERY_INCOMPLETE", 422);
+    after = cursor;
+  }
+  return accounts;
 }
 
 async function discoverOtherDestinations(platform: Exclude<SocialPlatform, "facebook">, settings: Omit<CustomerCredentials, "accessToken">,

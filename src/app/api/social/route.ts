@@ -24,7 +24,7 @@ async function socialAction(req: Request) {
     if (!ctx?.workspace || !ctx.activeBrand) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!["owner", "admin"].includes(ctx.memberRole)) return NextResponse.json({ error: "Only workspace owners and admins can manage social credentials." }, { status: 403 });
     assertSocialMutationOrigin(req);
-    const body = z.object({ action: z.enum(["connect", "refresh", "renew", "disconnect"]), revokeProvider: z.boolean().default(false), accountId: z.number().int().positive().optional(), brandId: z.number().int().positive().optional(), platform: z.string().optional(), credentials: customerCredentials.omit({ oauthMode: true, grantedScopes: true }).optional() }).parse(await req.json());
+    const body = z.object({ action: z.enum(["connect", "refresh", "renew", "disconnect"]), revokeProvider: z.boolean().default(false), accountId: z.number().int().positive().optional(), brandId: z.number().int().positive().optional(), platform: z.string().optional(), credentials: customerCredentials.omit({ oauthMode: true, grantedScopes: true, instagramLogin: true, instagramConfigId: true, instagramBusinessId: true }).optional() }).parse(await req.json());
     const workspaceId = ctx.workspace.id;
     if (body.action === "disconnect") {
       if (!body.accountId) throw new SocialProviderError("Choose an account.");

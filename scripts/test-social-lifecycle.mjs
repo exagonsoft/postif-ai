@@ -76,7 +76,7 @@ const { WorkflowError } = await import("../src/lib/post-policy.ts");
 globalThis.postifLifecycleBrandError = new WorkflowError("Brand outside plan allowance", 403);
 const { readSocialAnalytics, renewSocialCredentials, syncSocialAnalytics, assertSocialConnectCapacity } = await import("../src/lib/social-lifecycle.ts");
 const { exchangeSocialToken, oauthCallbackUrl, providerJson, oauthAuthorizationUrl, validateSocialOAuthSettings } = await import("../src/lib/social-oauth-provider.ts");
-const { verifyCustomerConnection } = await import("../src/lib/social-provider.ts");
+const { verifyCustomerConnection, publishToCustomerAccount } = await import("../src/lib/social-provider.ts");
 const { assertSocialMutationOrigin } = await import("../src/lib/social-managed-oauth.ts");
 const { reportFacebookPermissions, reportFacebookPageTasks, reportFacebookPageRestrictions } = await import("../src/lib/facebook-oauth-diagnostics.ts");
 const { withWorkerDeadline } = await import("../src/lib/worker-network.ts");
@@ -613,7 +613,7 @@ test("unapproved Facebook remains blocked by the production start endpoint", asy
   }
 });
 
-for (const platform of ["x", "linkedin", "instagram", "threads", "pinterest", "youtube", "tiktok"]) {
+for (const platform of ["x", "linkedin", "threads", "pinterest", "youtube", "tiktok"]) {
   test(`managed ${platform} authorization discovers a real destination and preserves server-only credentials`, async () => {
     process.env.SOCIAL_MANAGED_PROVIDERS = platform;
     process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = platform;
@@ -671,6 +671,198 @@ for (const platform of ["x", "linkedin", "instagram", "threads", "pinterest", "y
     assert.equal(stored.analyticsEnabled, false);
   });
 }
+async function unifiedInstagram(options = {}) {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "instagram";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "instagram";
+  process.env.INSTAGRAM_OAUTH_CLIENT_ID = "instagram-meta-app";
+  process.env.INSTAGRAM_OAUTH_CLIENT_SECRET = "instagram-meta-secret";
+  process.env.INSTAGRAM_OAUTH_CONFIG_ID = "1016690207410050";
+  const context = { params: Promise.resolve({ platform: "instagram" }) };
+  transport = async (url, init) => {
+    assert.equal(url.hostname, "graph.facebook.com");
+    if (url.pathname.endsWith("/oauth/access_token")) {
+      assert.equal(init.method, "GET");
+      assert.equal(url.searchParams.get("client_id"), "instagram-meta-app");
+      assert.equal(url.searchParams.get("code"), "provider-code");
+      assert.equal(url.searchParams.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/instagram/callback`);
+      assert.equal(url.searchParams.has("grant_type"), false);
+      if (options.rejectExchange) return Response.json({ error: { code: 100, error_subcode: 36001, message: "private-system-user-token instagram-meta-secret provider-code" } }, { status: 400 });
+      return reply({ access_token: "private-system-user-token" });
+    }
+    if (url.pathname.endsWith("/debug_token")) return reply({ data: {
+      app_id: options.appId || "instagram-meta-app", type: options.type || "SYSTEM_USER",
+      is_valid: true, expires_at: 0, scopes: options.scopes || ["instagram_basic", "instagram_content_publish"],
+    } });
+    if (url.pathname.endsWith("/me") && url.searchParams.get("fields") === "client_business_id") return reply({ client_business_id: "business-1", id: "system-user" });
+    if (url.pathname.endsWith("/me/assigned_instagram_accounts")) return reply({ data: options.noAccounts ? [] : [{ id: "1784", username: "professional" }, { id: "1785", username: "second" }] });
+    if (url.pathname.endsWith("/1784")) return reply({ id: "1784", username: "professional" });
+    throw new Error("Unmocked Unified Login request");
+  };
+  const started = await start(new Request("https://customer-app.example.test/api/social/oauth/instagram/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: "{}",
+  }), context);
+  assert.equal(started.status, 200);
+  const authorization = new URL((await started.json()).url);
+  assert.equal(authorization.origin + authorization.pathname, "https://www.facebook.com/v27.0/dialog/oauth");
+  assert.equal(authorization.searchParams.get("config_id"), "1016690207410050");
+  assert.equal(authorization.searchParams.get("prompt"), "login");
+  assert.equal(authorization.searchParams.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/instagram/callback`);
+  assert.equal(authorization.searchParams.get("scope"), null);
+  const callbackRequest = () => new Request(`https://customer-app.example.test/api/social/oauth/instagram/callback?state=${authorization.searchParams.get("state")}&code=provider-code`);
+  if (options.changedConfig) process.env.INSTAGRAM_OAUTH_CONFIG_ID = "123";
+  const result = await callback(callbackRequest(), context);
+  return { context, target: new URL(result.headers.get("location")), callbackRequest };
+}
+test("Unified Instagram selects a shared account and stores only an encrypted validated system-user grant", async () => {
+  const { context, target, callbackRequest } = await unifiedInstagram();
+  const ticket = target.searchParams.get("social_selection");
+  assert.ok(ticket);
+  const discovery = await listManaged(new Request(`https://customer-app.example.test/api/social/oauth/instagram/select?ticket=${ticket}`), context);
+  const dto = await discovery.json();
+  assert.equal(dto.destinations.length, 2);
+  assert.doesNotMatch(JSON.stringify(dto), /private-system|instagram-meta-secret|accessToken/);
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "1784" })).status, 200);
+  const stored = JSON.parse(decryptSecret(list(socialCredentials).find(item => item.socialAccountId !== 1).encryptedCredentials));
+  assert.equal(stored.instagramLogin, "unified");
+  assert.equal(stored.instagramBusinessId, "business-1");
+  assert.equal(stored.instagramConfigId, "1016690207410050");
+  assert.equal(stored.accountId, "1784");
+  assert.equal(stored.clientSecret, undefined);
+  assert.equal((await callback(callbackRequest(), context)).headers.get("location").includes("STATE_INVALID"), true);
+});
+test("Unified Instagram rejects wrong app, wrong token type, missing permission and unshared assets", async () => {
+  for (const [options, expected] of [[{ appId: "other-app" }, "INSTAGRAM_TOKEN_INVALID"], [{ type: "USER" }, "INSTAGRAM_TOKEN_INVALID"],
+    [{ scopes: ["instagram_basic"] }, "PERMISSION_MISSING"], [{ noAccounts: true }, "INSTAGRAM_ASSET_MISSING"]]) {
+    rows.set(socialOAuthAttempts.name, []);
+    const { target } = await unifiedInstagram(options);
+    assert.equal(target.searchParams.get("social_error"), expected);
+    assert.equal(list(socialCredentials).length, 1);
+  }
+});
+test("Unified Instagram reports a sanitized provider rejection and stage in development only", async () => {
+  const previous = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.warn = (...args) => logs.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    const { target } = await unifiedInstagram({ rejectExchange: true });
+    assert.equal(target.searchParams.get("social_error"), "INSTAGRAM_PROVIDER_REJECTED");
+    const output = logs.join("\n");
+    assert.match(output, /"stage":"code_exchange"/);
+    assert.match(output, /"httpStatus":400/);
+    assert.match(output, /"providerCode":100/);
+    assert.match(output, /"providerSubcode":36001/);
+    assert.doesNotMatch(output, /private-system-user-token|instagram-meta-secret|provider-code/);
+    logs.length = 0;
+    process.env.NODE_ENV = "production";
+    const production = await unifiedInstagram({ rejectExchange: true });
+    assert.equal(production.target.searchParams.get("social_error"), "INSTAGRAM_PROVIDER_REJECTED");
+    assert.equal(logs.length, 0);
+  } finally {
+    console.warn = originalWarn;
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
+});
+test("Unified Instagram binds configuration and rechecks authorization when selecting", async () => {
+  const changed = await unifiedInstagram({ changedConfig: true });
+  assert.equal(changed.target.searchParams.get("social_error"), "MANAGED_APP_CHANGED");
+  assert.equal(calls.length, 0);
+  const { context, target } = await unifiedInstagram();
+  const ticket = target.searchParams.get("social_selection");
+  process.env.INSTAGRAM_OAUTH_CONFIG_ID = "123";
+  const result = await chooseManaged(context, { ticket, destinationId: "1784" });
+  assert.equal((await result.json()).code, "MANAGED_APP_CHANGED");
+  assert.equal(list(socialCredentials).length, 1);
+});
+test("Unified Instagram rejects account access revoked after discovery", async () => {
+  const { context, target } = await unifiedInstagram();
+  const ticket = target.searchParams.get("social_selection");
+  transport = async url => {
+    if (url.pathname.endsWith("/debug_token")) return reply({ data: {
+      app_id: "instagram-meta-app", type: "SYSTEM_USER", is_valid: true, expires_at: 0,
+      scopes: ["instagram_basic", "instagram_content_publish"],
+    } });
+    if (url.pathname.endsWith("/assigned_instagram_accounts")) return reply({ data: [{ id: "1785", username: "second" }] });
+    throw new Error("Unmocked Unified Login request");
+  };
+  const result = await chooseManaged(context, { ticket, destinationId: "1784" });
+  assert.equal((await result.json()).code, "INSTAGRAM_ASSET_MISSING");
+  assert.equal(list(socialCredentials).length, 1);
+});
+test("Unified Instagram publishing uses Facebook Graph, checkpoints carousels and never repeats an uncertain request", async () => {
+  const credentials = { accessToken: "private-system-user-token", accountId: "1784", instagramLogin: "unified", apiVersion: "v27.0" };
+  const post = { workspaceId: 1, title: "Test", baseContent: "caption", variants: {} };
+  const image = { id: 11, workspaceId: 1, assetType: "image", mimeType: "image/png", storageKey: "image", generationStatus: "ready" };
+  const video = { id: 12, workspaceId: 1, assetType: "video", mimeType: "video/mp4", storageKey: "video", generationStatus: "ready" };
+  let state;
+  const bodies = [];
+  transport = async (url, init) => {
+    assert.equal(url.hostname, "graph.facebook.com");
+    if (url.pathname.endsWith("/media")) {
+      const body = JSON.parse(init.body);
+      bodies.push(body);
+      return reply({ id: `container-${bodies.length}` });
+    }
+    if (url.pathname.endsWith("/media_publish")) return reply({ id: "published-id" });
+    return reply({ status_code: "FINISHED" });
+  };
+  let result = await publishToCustomerAccount("instagram", credentials, post, [image, video], async value => { state = structuredClone(value); });
+  assert.equal(result.status, "processing");
+  assert.equal(bodies.length, 3);
+  assert.equal(bodies[0].is_carousel_item, true);
+  assert.equal(bodies[1].media_type, "VIDEO");
+  assert.equal(bodies[2].media_type, "CAROUSEL");
+  result = await publishToCustomerAccount("instagram", credentials, post, [image, video], async value => { state = structuredClone(value); }, state);
+  assert.deepEqual(result, { status: "completed", id: "published-id" });
+  assert.equal(state.stage, "sending");
+  await assert.rejects(() => publishToCustomerAccount("instagram", credentials, post, [image, video], async () => {}, state), /may have been accepted/);
+  const pending = { stage: "instagram-carousel", children: [], mediaIds: [11, 12], pending: true, createdAt: Date.now() };
+  const count = calls.length;
+  await assert.rejects(() => publishToCustomerAccount("instagram", credentials, post, [image, video], async () => {}, pending), /may have completed/);
+  assert.equal(calls.length, count);
+});
+test("Unified Instagram publishes single JPEG images and MP4 reels after processing", async () => {
+  const credentials = { accessToken: "private-system-user-token", accountId: "1784", instagramLogin: "unified" };
+  const post = { workspaceId: 1, title: "Test", baseContent: "caption", variants: {} };
+  for (const [assetType, mimeType] of [["image", "image/png"], ["video", "video/mp4"]]) {
+    const asset = { id: 11, workspaceId: 1, assetType, mimeType, storageKey: "stored", generationStatus: "ready" };
+    let state;
+    let status = "IN_PROGRESS";
+    let publishes = 0;
+    transport = async (url, init) => {
+      assert.equal(url.hostname, "graph.facebook.com");
+      if (url.pathname.endsWith("/media")) {
+        const body = JSON.parse(init.body);
+        if (assetType === "image") assert.equal(new URL(body.image_url).searchParams.get("format"), "jpeg");
+        else assert.equal(body.media_type, "REELS");
+        return reply({ id: "container-1" });
+      }
+      if (url.pathname.endsWith("/media_publish")) { publishes++; return reply({ id: "published-1" }); }
+      return reply({ status_code: status });
+    };
+    const checkpoint = async value => { state = structuredClone(value); };
+    assert.equal((await publishToCustomerAccount("instagram", credentials, post, [asset], checkpoint)).status, "processing");
+    assert.equal((await publishToCustomerAccount("instagram", credentials, post, [asset], checkpoint, state)).status, "processing");
+    assert.equal(publishes, 0);
+    status = "FINISHED";
+    assert.equal((await publishToCustomerAccount("instagram", credentials, post, [asset], checkpoint, state)).status, "completed");
+    assert.equal(publishes, 1);
+  }
+});
+test("Unified Instagram never uses the legacy long-lived refresh grant", async () => {
+  rows.get(socialAccounts.name)[0].platform = "instagram";
+  rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({
+    ...secret, oauthMode: "managed", clientId: "instagram-meta-app", instagramLogin: "unified",
+    instagramConfigId: "1016690207410050", tokenKind: "long_lived",
+  }));
+  process.env.INSTAGRAM_OAUTH_CLIENT_ID = "instagram-meta-app";
+  process.env.INSTAGRAM_OAUTH_CLIENT_SECRET = "instagram-meta-secret";
+  const result = await renewSocialCredentials({ workspaceId: 1, accountId: 1 });
+  assert.equal(result.failed, 1);
+  assert.equal(calls.length, 0);
+});
 test("managed renew resolves the current server secret without storing it, and detects an app-ID change", async () => {
   process.env.X_OAUTH_CLIENT_ID = "managed-app";
   process.env.X_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
@@ -1036,6 +1228,21 @@ async function authorizeMeta(platform, settings) {
   const result = await callback(new Request(`https://customer-app.example.test/api/social/oauth/${platform}/callback?state=${authorization.searchParams.get("state")}&code=provider-code`), context);
   return { authorization, result };
 }
+test("Unified Instagram prompts for login without changing Facebook authorization", () => {
+  const state = "m_test-unique-oauth-state";
+  const instagram = new URL(oauthAuthorizationUrl("instagram", "29125514277097994", state, "challenge",
+    { oauthMode: "managed", instagramLogin: "unified", instagramConfigId: "1016690207410050" }));
+  assert.equal(instagram.searchParams.get("prompt"), "login");
+  assert.equal(instagram.searchParams.get("client_id"), "29125514277097994");
+  assert.equal(instagram.searchParams.get("config_id"), "1016690207410050");
+  assert.equal(instagram.searchParams.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/instagram/callback`);
+  assert.equal(instagram.searchParams.get("response_type"), "code");
+  assert.equal(instagram.searchParams.get("state"), state);
+  const facebook = new URL(oauthAuthorizationUrl("facebook", "facebook-app", state, "challenge", { oauthMode: "managed" }, undefined, "123456789"));
+  assert.equal(facebook.searchParams.has("prompt"), false);
+  assert.equal(facebook.searchParams.get("config_id"), "123456789");
+  assert.equal(facebook.searchParams.get("state"), state);
+});
 test("Meta OAuth requires an intended Page/professional-account ID and requests only explicitly chosen approved scopes", () => {
   for (const platform of ["facebook", "instagram"]) assert.throws(() => validateSocialOAuthSettings(platform, { clientId: "client", clientSecret: "secret" }), /intended/);
   const instagram = new URL(oauthAuthorizationUrl("instagram", "client", "state", "challenge", { accountId: "1784", analyticsEnabled: true }));

@@ -8,10 +8,10 @@ import { customerCredentials, SocialProviderError, verifyCustomerConnection } fr
 import { assertBrandEntitlement } from "./entitlements";
 import { persistSocialConnection } from "./social-connect";
 import { managedSocialConfiguration } from "./social-managed-config";
-import { managedCredentials, managedScopes, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
+import { instagramAssignedAccounts, managedCredentials, managedScopes, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
 import type { ManagedSocialSelection } from "./social-managed-types";
 import { WorkflowError } from "./post-policy";
-import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken } from "./social-oauth-provider";
+import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectInstagramUnifiedToken } from "./social-oauth-provider";
 import { reportFacebookGrantCheck } from "./facebook-oauth-diagnostics";
 
 const ticketFormat = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -23,11 +23,13 @@ const selectionPayload = z.object({
     privacyLevels: z.array(z.string().max(100)).max(20).optional(), credentials: customerCredentials,
   })).min(1).max(500),
 });
-export function managedSocialErrorCode(error: unknown): string {
+export function managedSocialErrorCode(error: unknown, platform?: string): string {
   if (error instanceof ManagedSocialOAuthError) return error.code;
   if (error instanceof FacebookBusinessTokenError) return error.code;
   if (error instanceof WorkflowError) return /channel/i.test(error.message) ? "CHANNEL_LIMIT" : /brand/i.test(error.message) ? "BRAND_LIMIT" : "AUTHORIZATION_FAILED";
   if (error instanceof SocialProviderError) {
+    if (platform === "instagram" && error.status === 400 && /^Provider request failed \(HTTP 400\)\.$/.test(error.message)) return "INSTAGRAM_PROVIDER_REJECTED";
+    if (/valid system-user token/.test(error.message)) return "INSTAGRAM_TOKEN_INVALID";
     if (/application changed/.test(error.message)) return "MANAGED_APP_CHANGED";
     if (/channel limit/i.test(error.message)) return "CHANNEL_LIMIT";
     if (error.status === 401) return "TOKEN_EXPIRED";
@@ -100,6 +102,15 @@ export async function selectManagedDestination(input: z.infer<typeof managedSele
   const current = managedCredentials(platform, payload.analyticsEnabled, payload.organizations);
   if (destination.credentials.oauthMode !== "managed" || current.clientId !== destination.credentials.clientId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
   const credentials = { ...destination.credentials };
+  if (platform === "instagram") {
+    if (credentials.instagramLogin !== "unified" || credentials.instagramConfigId !== current.instagramConfigId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
+    const deadline = Date.now() + 20000;
+    const token = await inspectInstagramUnifiedToken(credentials, credentials.accessToken, deadline);
+    if (managedScopes("instagram", payload.analyticsEnabled, false).some(scope => !token.scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+    if (!(await instagramAssignedAccounts(credentials, deadline)).some(account => account.id === destination.id)) throw new ManagedSocialOAuthError("INSTAGRAM_ASSET_MISSING", 403);
+    credentials.grantedScopes = token.scopes;
+    credentials.expiresAt = token.expires_at ? new Date(token.expires_at * 1000).toISOString() : undefined;
+  }
   if (platform === "facebook" && payload.facebookConfigId) {
     if (managedSocialConfiguration().facebookConfigId !== payload.facebookConfigId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
     const token = await inspectFacebookToken(credentials, credentials.accessToken, Date.now() + 20000, "selected_page_debug");

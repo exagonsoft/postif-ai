@@ -242,7 +242,7 @@ an app review, or actual authorization.
 | Provider | Authorized destination and minimal publishing scopes | Additional gates / lifecycle |
 | --- | --- | --- |
 | Facebook Pages | Discover `/me/accounts`, require content-creation tasks, select an actual Page. `pages_show_list pages_manage_posts pages_read_engagement` must be confirmed. Business Login requests the configured permissions via `config_id`, not `scope`; this configuration may lack publishing grants. | **REQUIRES PROVIDER APPROVAL** for serving external customers. Exchange short user token to long user token, then retain only the selected Page token. No scheduled expiry is not a permanent validity guarantee; invalidation requires reauthorization. Optional analytics requires `pages_read_user_content`. |
-| Instagram | Instagram Login professional account, confirmed `account_type` and identity. `instagram_business_basic instagram_business_content_publish`. No arbitrary professional-account ID. | **REQUIRES PROVIDER APPROVAL** / Advanced Access for accounts not owned/managed by the app owner. Instagram-specific app credentials, not Facebook app credentials. Sixty-day long-lived exchange uses actual returned expiry; refresh requires valid token at least 24 hours old. Optional reviewed insights only. |
+| Instagram | Unified Login uses the separate Instagram Meta app and configuration. Discover the business portfolio and shared professional accounts with `/me` and `/me/assigned_instagram_accounts`; verify app, system-user token and `instagram_basic instagram_content_publish` before selection. | **REQUIRES LIVE VERIFICATION**. Client app roles and portfolio permissions apply in development; external clients require Advanced Access and Live mode. System-user tokens are not passed to Instagram Login refresh. Optional analytics requires `instagram_manage_insights`. Previously stored Instagram Login credentials retain their legacy path. |
 | LinkedIn | Member identity via userinfo; `openid profile w_member_social`. Optional organization flow discovers approved ACLs and names, accepts only ADMINISTRATOR/CONTENT_ADMINISTRATOR, rechecks the initiating member's ACL before selection. | Organizations **REQUIRES PROVIDER APPROVAL** for Community Management and explicit operator enablement; supported `YYYYMM` version required. No sponsored-content-only role is accepted for managed organic posting. `w_organization_social r_organization_admin` requested only for that mode; discovery does not need organization-admin write access. Refresh only if LinkedIn actually issued a grant to an eligible app. |
 | X | `/2/users/me`; `tweet.read tweet.write users.read media.write offline.access`; confidential web client and mandatory S256 PKCE. | Actual developer-project/API access and permitted automation are external gates. Refresh retains rotated grants. No pricing tier is inferred or promised. |
 | TikTok | Login Kit + creator-info query; `user.info.basic video.publish`, optional reviewed `user.info.stats`. Real creator privacy options; explicit AI declaration. Unreviewed managed posting is restricted to `SELF_ONLY`. | **REQUIRES PROVIDER APPROVAL** for required products/scopes; public Direct Post is **BLOCKED** until the app audit and complete product-compliance review. Connection-level choices alone do not certify TikTok's per-post privacy, preview/edit, commercial/music consent and interaction UX requirements. The existing publishing adapter is preserved, not certified as passing that audit. Rotating refresh token and `open_id` are validated. |
@@ -250,10 +250,13 @@ an app review, or actual authorization.
 | YouTube | Discover authorized channels, not a pasted ID; `youtube.upload youtube.readonly`, S256 PKCE and offline consent. Explicit made-for-kids and visibility selection. | **REQUIRES PROVIDER APPROVAL** where Google OAuth verification/upload audit applies. Default managed visibility is private-only. Non-private posting requires the operator's attestation of the necessary audit. Google can still restrict actual visibility; existing processing/visibility checks remain. |
 | Threads | Verified `/me` account; `threads_basic threads_content_publish`, optional reviewed `threads_manage_insights`. Current official hosts are `threads.com` and `graph.threads.com`. | **REQUIRES PROVIDER APPROVAL** for required external-account access. Real long-lived exchange/expiry and documented unexpired-token refresh; no generic refresh-token grant. |
 
-Instagram/Threads insights and LinkedIn analytics are requested only after both
-operator approval configuration and user opt-in. No optional insights scope is
-silently added to ordinary managed onboarding. Existing plan analytics
-entitlements still apply even when scopes are granted.
+Threads insights and LinkedIn analytics are requested only after both operator
+approval configuration and user opt-in. Instagram Unified Login requests the
+permissions configured in Meta, not a dynamic scope list: configure only the
+permissions needed for the intended experience. POSTIF-AI synchronizes optional
+Instagram analytics only after operator enablement and user opt-in, and verifies
+the corresponding grant when selected. Existing plan analytics entitlements
+still apply even when scopes are granted.
 
 ### Official references consulted
 
@@ -264,6 +267,12 @@ entitlements still apply even when scopes are granted.
   `pages_read_engagement` permission rather than inventing a replacement.
   Confirm the actual approved permission in the app dashboard/live test.
 - [Instagram Business Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login).
+- [Instagram Unified Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/get-started),
+  [authentication](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/authentication),
+  [business onboarding](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/business-onboarding),
+  [permissions](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/permissions),
+  [migration](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/migration),
+  and [content publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing).
 - [Threads access tokens and permissions](https://developers.facebook.com/documentation/threads/get-started/get-access-tokens-and-permissions).
 - [LinkedIn organization ACLs](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/organizations/organization-access-control-by-role)
   and [native-only PKCE flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow-native).
@@ -292,7 +301,8 @@ server-side settings:
 | `SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS` | Only `tiktok,youtube`; blank means private-only. Never set before required provider audit AND product-compliance verification. |
 | `FACEBOOK_OAUTH_CLIENT_ID`, `FACEBOOK_OAUTH_CLIENT_SECRET` | POSTIF-AI Facebook app. |
 | `FACEBOOK_OAUTH_CONFIG_ID` | Optional numeric Facebook Login for Business configuration ID for the managed User access token flow. Blank keeps the existing scope-based flow. |
-| `INSTAGRAM_OAUTH_CLIENT_ID`, `INSTAGRAM_OAUTH_CLIENT_SECRET` | POSTIF-AI Instagram Login app. |
+| `INSTAGRAM_OAUTH_CLIENT_ID`, `INSTAGRAM_OAUTH_CLIENT_SECRET` | Meta app ID and Meta app secret for Instagram Unified Login. Keep separate from Facebook Pages and never expose the secret. |
+| `INSTAGRAM_OAUTH_CONFIG_ID` | Required numeric Facebook Login for Business configuration ID for the Instagram system-user token flow. |
 | `LINKEDIN_OAUTH_CLIENT_ID`, `LINKEDIN_OAUTH_CLIENT_SECRET` | POSTIF-AI LinkedIn app. |
 | `X_OAUTH_CLIENT_ID`, `X_OAUTH_CLIENT_SECRET` | POSTIF-AI confidential X web client. |
 | `TIKTOK_OAUTH_CLIENT_ID`, `TIKTOK_OAUTH_CLIENT_SECRET` | TikTok client key and secret. |
@@ -308,6 +318,23 @@ Enabling any managed provider requires its complete client pair and public HTTPS
 Approval flags are operator attestations, not a provider review API and not proof
 that a provider will authorize those scopes. Secrets never use `NEXT_PUBLIC_`.
 No customer access/refresh token belongs in environment configuration.
+
+For local Instagram testing, register the exact public HTTPS callback under the
+Unified Login configuration, set the Meta app ID, secret and configuration ID
+in the local server environment, and include `instagram` in
+`SOCIAL_MANAGED_PROVIDERS` without removing other enabled providers. Development
+mode permits role-holder testing without asserting approval. Do not mark the
+provider approved unless Meta has actually granted the required access.
+Select and share a professional Instagram account in the client business
+portfolio. Webhook setup and external-account approval are separate Meta
+requirements; neither is verified by local mocks.
+
+Unified publishing uses `graph.facebook.com`, public signed media URLs, JPEG
+conversion for images, MP4 Reels, and image/video carousel containers (the
+application currently accepts at most ten attachments). Processing and final
+publishing are checkpointed; uncertain calls require manual verification.
+Actual provider access, media reachability and publication remain unverified
+until tested with Meta. Do not publish an actual post during automated tests.
 
 ### Exact production callbacks
 

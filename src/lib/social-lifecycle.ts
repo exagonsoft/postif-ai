@@ -36,6 +36,7 @@ async function renew(account: SocialAccountsDocument, deadline: number) {
   });
   if (account.status === "connected" && !(await eligible(account))) throw new SocialProviderError("This channel is outside your plan's oldest connected-channel allowance.", 403);
   const { stored, credentials } = await credentialsFor(account);
+  if (account.platform === "instagram" && credentials.instagramLogin === "unified") throw new SocialProviderError("Instagram Unified Login system-user tokens cannot use the Instagram Login refresh grant. Reauthorize if this token expires or is revoked.", 422);
   if (credentials.oauthMode === "managed") resolveSocialOAuthClient(account.platform as SocialPlatform, credentials);
   let updated: CustomerCredentials;
   if (account.platform === "instagram" || account.platform === "threads") {

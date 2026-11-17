@@ -16,6 +16,7 @@ import { assertSocialMutationOrigin, managedSocialErrorCode } from "@/lib/social
 import { oauthCallbackUrl } from "@/lib/social-oauth-provider";
 import { managedSocialConfiguration } from "@/lib/social-managed-config";
 import { reportFacebookEntry, reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
+import { reportInstagramRejection } from "@/lib/instagram-oauth-diagnostics";
 
 export async function POST(req: Request, context: { params: Promise<{ platform: string }> }) {
   const { platform } = await context.params;
@@ -27,7 +28,7 @@ export async function POST(req: Request, context: { params: Promise<{ platform: 
     assertSocialMutationOrigin(req, true);
     if (!Object.hasOwn(SOCIAL_PLATFORM_SPECS, platform)) throw new ManagedSocialOAuthError("INVALID_REQUEST");
     const body = z.object({ mode: z.enum(["managed", "advanced"]).optional(),
-      credentials: customerCredentials.omit({ accessToken: true, oauthMode: true, grantedScopes: true }).optional(),
+      credentials: customerCredentials.omit({ accessToken: true, oauthMode: true, grantedScopes: true, instagramLogin: true, instagramConfigId: true, instagramBusinessId: true }).optional(),
       analyticsEnabled: z.boolean().default(false), organizations: z.boolean().default(false),
       brandId: z.number().int().positive().optional() }).strict().parse(await req.json());
     const managed = body.mode === "managed" || body.mode !== "advanced" && !body.credentials;
@@ -50,6 +51,7 @@ export async function POST(req: Request, context: { params: Promise<{ platform: 
     return NextResponse.json({ url }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (platform === "facebook") reportFacebookRejection("start", managedSocialErrorCode(error));
+    if (platform === "instagram") reportInstagramRejection("start", managedSocialErrorCode(error, platform));
     return NextResponse.json({ code: managedSocialErrorCode(error), error: error instanceof SocialProviderError || error instanceof WorkflowError ? error.message : "Authorization could not start. Check provider configuration and plan." }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers: { "Cache-Control": "no-store" } });
   }
 }

@@ -4,6 +4,7 @@ import { customerCredentials, SocialProviderError, type CustomerCredentials } fr
 import type { SocialPlatform } from "./social-adapters";
 import { workerFetch as fetch } from "./worker-network";
 import { managedSocialConfiguration } from "./social-managed-config";
+import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookLongTokenShape, reportFacebookPermissions, reportFacebookProviderError, reportFacebookTokenType } from "./facebook-oauth-diagnostics";
 
 const configs = {
   x: { authorize: "https://x.com/i/oauth2/authorize", token: "https://api.x.com/2/oauth2/token", scope: "tweet.read tweet.write users.read media.write offline.access" },
@@ -35,7 +36,7 @@ export function validateSocialOAuthSettings(platform: string, credentials: Omit<
   if (credentials.oauthMode !== "managed" && ["facebook", "instagram"].includes(platform) && !/^\d+$/.test(credentials.accountId || "")) throw new SocialProviderError("Enter the intended Facebook Page ID or Instagram professional account ID before authorizing. The app never guesses a target account.");
   if (["facebook", "instagram"].includes(platform)) metaVersion(credentials);
 }
-export function oauthAuthorizationUrl(platform: string, clientId: string, state: string, challenge: string, settings: Omit<CustomerCredentials, "accessToken"> = {}, managedScopes?: string[]) {
+export function oauthAuthorizationUrl(platform: string, clientId: string, state: string, challenge: string, settings: Omit<CustomerCredentials, "accessToken"> = {}, managedScopes?: string[], facebookConfigId?: string) {
   const config = oauthConfig(platform);
   const url = new URL(platform === "facebook" ? `https://www.facebook.com/${metaVersion(settings)}/dialog/oauth` : config.authorize);
   let scope: string = config.scope;
@@ -46,7 +47,7 @@ export function oauthAuthorizationUrl(platform: string, clientId: string, state:
     if (platform === "threads") scope += ",threads_manage_insights";
   }
   if (managedScopes) scope = managedScopes.join(["x", "youtube", "linkedin"].includes(platform) ? " " : ",");
-  url.search = new URLSearchParams({ response_type: "code", [platform === "tiktok" ? "client_key" : "client_id"]: clientId, redirect_uri: oauthCallbackUrl(platform), scope, state }).toString();
+  url.search = new URLSearchParams({ response_type: "code", [platform === "tiktok" ? "client_key" : "client_id"]: clientId, redirect_uri: oauthCallbackUrl(platform), ...(platform === "facebook" && settings.oauthMode === "managed" && facebookConfigId ? { config_id: facebookConfigId } : { scope }), state }).toString();
   if (platform === "x" || platform === "youtube") { url.searchParams.set("code_challenge", challenge); url.searchParams.set("code_challenge_method", "S256"); }
   if (platform === "youtube") { url.searchParams.set("access_type", "offline"); url.searchParams.set("prompt", "consent"); }
   return url.toString();
@@ -58,6 +59,10 @@ export function metaVersion(credentials: Pick<CustomerCredentials, "apiVersion">
 }
 const metaId = z.union([z.string().min(1), z.number().int().safe().nonnegative()]).transform(String);
 const metaToken = z.object({ access_token: z.string().min(10).max(10000), expires_in: z.number().int().positive().max(315360000), token_type: z.string().optional() });
+const facebookBusinessUserToken = metaToken.extend({ expires_in: metaToken.shape.expires_in.optional() });
+export class FacebookBusinessTokenError extends SocialProviderError {
+  constructor(public code: "FACEBOOK_TOKEN_INVALID" | "FACEBOOK_USER_TOKEN_REQUIRED") { super(code, 403); }
+}
 export function resolveSocialOAuthClient(platform: SocialPlatform, credentials: CustomerCredentials): CustomerCredentials {
   if (credentials.oauthMode !== "managed") return credentials;
   const client = managedSocialConfiguration().clients[platform];
@@ -65,15 +70,47 @@ export function resolveSocialOAuthClient(platform: SocialPlatform, credentials: 
   if (credentials.clientId !== client.clientId.trim()) throw new SocialProviderError("Managed provider application changed. Reconnect this account.", 422);
   return { ...credentials, clientId: client.clientId.trim(), clientSecret: client.clientSecret };
 }
-export async function exchangeFacebookUserToken(input: CustomerCredentials, code: string, deadline: number) {
+export async function inspectFacebookToken(input: CustomerCredentials, token: string, deadline: number, diagnosticStage?: string) {
+  const credentials = resolveSocialOAuthClient("facebook", input);
+  const url = new URL(`https://graph.facebook.com/${metaVersion(credentials)}/debug_token`);
+  url.searchParams.set("input_token", token);
+  const load = async () => z.object({ data: z.object({ app_id: z.string().optional(), type: z.string().optional(), is_valid: z.boolean(),
+    scopes: z.array(z.string()).max(200).optional(), expires_at: z.number().int().nonnegative().max(253402300799).optional(),
+    granular_scopes: z.array(z.object({ scope: z.string(), target_ids: z.array(metaId).max(1000).optional() })).max(200).optional() }) })
+    .parse(await providerJson(url.toString(), { headers: { Authorization: `Bearer ${credentials.clientId}|${credentials.clientSecret}` } }, deadline, diagnosticStage));
+  const result = diagnosticStage ? await facebookDiagnosticRequest(diagnosticStage, load) : await load();
+  if (diagnosticStage) {
+    reportFacebookTokenType(diagnosticStage, result.data.type || "", result.data.is_valid);
+    reportFacebookPermissions(diagnosticStage, result.data.scopes || []);
+  }
+  if (!result.data.is_valid || result.data.app_id !== credentials.clientId || !result.data.scopes || !result.data.type || result.data.expires_at === undefined ||
+    result.data.expires_at && result.data.expires_at * 1000 <= Date.now()) throw new FacebookBusinessTokenError("FACEBOOK_TOKEN_INVALID");
+  return { ...result.data, scopes: result.data.scopes };
+}
+export function facebookScopeForPage(token: Awaited<ReturnType<typeof inspectFacebookToken>>, scope: string, pageId: string) {
+  if (!token.scopes.includes(scope)) return false;
+  const grants = token.granular_scopes?.filter(grant => grant.scope === scope) || [];
+  return !grants.length || grants.some(grant => grant.target_ids === undefined || grant.target_ids.includes(pageId));
+}
+export async function exchangeFacebookUserToken(input: CustomerCredentials, code: string, deadline: number, validateBusinessUser = false, diagnostics = false) {
   const credentials = resolveSocialOAuthClient("facebook", input);
   const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
   const shortUrl = new URL(`${root}/oauth/access_token`);
   shortUrl.search = new URLSearchParams({ client_id: credentials.clientId!, client_secret: credentials.clientSecret!, redirect_uri: oauthCallbackUrl("facebook"), code }).toString();
-  const short = z.object({ access_token: z.string().min(10).max(10000) }).parse(await providerJson(shortUrl.toString(), { method: "GET" }, deadline));
+  const exchangeShort = async () => z.object({ access_token: z.string().min(10).max(10000) }).parse(await providerJson(shortUrl.toString(), { method: "GET" }, deadline, diagnostics ? "user_code_exchange" : undefined));
+  const short = diagnostics ? await facebookDiagnosticRequest("user_code_exchange", exchangeShort) : await exchangeShort();
+  if (validateBusinessUser) {
+    const inspected = await inspectFacebookToken(credentials, short.access_token, deadline, "user_initial_debug");
+    if (inspected.type !== "USER") throw new FacebookBusinessTokenError("FACEBOOK_USER_TOKEN_REQUIRED");
+  }
   const longUrl = new URL(`${root}/oauth/access_token`);
   longUrl.search = new URLSearchParams({ grant_type: "fb_exchange_token", client_id: credentials.clientId!, client_secret: credentials.clientSecret!, fb_exchange_token: short.access_token }).toString();
-  return metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline));
+  const exchangeLong = async () => {
+    const result = await providerJson(longUrl.toString(), { method: "GET" }, deadline, diagnostics ? "user_long_exchange" : undefined);
+    if (diagnostics) reportFacebookLongTokenShape(result);
+    return (validateBusinessUser ? facebookBusinessUserToken : metaToken).parse(result);
+  };
+  return diagnostics ? facebookDiagnosticRequest("user_long_exchange", exchangeLong) : exchangeLong();
 }
 async function exchangeMetaCode(platform: "facebook" | "instagram" | "threads", credentials: CustomerCredentials, code: string, deadline: number) {
   validateSocialOAuthSettings(platform, credentials);
@@ -158,16 +195,46 @@ async function exchangeWithClient(platform: SocialPlatform, credentials: Custome
       ? { refreshExpiresAt: new Date(Date.now() + refreshSeconds * 1000).toISOString() }
       : data.refresh_token_expires_at !== undefined ? { refreshExpiresAt: new Date(data.refresh_token_expires_at * 1000).toISOString() } : {}) });
 }
-export async function providerResponse(url: string, init: RequestInit, deadline = Date.now() + 20000): Promise<Response> {
+async function reportMetaError(response: Response, stage: string) {
+  let code: number | null = null;
+  let subcode: number | null = null;
+  try {
+    const reader = response.body?.getReader();
+    if (reader) {
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      while (size <= 16384) {
+        const part = await reader.read();
+        if (part.done) break;
+        size += part.value.byteLength;
+        if (size <= 16384) chunks.push(part.value);
+      }
+      if (size > 16384) await reader.cancel();
+      else {
+        const body = JSON.parse(new TextDecoder().decode(Buffer.concat(chunks)));
+        const numericCode = z.number().int().nonnegative().max(2147483647);
+        code = numericCode.safeParse(body?.error?.code).data ?? null;
+        subcode = numericCode.safeParse(body?.error?.error_subcode).data ?? null;
+      }
+    }
+  } catch {
+    // Error details are optional; the HTTP status is still reported.
+  }
+  reportFacebookProviderError(stage, response.status, code, subcode);
+}
+export async function providerResponse(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string): Promise<Response> {
   if (deadline <= Date.now()) throw new SocialProviderError("Provider operation deadline reached.", 503);
   let response: Response;
   try { response = await fetch(url, { ...init, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(Math.max(1, Math.min(15000, deadline - Date.now()))) }); }
   catch { throw new SocialProviderError("Provider request interrupted. Recheck authorization before retrying.", 503); }
-  if (!response.ok) throw new SocialProviderError(response.status === 401 || response.status === 403 ? "Provider denied authorization. Reauthorize or review approved permissions." : `Provider request failed (HTTP ${response.status}).`, response.status);
+  if (!response.ok) {
+    if (facebookDiagnosticStage && facebookDiagnosticsEnabled()) await reportMetaError(response, facebookDiagnosticStage);
+    throw new SocialProviderError(response.status === 401 || response.status === 403 ? "Provider denied authorization. Reauthorize or review approved permissions." : `Provider request failed (HTTP ${response.status}).`, response.status);
+  }
   return response;
 }
-export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000): Promise<unknown> {
-  const response = await providerResponse(url, init, deadline);
+export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000, facebookDiagnosticStage?: string): Promise<unknown> {
+  const response = await providerResponse(url, init, deadline, facebookDiagnosticStage);
   try {
     // Some Meta token endpoints encode 17-digit account IDs as JSON numbers.
     // Preserve unsafe integer lexemes instead of silently rounding a tenant identity.

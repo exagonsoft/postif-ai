@@ -6,11 +6,17 @@ export interface PostMedia { id: number; title: string; assetType: string; url: 
 
 export function MediaPreview({ asset }: { asset: PostMedia }) {
   const { t } = useAppLanguage();
+  const [previewFailed, setPreviewFailed] = useState(false);
   const displayStatus = (value: string) => ["queued","processing","ready","failed","deleting","image","video","gif"].includes(value) ? t(`customer.status.${value}`) : value;
+  const report = (result: "ready" | "failed") => {
+    if (result === "failed") setPreviewFailed(true);
+    if (process.env.NODE_ENV === "development") console.info("[Media diagnostic]", { stage: "preview", kind: asset.assetType, result });
+  };
 
   if (asset.generationStatus === "deleting") return <p className="p-3 text-sm">{t("customer.text.532")}</p>;
   if (asset.generationStatus !== "ready") return <p className="p-3 text-sm">{asset.generationStatus === "failed" ? asset.generationError || t("customer.text.533") : t("customer.generationStatus", { status: displayStatus(asset.generationStatus) })}</p>;
-  return asset.assetType === "video" ? <video src={asset.url} controls preload="metadata" className="max-h-64 w-full rounded-xl" /> : <Image unoptimized src={asset.url} alt={asset.title} width={1024} height={1024} className="max-h-64 w-full rounded-xl object-contain" />;
+  if (previewFailed) return <p role="alert" className="p-3 text-sm text-rose-400">{t("customer.mediaDraft.previewFailed")}</p>;
+  return asset.assetType === "video" ? <video src={asset.url} controls preload="metadata" onLoadedMetadata={() => report("ready")} onError={() => report("failed")} className="max-h-64 w-full rounded-xl" /> : <Image unoptimized src={asset.url} alt={asset.title} width={1024} height={1024} onLoad={() => report("ready")} onError={() => report("failed")} className="max-h-64 w-full rounded-xl object-contain" />;
 }
 
 export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libraryOnly = false, uploadOnly = false, canDelete = false }: { topic?: string; selected: number[]; onChange: (ids: number[]) => void; onAssets?: (assets: PostMedia[]) => void; libraryOnly?: boolean; uploadOnly?: boolean; canDelete?: boolean }) {
@@ -19,7 +25,7 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
 
   const [assets, setAssets] = useState<PostMedia[]>([]);
   const [prompt, setPrompt] = useState("");
-  const [kind, setKind] = useState<"image" | "video">("image");
+  const [kind, setKind] = useState<"image" | "video" | "gif">("image");
   const [ratio, setRatio] = useState("16:9");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -99,7 +105,7 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
     </label>
     {!uploadOnly && <><textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder={topic || t("customer.text.550")} maxLength={1000} rows={2} className="elevated-card w-full rounded-xl p-3 text-sm" />
     <div className="flex flex-wrap gap-3">
-      <select aria-label={t("customer.text.551")} value={kind} onChange={event => { setKind(event.target.value as "image" | "video"); if (event.target.value === "video" && ratio === "1:1") setRatio("16:9"); }} className="elevated-card rounded-xl p-2"><option value="image">{t("customer.text.286")}</option><option value="video">{t("customer.text.553")}</option></select>
+      <select aria-label={t("customer.text.551")} value={kind} onChange={event => { setKind(event.target.value as "image" | "video" | "gif"); if (event.target.value !== "image" && ratio === "1:1") setRatio("16:9"); }} className="elevated-card rounded-xl p-2"><option value="image">{t("customer.text.286")}</option><option value="video">{t("customer.text.553")}</option><option value="gif">{t("customer.text.288")}</option></select>
       <select aria-label={t("customer.text.554")} value={ratio} onChange={event => setRatio(event.target.value)} className="elevated-card rounded-xl p-2"><option value="16:9">{t("customer.text.555")}</option><option value="9:16">{t("customer.text.556")}</option>{kind === "image" && <option value="1:1">{t("customer.text.557")}</option>}</select>
       <button disabled={busy || !(prompt || topic).trim()} onClick={generate} className="rounded-xl bg-violet-600 px-4 py-2 font-bold text-white disabled:opacity-50">{t("customer.generateKind", { kind: displayStatus(kind) })}</button>
     </div>

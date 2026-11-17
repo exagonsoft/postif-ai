@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
 import { MediaPreview, PostMedia } from "./PostMediaPicker";
 import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
+import { ScheduleFields } from "./ScheduleFields";
+import { MediaDraftRunner } from "./MediaDraftRunner";
 import { AutomaticMediaSettings, AutomaticMedia } from "./AutomaticMediaSettings";
 import {
   CheckCircle2,
@@ -14,7 +16,6 @@ import {
   Trash2,
   Bot,
   Search,
-  CalendarClock,
 } from "lucide-react";
 
 interface PostRecord {
@@ -33,6 +34,7 @@ interface PostRecord {
   timezone: string;
   automaticMedia: AutomaticMedia;
   automaticMediaStatus: string | null;
+  mediaDraft: boolean;
 }
 
 const STATUS_BADGES: Record<string, string> = {
@@ -89,7 +91,9 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
         toast(t("customer.text.564"), data.error || t("customer.text.565"), "error");
         return;
       }
-      toast(t("customer.text.566"), data.post?.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.567") : t("customer.text.568")) : data.post?.status === "scheduled" ? t("customer.text.569") : t("customer.text.570"));
+      const immediate = extra?.status === "published" && data.publishing;
+      const issue = immediate && data.publishing.find((job: { status: string }) => ["failed", "blocked", "uncertain"].includes(job.status));
+      toast(t("customer.text.566"), data.post?.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.567") : t("customer.text.568")) : immediate ? (issue ? `${t("customer.publish.problem")} ${issue.errorMessage || ""}` : data.post?.status === "published" ? t("customer.publish.confirmed") : t("customer.publish.pending")) : data.post?.status === "scheduled" ? t("customer.text.569") : t("customer.text.570"), issue ? "error" : undefined);
       router.refresh();
     } catch (error) {
       toast(t("customer.text.571"), error instanceof Error ? error.message : t("customer.text.400"), "error");
@@ -183,6 +187,7 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
                 <p className="mt-2 text-xs text-[var(--text-muted)]">{post.requiresApproval ? (isTeamWorkspace ? t("customer.text.578") : t("customer.text.579")) : t("customer.text.460")} · {formatNumber(post.media.length)} {t("customer.text.581")}</p>
                 {post.automaticMedia && <p className="mt-2 text-xs text-violet-300">{t("customer.text.582")}{" "} {displayStatus(post.automaticMedia.kind)}: {post.automaticMediaStatus ? displayStatus(post.automaticMediaStatus) : t("customer.text.583")}</p>}
                 {post.status === "media_failed" && <p role="alert" className="mt-2 text-xs text-rose-400">{post.approvalNote || t("customer.text.584")}</p>}
+                {post.status === "waiting_media" && post.mediaDraft && <MediaDraftRunner postId={post.id} disabled={memberRole === "viewer"} />}
                 <button onClick={() => setReviewId(reviewId === post.id ? null : post.id)} className="mt-2 text-xs font-bold text-cyan-400">{reviewId === post.id ? t("customer.text.585") : t("customer.text.586")}</button>
                 {reviewId === post.id && <div className="mt-4 space-y-3">
                   {Object.entries(post.variants).map(([platform, variant]) => <div key={platform} className="elevated-card rounded-xl p-3"><strong>{platform.toUpperCase()}</strong><p className="mt-2 whitespace-pre-wrap text-sm">{variant.content}</p><p className="text-xs text-cyan-400">{variant.hashtags.join(" ")}</p></div>)}
@@ -198,13 +203,17 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
                     <button disabled={busyId === post.id} onClick={() => runPostAction(post.id, "update", { automaticMedia: Object.hasOwn(mediaSettings, post.id) ? mediaSettings[post.id] : post.automaticMedia })} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white">{t("customer.text.592")}</button>
                   </>}
                 </div>}
-                {!["published", "publishing"].includes(post.status) && <label className="mt-3 block text-xs">{t("customer.text.593")}{post.timezone})
-                  <input type="datetime-local" value={dates[post.id] ?? (post.scheduledAt ? formatScheduleInput(new Date(post.scheduledAt), post.timezone) : "")} onChange={event => setDates({ ...dates, [post.id]: event.target.value })} className="elevated-card ml-2 rounded-lg p-2" />
+                {!["published", "publishing"].includes(post.status) && <div className="mt-3 block text-xs">{t("customer.text.593")}{post.timezone})
+                  <ScheduleFields value={dates[post.id] ?? (post.scheduledAt ? formatScheduleInput(new Date(post.scheduledAt), post.timezone) : "")} onChange={value => setDates({ ...dates, [post.id]: value })} />
                   <button disabled={busyId === post.id} className="ml-2 font-bold text-cyan-400" onClick={() => {
-                    try { void runPostAction(post.id, "update", { status: post.status === "pending_approval" ? "pending_approval" : "scheduled", scheduledAt: scheduleToISO(dates[post.id] ?? (post.scheduledAt ? formatScheduleInput(new Date(post.scheduledAt), post.timezone) : ""), post.timezone) }); }
+                    try {
+                      const chosen = dates[post.id] ?? (post.scheduledAt ? formatScheduleInput(new Date(post.scheduledAt), post.timezone) : "");
+                      const scheduledAt = post.scheduledAt && chosen === formatScheduleInput(new Date(post.scheduledAt), post.timezone) ? post.scheduledAt : scheduleToISO(chosen, post.timezone);
+                      void runPostAction(post.id, "update", { status: post.status === "pending_approval" ? "pending_approval" : "scheduled", scheduledAt });
+                    }
                     catch (error) { toast(t("customer.text.594"), error instanceof Error ? error.message : t("customer.text.595"), "error"); }
                   }}>{t("customer.text.596")}</button>
-                </label>}
+                </div>}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -219,22 +228,6 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
                   </button>
                 )}
 
-                {(post.status === "draft" || post.status === "approved") && (
-                  <button
-                    type="button"
-                    disabled={busyId === post.id}
-                    onClick={() =>
-                      runPostAction(post.id, "update", {
-                        status: "scheduled",
-                        scheduledAt: new Date(Date.now() + 12 * 3600 * 1000).toISOString(),
-                      })
-                    }
-                    className="inline-flex items-center gap-1 rounded-xl bg-violet-600/20 px-3 py-2 text-xs font-bold text-violet-300 hover:bg-violet-600/30"
-                  >
-                    <CalendarClock className="h-3.5 w-3.5" /> {t("customer.text.600")}
-                  </button>
-                )}
-
                 {!["published", "publishing", "pending_approval", "waiting_media", "media_failed"].includes(post.status) && (
                   <button
                     type="button"
@@ -245,7 +238,8 @@ export function PostsManagerClient({ posts, isTeamWorkspace, memberRole }: { pos
                     <Send className="h-3.5 w-3.5" /> {t("customer.text.478")}
                   </button>
                 )}
-                {post.status === "media_failed" && post.automaticMediaStatus === "failed" && <button disabled={busyId === post.id} onClick={() => runPostAction(post.id, "update", { retryMedia: true })} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white">{t("customer.text.602")}</button>}
+                {post.status === "media_failed" && post.mediaDraft && <button disabled={busyId === post.id} onClick={() => runPostAction(post.id, "update", { status: "draft", automaticMedia: null })} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white">{t("customer.mediaDraft.keepText")}</button>}
+                {post.status === "media_failed" && !post.mediaDraft && post.automaticMediaStatus === "failed" && <button disabled={busyId === post.id} onClick={() => runPostAction(post.id, "update", { retryMedia: true })} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white">{t("customer.text.602")}</button>}
                 {!["published", "publishing", "cancelled"].includes(post.status) && <button disabled={busyId === post.id} onClick={() => runPostAction(post.id, "update", { status: "cancelled" })} className="rounded-xl bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-400">{post.status === "pending_approval" ? t("customer.text.233") : t("customer.text.604")}</button>}
 
                 <button

@@ -10,7 +10,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "worker": "node scripts/worker.mjs",
     "worker:once": "node scripts/worker.mjs --once",
-    "test": "node scripts/test-workflow.mjs && node scripts/test-amplify-env.mjs && node scripts/test-client-ai.mjs && node scripts/test-seo.mjs && node scripts/test-i18n.mjs && node scripts/test-legal.mjs && node scripts/test-sidebars.mjs && node scripts/test-admin-access.mjs && node scripts/test-billing.mjs && node scripts/test-billing-catalog.mjs && node scripts/test-social-lifecycle.mjs && node scripts/test-social-managed-ui.mjs && node scripts/test-worker-ai.mjs && node scripts/test-direct-uploads.mjs",
+    "test": "node scripts/test-workflow.mjs && node scripts/test-amplify-env.mjs && node scripts/test-client-ai.mjs && node scripts/test-seo.mjs && node scripts/test-i18n.mjs && node scripts/test-legal.mjs && node scripts/test-sidebars.mjs && node scripts/test-cursors.mjs && node scripts/test-admin-access.mjs && node scripts/test-billing.mjs && node scripts/test-billing-catalog.mjs && node scripts/test-social-lifecycle.mjs && node scripts/test-social-managed-ui.mjs && node scripts/test-worker-ai.mjs && node scripts/test-direct-uploads.mjs",
     "test:seo": "node scripts/test-seo.mjs",
     "test:i18n": "node scripts/test-i18n.mjs",
     "test:legal": "node scripts/test-legal.mjs",

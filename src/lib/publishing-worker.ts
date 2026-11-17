@@ -23,7 +23,7 @@ async function updatePostResult(postId: number) {
     } else if (jobs.some(job => ["processing", "queued", "retrying", "completed", "uncertain"].includes(job.status))) {
       await tx.update(posts, { id: postId }, { status: "publishing", updatedAt: new Date() });
     } else {
-      await tx.update(posts, { id: postId }, { status: "scheduled", updatedAt: new Date() });
+      await tx.update(posts, { id: postId }, { status: post.deliveryMode === "immediate" ? "failed" : "scheduled", updatedAt: new Date() });
       await releasePublishingReservation(post.workspaceId, post.id, tx);
     }
   });
@@ -32,16 +32,32 @@ async function updatePostResult(postId: number) {
 export async function processDuePosts(workspaceId?: number, { deadline = Date.now() + 20000, limit = 5 }: WorkerOptions = {}) {
   return db.withLease("social-publishing", async () => {
     const scope = workspaceId ? { workspaceId } : {};
-    const finalizing = await db.find(posts, { ...scope, status: "publishing" }, { projection: { id: 1 }, limit: 10, sort: { updatedAt: 1 } });
+    const finalizing = await db.find(posts, { ...scope, status: "publishing", deliveryMode: { $ne: "immediate" } }, { projection: { id: 1 }, limit: 10, sort: { updatedAt: 1 } });
     for (const post of finalizing) {
       if (!hasTime(deadline)) break;
       await updatePostResult(post.id);
     }
-    const interrupted = await db.find(publishingJobs, { ...scope, status: "processing", encryptedProviderState: null, startedAt: { $lte: new Date(Date.now() - 120000) } }, { limit: 20 });
+    const interrupted = await db.find(publishingJobs, { ...scope, deliveryMode: { $ne: "immediate" }, status: "processing", encryptedProviderState: null, startedAt: { $lte: new Date(Date.now() - 120000) } }, { limit: 20 });
     for (const job of interrupted) {
       await db.update(publishingJobs, { id: job.id, status: "processing" }, { status: "uncertain", errorMessage: "Worker stopped during a provider request. Check the platform before rescheduling." });
       await updatePostResult(job.postId);
     }
+    return processPublishingJobs({ ...scope, deliveryMode: { $ne: "immediate" } }, deadline, limit, false);
+  }, 0);
+}
+
+export async function processImmediatePost(workspaceId: number, postId: number, jobId?: number) {
+  const scope = { workspaceId, postId, deliveryMode: "immediate", ...(jobId ? { id: jobId } : {}) };
+  const interrupted = await db.find(publishingJobs, { ...scope, status: "processing", encryptedProviderState: null, startedAt: { $lte: new Date(Date.now() - 120000) } });
+  for (const job of interrupted) {
+    await db.update(publishingJobs, { id: job.id, status: "processing", encryptedProviderState: null, startedAt: job.startedAt }, { status: "uncertain", errorMessage: "Publishing was interrupted. Check the platform before creating a new post." });
+  }
+  const processed = await processPublishingJobs(scope, Date.now() + 55000, jobId ? 1 : 8, true);
+  await updatePostResult(postId);
+  return processed;
+}
+
+async function processPublishingJobs(scope: object, deadline: number, limit: number, immediate: boolean) {
     let processed = 0;
     for (let i = 0; i < limit && hasTime(deadline, 2000); i++) {
       const claim = await db.transaction(async tx => {
@@ -107,19 +123,19 @@ export async function processDuePosts(workspaceId?: number, { deadline = Date.no
         const providerError = error instanceof SocialProviderError ? error : null;
         const publiclyProcessing = ["tiktok-upload", "youtube-upload", "youtube-processing"].includes(checkpointStage || "");
         const uncertain = providerError?.uncertain || (!providerError && (checkpointed || attempted)) || (publiclyProcessing && ![429, 502, 503, 504].includes(providerError?.status || 0));
-        const retryable = !uncertain && providerError && [429, 502, 503, 504].includes(providerError.status) && job.attempts + 1 < job.maxAttempts;
+        const retryable = !immediate && !uncertain && providerError && [429, 502, 503, 504].includes(providerError.status) && job.attempts + 1 < job.maxAttempts;
+        const manualPending = immediate && checkpointed && !uncertain && providerError && [429, 502, 503, 504].includes(providerError.status);
         const message = providerError?.message || "Publishing failed. Check credentials, media, and server logs.";
         console.error("Social publishing failed", { jobId: job.id, platform: job.platform, status: providerError?.status || 500, uncertain });
         await db.transaction(async tx => {
-          const [changed] = await tx.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, { status: uncertain ? "uncertain" : retryable ? "retrying" : "failed", errorMessage: message, nextCheckAt: new Date(Date.now() + 60000 * 2 ** Math.min(job.attempts, 5)), ...(!uncertain && !retryable ? { encryptedProviderState: null } : {}) });
+          const [changed] = await tx.update(publishingJobs, { id: job.id, status: "processing", startedAt: job.startedAt }, { status: uncertain ? "uncertain" : manualPending ? "processing" : retryable ? "retrying" : "failed", errorMessage: message, nextCheckAt: new Date(Date.now() + 60000 * 2 ** Math.min(job.attempts, 5)), ...(!uncertain && !retryable && !manualPending ? { encryptedProviderState: null } : {}) });
           if (!changed) return;
-          if (!uncertain && !retryable) await releasePublishingReservation(post.workspaceId, post.id, tx);
+          if (!uncertain && !retryable && !manualPending) await releasePublishingReservation(post.workspaceId, post.id, tx);
           if (providerError && [401, 403].includes(providerError.status)) await tx.update(socialAccounts, { id: account.id }, { status: "needs_review", lastError: message });
-          if (!retryable && post.notifyOnPublish) await queueWorkspaceNotification(tx, `publish-failed:${job.id}:${job.attempts}`, post.workspaceId, "publish_failed", uncertain ? "Publishing needs verification" : "Publishing failed", `"${post.title}": ${message}`, "/app/calendar");
+          if (!retryable && !manualPending && post.notifyOnPublish) await queueWorkspaceNotification(tx, `publish-failed:${job.id}:${job.attempts}`, post.workspaceId, "publish_failed", uncertain ? "Publishing needs verification" : "Publishing failed", `"${post.title}": ${message}`, "/app/calendar");
         });
         await updatePostResult(post.id);
       }
     }
     return processed;
-  }, 0);
 }

@@ -4,7 +4,7 @@ import { mediaReservations, type MediaReservation } from "@/db/worker-schema";
 import { increment } from "@/db/filters";
 import { decryptSecret } from "./crypto";
 import { WorkflowError } from "./post-policy";
-import { storeMedia, deleteMedia, readLimitedResponse } from "./media-storage";
+import { storeMedia, deleteMedia, detectMedia, readLimitedResponse, checkMediaStorageCredentials, MediaStorageError } from "./media-storage";
 import { assertBrandEntitlement, getWorkspaceEntitlements } from "./entitlements";
 import { credentialVersion, validCreditBalance, validReservationCredits } from "./ai-request-policy";
 import { deadlineSignal, hasTime, type WorkerOptions } from "./worker-budget";
@@ -12,8 +12,14 @@ import { getCreditEpoch } from "./subscriptions";
 import { verifyGifEncoder, videoToGif } from "./gif-generation";
 import { backgroundImageModelSupported, backgroundImageResult, pollBackgroundImage, submitBackgroundImage } from "./openai-background-images";
 import { withWorkerDeadline } from "./worker-network";
+import { mediaDiagnostic } from "./media-diagnostics";
+import { getMediaStorageConfig } from "./media-storage-config";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+function assertMediaStorageConfigured() {
+  try { return getMediaStorageConfig(); }
+  catch { throw new WorkflowError("Media storage is not configured correctly. Contact an administrator before generating media.", 409); }
+}
 async function mediaPayer(tx: Transaction, workspaceId: number, kind: string) {
   const { plan } = await getWorkspaceEntitlements(workspaceId, tx);
   const [config] = await tx.find(aiConfigurations, { workspaceId });
@@ -46,8 +52,52 @@ export function mediaGenerationReadiness() {
       validation: "FFMPEG_PATH or the bundled FFmpeg executable is verified in the Next.js runtime before reserving credits; conversion has a hard remaining-deadline timeout." },
   };
 }
+export async function checkMediaGeneration(workspaceId: number, brandId: number, kind: "image" | "video" | "gif") {
+  let step = "brand_entitlement";
+  try {
+    await assertBrandEntitlement(workspaceId, brandId);
+    step = "storage_configuration";
+    const storage = assertMediaStorageConfigured();
+    step = "storage_credentials";
+    try { await checkMediaStorageCredentials(storage); }
+    catch (error) {
+      if (error instanceof MediaStorageError) throw new WorkflowError(error.message, error.status);
+      throw error;
+    }
+    step = "workspace";
+    const [workspace] = await db.find(workspaces, { id: workspaceId });
+    if (!workspace) throw new WorkflowError("Workspace not found.", 404);
+    step = "credit_balance";
+    if (!Number.isSafeInteger(workspace.aiCreditsBalance) || workspace.aiCreditsBalance < 0)
+      throw new WorkflowError("AI credit balance requires administrator reconciliation.", 409);
+    step = "provider_configuration";
+    const payer = await mediaPayer(db, workspaceId, kind);
+    if (kind === "gif") {
+      step = "gif_encoder";
+      try { await verifyGifEncoder({ deadline: Date.now() + 2500 }); }
+      catch { throw new WorkflowError("FFmpeg is unavailable in this Next.js runtime.", 409); }
+    }
+    step = "credit_allowance";
+    const credits = payer.billingMode === "byok" ? 0 : kind === "image" ? 40 : 120;
+    if (workspace.aiCreditsBalance < credits) throw new WorkflowError(`This generation requires ${credits} managed credits.`, 409);
+    mediaDiagnostic("gate", { kind, provider: kind === "image" ? "openai" : "runway", billingMode: payer.billingMode, result: "allowed" });
+    return { kind, provider: kind === "image" ? "openai" : "runway", billingMode: payer.billingMode, credits };
+  } catch (error) {
+    mediaDiagnostic("gate", { kind, provider: kind === "image" ? "openai" : "runway", result: "rejected", step, category: error instanceof WorkflowError ? "expected" : "unexpected" });
+    throw error;
+  }
+}
 async function saveGeneratedMedia(asset: MediaAssetsDocument, reservation: MediaReservation, bytes: Buffer, tokens = 0) {
-  const stored = await storeMedia(bytes, asset.workspaceId);
+  if (detectMedia(bytes)?.assetType !== asset.assetType) {
+    mediaDiagnostic("storage", { kind: asset.assetType, result: "invalid_format" });
+    throw new Error("The generated media format was invalid. Verify provider usage before requesting another generation.");
+  }
+  let stored: Awaited<ReturnType<typeof storeMedia>>;
+  try { stored = await storeMedia(bytes, asset.workspaceId); }
+  catch {
+    mediaDiagnostic("storage", { kind: asset.assetType, result: "failed" });
+    throw new Error("Generated media could not be stored. Verify storage settings and provider usage before requesting another generation.");
+  }
   try {
     await db.transaction(async tx => {
       const [current] = await tx.find(mediaReservations, { id: reservation.id, status: "reserved" }, { lock: true });
@@ -59,7 +109,9 @@ async function saveGeneratedMedia(asset: MediaAssetsDocument, reservation: Media
         executionSource: asset.assetType === "image" ? current.billingMode === "byok" ? "byok_live" : "openai_live" : "runway_live", tokensEstimate: tokens,
       });
     });
+    mediaDiagnostic("storage", { kind: asset.assetType, result: "ready" });
   } catch (error) {
+    mediaDiagnostic("storage", { kind: asset.assetType, result: "failed" });
     // A lost commit acknowledgement must not delete an object already attached by a committed transaction.
     const [persisted] = await db.find(mediaAssets, { id: asset.id, workspaceId: asset.workspaceId });
     if (persisted?.generationStatus === "ready" && persisted.storageKey === stored.storageKey) return;
@@ -101,6 +153,7 @@ export async function queueMedia(workspaceId: number, brandId: number, userId: n
     const [workspace] = await tx.find(workspaces, { id: workspaceId }, { lock: true });
     if (!workspace) throw new WorkflowError("Workspace not found.", 404);
     await assertBrandEntitlement(workspaceId, brandId, tx);
+    assertMediaStorageConfigured();
     validCreditBalance(workspace.aiCreditsBalance);
     const payer = await mediaPayer(tx, workspaceId, input.kind);
     if (input.kind === "gif") {
@@ -120,23 +173,24 @@ export async function queueMedia(workspaceId: number, brandId: number, userId: n
   return transaction ? enqueue(transaction) : db.transaction(enqueue);
 }
 
-export async function refreshPendingMedia({ deadline = Date.now() + 20000, limit = 3 }: WorkerOptions = {}) {
+export async function refreshPendingMedia({ deadline = Date.now() + 20000, limit = 3, target }: WorkerOptions & { target?: { workspaceId: number; assetId: number } } = {}) {
   return withWorkerDeadline(deadline, () => db.withLease("media-generation", async () => {
     // Legacy jobs have no immutable payer. Never charge the currently selected provider for them.
-    const legacy = await db.find(mediaAssets, { generationStatus: { $in: ["queued", "processing"] } }, { limit: 10, sort: { id: 1 } });
+    const legacy = target ? [] : await db.find(mediaAssets, { generationStatus: { $in: ["queued", "processing"] } }, { limit: 10, sort: { id: 1 } });
     for (const asset of legacy) {
       if (!hasTime(deadline)) break;
       const [reservation] = await db.find(mediaReservations, { assetId: asset.id });
       if (!reservation) await db.transaction(tx => refundAsset(tx, asset, "Legacy generation has no immutable payer reservation. Credits returned; verify any provider task before retrying."));
     }
-    const reservations = await db.find(mediaReservations, { status: "reserved", nextCheckAt: { $lte: new Date() } }, { limit, sort: { lastCheckedAt: 1, id: 1 } });
+    const reservations = await db.find(mediaReservations, { status: "reserved", nextCheckAt: { $lte: new Date() }, ...(target ? { workspaceId: target.workspaceId, assetId: target.assetId } : {}) }, { limit, sort: { lastCheckedAt: 1, id: 1 } });
     let processed = 0;
     for (const reservation of reservations) {
       if (!hasTime(deadline, 2000)) break;
-      await db.update(mediaReservations, { id: reservation.id, status: "reserved" }, { lastCheckedAt: new Date(), nextCheckAt: new Date(Date.now() + 30000) });
+      await db.update(mediaReservations, { id: reservation.id, status: "reserved" }, { lastCheckedAt: new Date(), nextCheckAt: new Date(Date.now() + (target ? 5000 : 30000)) });
       const [asset] = await db.find(mediaAssets, { id: reservation.assetId, generationStatus: { $in: ["queued", "processing"] } });
       if (!asset) continue;
       const [claimed] = await db.update(mediaAssets, { id: asset.id, generationStatus: "queued" }, { generationStatus: "processing", generationStartedAt: new Date() });
+      if (claimed) mediaDiagnostic("generation", { kind: asset.assetType, provider: asset.assetType === "image" ? "openai" : "runway", result: "started" });
       let providerJobId = asset.providerJobId;
       try {
         if (!claimed && !asset.providerJobId) {
@@ -180,8 +234,9 @@ export async function refreshPendingMedia({ deadline = Date.now() + 20000, limit
           });
           if (!response.ok) throw new Error(`Video provider returned HTTP ${response.status}.`);
           const data = await response.json();
-          if (typeof data.id !== "string") throw new Error("Video provider returned no task ID.");
-          await db.update(mediaAssets, { id: asset.id, generationStatus: "processing", providerJobId: null }, { providerJobId: data.id });
+          if (typeof data.id !== "string") throw new Error("Video provider returned no task ID. Verify provider usage before requesting another generation.");
+          const [checkpoint] = await db.update(mediaAssets, { id: asset.id, generationStatus: "processing", providerJobId: null }, { providerJobId: data.id });
+          if (!checkpoint) throw new Error("The video task could not be checkpointed. Verify provider usage before requesting another generation.");
         } else {
           const response = await fetch(`https://api.dev.runwayml.com/v1/tasks/${encodeURIComponent(asset.providerJobId)}`, { headers: runwayHeaders(payer.key), signal: deadlineSignal(deadline - 1500, 4000) });
           if (response.status === 429 || response.status >= 500) continue;
@@ -199,6 +254,7 @@ export async function refreshPendingMedia({ deadline = Date.now() + 20000, limit
         }
         processed++;
       } catch (error) {
+        mediaDiagnostic("generation", { kind: asset.assetType, provider: asset.assetType === "image" ? "openai" : "runway", result: "error", httpStatus: error instanceof Error ? Number(error.message.match(/HTTP (\d{3})/)?.[1] || 0) : 0 });
         // Poll/download timeouts are recoverable with the same task ID; never resubmit a paid task.
         if (providerJobId && error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) {
           await db.update(mediaAssets, { id: asset.id, generationStatus: "processing" }, { generationError: "Generation output retrieval or conversion reached the request deadline. The same saved provider task will be retried; no new generation is submitted." });

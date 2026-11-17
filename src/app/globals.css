@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@layer base {
+  :where(
+    a[href], area[href], button, select, summary,
+    input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="file"], [type="color"], [type="range"]),
+    [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="menuitem"], [role="tab"],
+    label:has(input:is([type="checkbox"], [type="radio"], [type="file"]):enabled)
+  ):not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  :where(a[href], area[href], button, select, input, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="menuitem"], [role="tab"]):is(:disabled, [aria-disabled="true"]) {
+    cursor: not-allowed;
+  }
+}
+
 :root,
 [data-theme="dark"] {
   --bg-canvas: #060913;

@@ -25,6 +25,7 @@ export function managedSocialConfiguration(env: NodeJS.ProcessEnv = process.env)
     threads: { clientId: env.THREADS_OAUTH_CLIENT_ID, clientSecret: env.THREADS_OAUTH_CLIENT_SECRET },
   };
   return { enabled, approved, analytics, publicPosting, clients,
+    facebookConfigId: env.FACEBOOK_OAUTH_CONFIG_ID?.trim() || undefined,
     graphVersion: env.META_GRAPH_API_VERSION?.trim() || "v27.0",
     linkedinVersion: env.LINKEDIN_API_VERSION?.trim(),
     linkedinOrganizations: env.LINKEDIN_ORGANIZATIONS_ENABLED === "true",
@@ -33,6 +34,9 @@ export function managedSocialConfiguration(env: NodeJS.ProcessEnv = process.env)
 
 export function validateManagedSocialConfiguration(env: NodeJS.ProcessEnv = process.env) {
   const config = managedSocialConfiguration(env);
+  if (config.enabled.includes("facebook") && config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)) {
+    throw new Error("FACEBOOK_OAUTH_CONFIG_ID must be a numeric Meta configuration ID.");
+  }
   if (env.LINKEDIN_ORGANIZATIONS_ENABLED && !["true", "false"].includes(env.LINKEDIN_ORGANIZATIONS_ENABLED)) {
     throw new Error("LINKEDIN_ORGANIZATIONS_ENABLED must be true or false.");
   }
@@ -60,10 +64,13 @@ export function managedSocialAvailability(env: NodeJS.ProcessEnv = process.env):
   const config = managedSocialConfiguration(env);
   return (Object.keys(SOCIAL_PLATFORM_SPECS) as SocialPlatform[]).map(platform => ({
     platform,
-    status: !config.enabled.includes(platform) || !config.clients[platform].clientId?.trim() || !config.clients[platform].clientSecret?.trim()
-      ? "not_configured" : !config.approved.includes(platform) ? "approval_required" : "available",
+    status: !config.enabled.includes(platform) || !config.clients[platform].clientId?.trim() || !config.clients[platform].clientSecret?.trim() ||
+      platform === "facebook" && !!config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)
+      ? "not_configured" : config.approved.includes(platform) ? "available"
+        : platform === "facebook" && env.NODE_ENV === "development" ? "testing" : "approval_required",
     analyticsAvailable: config.analytics.includes(platform),
     organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations,
     publicPostingAvailable: config.publicPosting.includes(platform),
+    facebookBusinessLogin: platform === "facebook" && !!config.facebookConfigId,
   }));
 }

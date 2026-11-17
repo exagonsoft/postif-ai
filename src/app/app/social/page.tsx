@@ -13,6 +13,7 @@ import { managedSocialAvailability } from "@/lib/social-managed-config";
 import { managedSocialErrorCode, readManagedSelection } from "@/lib/social-managed-oauth";
 import type { ManagedSocialSelection } from "@/lib/social-managed-types";
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
+import { reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
 export const dynamic = "force-dynamic";
 export default async function SocialAccountsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t } = await getServerI18n();
@@ -25,16 +26,19 @@ export default async function SocialAccountsPage({ searchParams }: { searchParam
     const query = await searchParams;
     const canManage = ["owner", "admin"].includes(ctx.memberRole);
     let managedSelection: ManagedSocialSelection | null = null;
-    const safeErrors = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
+    const safeErrors = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "FACEBOOK_PAGE_ACCESS_MISSING", "FACEBOOK_PUBLISH_ACCESS_MISSING", "FACEBOOK_TOKEN_INVALID", "FACEBOOK_USER_TOKEN_REQUIRED", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "BRAND_LIMIT", "REQUEST_BLOCKED", "REQUEST_FORMAT", "REQUEST_CROSS_SITE", "REQUEST_ORIGIN", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
     let managedError = typeof query.social_error === "string" ? (safeErrors.includes(query.social_error) ? query.social_error : "AUTHORIZATION_FAILED") : null;
-    if (canManage && (query.social_provider !== undefined || query.social_selection !== undefined)) {
+    if (canManage && query.social_selection !== undefined) {
       if (typeof query.social_provider === "string" && Object.hasOwn(SOCIAL_PLATFORM_SPECS, query.social_provider) &&
           typeof query.social_selection === "string" && query.social_selection.length > 0 && query.social_selection.length <= 4096) {
         try {
           managedSelection = await readManagedSelection({ workspaceId: ctx.workspace.id, userId: ctx.user.id, platform: query.social_provider, ticket: query.social_selection });
-        } catch (error) { managedError = managedSocialErrorCode(error); }
+        } catch (error) {
+          managedError = managedSocialErrorCode(error);
+          if (query.social_provider === "facebook") reportFacebookRejection("selection_page", managedError);
+        }
       } else managedError = "INVALID_REQUEST";
-    }
+    } else if (canManage && !managedError && query.social_provider !== undefined) managedError = "INVALID_REQUEST";
     const accounts = await db.find(socialAccounts, eq("workspaceId", ctx.workspace.id), {});
     const lifecycle = await db.find(socialLifecycleStatuses, { workspaceId: ctx.workspace.id });
     let callbackOrigin: string | null = null;

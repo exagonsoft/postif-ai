@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { managedSocialAvailability, managedSocialConfiguration } from "./social-managed-config";
 import { customerCredentials, SocialProviderError, verifyCustomerConnection, type CustomerCredentials } from "./social-provider";
-import { exchangeFacebookUserToken, exchangeSocialToken, metaVersion, providerJson } from "./social-oauth-provider";
+import { exchangeFacebookUserToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, metaVersion, providerJson } from "./social-oauth-provider";
 import type { SocialPlatform } from "./social-adapters";
 import type { ManagedSocialDestination } from "./social-managed-types";
+import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookAuthorization, reportFacebookGrantCheck, reportFacebookPageDiscovery, reportFacebookPageRestrictions, reportFacebookPageTasks, reportFacebookPermissions } from "./facebook-oauth-diagnostics";
 
 export class ManagedSocialOAuthError extends SocialProviderError {
   constructor(public code: string, status = 400) { super(code, status); }
@@ -14,7 +15,7 @@ export interface AuthorizedSocialDestination extends ManagedSocialDestination {
 export function managedCredentials(platform: SocialPlatform, analyticsEnabled: boolean, organizations: boolean) {
   const config = managedSocialConfiguration();
   const status = managedSocialAvailability().find(item => item.platform === platform)?.status;
-  if (status !== "available") throw new ManagedSocialOAuthError(status === "approval_required" ? "APPROVAL_REQUIRED" : "NOT_CONFIGURED", 503);
+  if (status !== "available" && status !== "testing") throw new ManagedSocialOAuthError(status === "approval_required" ? "APPROVAL_REQUIRED" : "NOT_CONFIGURED", 503);
   if (analyticsEnabled && !config.analytics.includes(platform)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   if (organizations && (platform !== "linkedin" || !config.linkedinOrganizations)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   const clientId = config.clients[platform].clientId?.trim();
@@ -42,38 +43,88 @@ const identifier = z.union([z.string().regex(/^[A-Za-z0-9:_-]{1,250}$/), z.numbe
 const scopeGrants = z.object({ data: z.array(z.object({ permission: z.string(), status: z.string() })) });
 
 export async function discoverManagedDestinations(platform: SocialPlatform, settings: Omit<CustomerCredentials, "accessToken">,
-  grant: { code: string; verifier: string }, organizations: boolean, deadline = Date.now() + 20000): Promise<AuthorizedSocialDestination[]> {
+  grant: { code: string; verifier: string }, organizations: boolean, deadline = Date.now() + 20000, facebookBusiness = false): Promise<AuthorizedSocialDestination[]> {
   if (platform !== "facebook") return discoverOtherDestinations(platform, settings, grant, organizations, deadline);
   const credentials = customerCredentials.parse({ ...settings, accessToken: "pending-authorization" });
-  const token = await exchangeFacebookUserToken(credentials, grant.code, deadline);
+  const required = managedScopes(platform, !!credentials.analyticsEnabled, organizations);
+  reportFacebookAuthorization(required, facebookBusiness);
+  const token = await exchangeFacebookUserToken(credentials, grant.code, deadline, facebookBusiness, true);
   const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
   const headers = { Authorization: `Bearer ${token.access_token}` };
-  const grants = scopeGrants.parse(await providerJson(`${root}/me/permissions`, { headers }, deadline));
-  const scopes = grants.data.filter(item => item.status === "granted").map(item => item.permission);
-  if (managedScopes(platform, !!credentials.analyticsEnabled, organizations).some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+  const loadGrants = async () => scopeGrants.parse(await providerJson(`${root}/me/permissions`, { headers }, deadline, "user_permissions"));
+  const grants = await facebookDiagnosticRequest("user_permissions", loadGrants);
+  reportFacebookPermissions("user_permissions", [], grants.data);
+  let scopes = grants.data.filter(item => item.status === "granted").map(item => item.permission);
+  let userToken: Awaited<ReturnType<typeof inspectFacebookToken>> | undefined;
+  if (facebookBusiness) {
+    const inspected = await inspectFacebookToken(credentials, token.access_token, deadline, "user_extended_debug");
+    if (inspected.type !== "USER") throw new FacebookBusinessTokenError("FACEBOOK_USER_TOKEN_REQUIRED");
+    userToken = inspected;
+    scopes = scopes.filter(scope => inspected.scopes.includes(scope));
+    reportFacebookGrantCheck("user_grant_check", required, scopes, facebookBusiness);
+    if (!scopes.includes("pages_show_list")) throw new ManagedSocialOAuthError("FACEBOOK_PAGE_ACCESS_MISSING", 403);
+  } else {
+    reportFacebookGrantCheck("user_grant_check", required, scopes, facebookBusiness);
+    if (required.some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+  }
   const destinations: AuthorizedSocialDestination[] = [];
+  let publishingAccessMissing = false;
+  let optionalAccessMissing = false;
+  let pageIndex = 0;
   let after: string | undefined;
   for (let page = 0; page < 5; page++) {
     const url = new URL(`${root}/me/accounts`);
     url.search = new URLSearchParams({ fields: "id,name,category,access_token,tasks", limit: "100", ...(after ? { after } : {}) }).toString();
-    const result = z.object({
+    const loadPages = async () => z.object({
       data: z.array(z.object({ id: identifier, name: z.string().min(1).max(500), category: z.string().optional(),
         access_token: z.string().min(10).max(10000), tasks: z.array(z.string()) })).max(100),
       paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().max(4000).optional() }).optional() }).optional(),
-    }).parse(await providerJson(url.toString(), { headers }, deadline));
+    }).parse(await providerJson(url.toString(), { headers }, deadline, "page_discovery"));
+    const result = await facebookDiagnosticRequest("page_discovery", loadPages);
+    reportFacebookPageDiscovery(result.data.length, !!result.paging?.next);
     for (const page of result.data) {
+      pageIndex++;
+      if (facebookDiagnosticsEnabled()) {
+        reportFacebookPageTasks(pageIndex, page.tasks);
+        const diagnosticDeadline = Math.min(deadline - 3000, Date.now() + 2000);
+        if (facebookBusiness && pageIndex <= 3 && diagnosticDeadline > Date.now()) {
+          try {
+            const inspected = await inspectFacebookToken(credentials, page.access_token, diagnosticDeadline, `page_${pageIndex}_debug`);
+            reportFacebookPageRestrictions(pageIndex, page.id, inspected.granular_scopes || []);
+          }
+          catch (error) { if (!(error instanceof SocialProviderError || error instanceof z.ZodError)) throw error; }
+        }
+      }
       if (!page.tasks.some(task => ["CREATE_CONTENT", "MANAGE", "PROFILE_PLUS_CREATE_CONTENT", "PROFILE_PLUS_FULL_CONTROL"].includes(task))) continue;
       if (destinations.some(item => item.id === page.id)) continue;
+      if (userToken) {
+        const inspected = userToken;
+        reportFacebookGrantCheck("page_grant_check", required, scopes.filter(scope => facebookScopeForPage(inspected, scope, page.id)), true, pageIndex);
+        if (["pages_show_list", "pages_manage_posts", "pages_read_engagement"].some(scope => !scopes.includes(scope) || !facebookScopeForPage(inspected, scope, page.id))) {
+          publishingAccessMissing = true;
+          continue;
+        }
+        if (managedScopes("facebook", !!credentials.analyticsEnabled, organizations).some(scope => !scopes.includes(scope) || !facebookScopeForPage(inspected, scope, page.id))) {
+          optionalAccessMissing = true;
+          continue;
+        }
+      }
       destinations.push({ id: page.id, name: page.name, handle: page.id, accountType: page.category || "Page",
         permissions: scopes,
         credentials: customerCredentials.parse({ ...credentials, accessToken: page.access_token, accountId: page.id,
           clientSecret: undefined, tokenKind: "long_lived", grantedScopes: scopes }) });
     }
-    if (!result.paging?.next) return destinations;
+    if (!result.paging?.next) break;
     const cursor = result.paging.cursors?.after;
     if (!cursor || cursor === after || page === 4) throw new ManagedSocialOAuthError("DISCOVERY_INCOMPLETE", 422);
     after = cursor;
   }
+  if (facebookBusiness && publishingAccessMissing && !destinations.length) {
+    throw new ManagedSocialOAuthError("FACEBOOK_PUBLISH_ACCESS_MISSING", 403);
+  }
+  if (facebookBusiness && optionalAccessMissing && !destinations.length) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+  if (facebookBusiness && ["pages_manage_posts", "pages_read_engagement"].some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("FACEBOOK_PUBLISH_ACCESS_MISSING", 403);
+  if (facebookBusiness && managedScopes(platform, !!credentials.analyticsEnabled, organizations).some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
   return destinations;
 }
 

@@ -33,6 +33,24 @@ interface MediaStorageProvider {
 export class MediaStorageError extends Error {
   constructor(message: string, public status = 503) { super(message); }
 }
+export async function checkMediaStorageCredentials(config: MediaStorageConfig) {
+  if (config.provider !== "s3") return;
+  const client = new S3Client({ region: config.region });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      client.config.credentials(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Credential lookup timed out")), 5000);
+      }),
+    ]);
+  } catch {
+    throw new MediaStorageError("S3 credentials are unavailable or could not be resolved in time. Configure the AWS credential provider before generating media.", 503);
+  } finally {
+    if (timer) clearTimeout(timer);
+    client.destroy();
+  }
+}
 export function detectMedia(bytes: Buffer): { mimeType: string; assetType: "image" | "video" | "gif"; extension: string } | null {
   if (bytes.length < 12) return null;
   if (["GIF87a", "GIF89a"].includes(bytes.toString("ascii", 0, 6))) return { mimeType: "image/gif", assetType: "gif", extension: "gif" };

@@ -5,6 +5,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
 import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
+import { ScheduleFields } from "./ScheduleFields";
+import { SCHEDULE_SLOTS } from "@/lib/schedule-slots";
 import {
   Calendar as CalendarIcon,
   RotateCcw,
@@ -37,6 +39,7 @@ interface PublishingJobItem {
   scheduledFor: string;
   errorMessage: string | null;
   idempotencyKey: string;
+  deliveryMode: "immediate" | "scheduled";
 }
 
 export function CalendarClient({
@@ -78,6 +81,13 @@ export function CalendarClient({
 
   const saveEditedPost = async () => {
     if (!editingPost) return;
+    let scheduledAt: string | null;
+    try {
+      scheduledAt = editDate && editingPost.scheduledAt && timezone === editingPost.timezone &&
+        editDate === formatScheduleInput(new Date(editingPost.scheduledAt), timezone)
+        ? editingPost.scheduledAt : editDate ? scheduleToISO(editDate, timezone) : null;
+    }
+    catch (error) { toast(t("customer.text.594"), error instanceof Error ? error.message : t("customer.text.595"), "error"); return; }
     const res = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,7 +97,7 @@ export function CalendarClient({
         title: editTitle,
         baseContent: editContent,
         status: editStatus,
-        scheduledAt: editDate ? scheduleToISO(editDate, timezone) : null,
+        scheduledAt,
         timezone,
       }),
     });
@@ -95,32 +105,20 @@ export function CalendarClient({
       toast(t("customer.text.294"), t("customer.updatedCalendar", { title: editTitle }));
       setEditingPost(null);
       router.refresh();
-    }
+    } else { const data = await res.json(); toast(t("customer.text.564"), data.error || t("customer.text.565"), "error"); }
   };
 
-  const handleDropOnDay = async (dayNumber: number) => {
+  const handleDropOnDay = (dayNumber: number) => {
     if (!draggedPostId) return;
-    const now = new Date();
-    const targetDate = new Date(now.getFullYear(), now.getMonth(), dayNumber, 10, 0, 0);
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update",
-        postId: draggedPostId,
-        status: "scheduled",
-        scheduledAt: targetDate.toISOString(),
-        timezone,
-      }),
-    });
+    const post = posts.find(item => item.id === draggedPostId);
     setDraggedPostId(null);
-    if (res.ok) {
-      toast(
-        t("customer.text.295"),
-        t("customer.movedPost", { date: formatDate(targetDate, { dateStyle: "medium" }), time: formatDate(targetDate, { hour: "numeric", minute: "2-digit" }), timezone })
-      );
-      router.refresh();
-    }
+    if (!post) return;
+    const now = new Date();
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
+    const previousTime = post.scheduledAt ? formatScheduleInput(new Date(post.scheduledAt), post.timezone).slice(11) : "";
+    openEditor(post);
+    setEditDate(`${day}T${SCHEDULE_SLOTS.some(slot => slot === previousTime) ? previousTime : "09:00"}`);
+    setEditStatus("scheduled");
   };
 
   const handleDuplicate = async (postId: number) => {
@@ -142,8 +140,24 @@ export function CalendarClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "retry", jobId }),
     });
+    const data = await res.json();
     if (res.ok) {
-      toast(t("customer.text.298"), t("customer.retryJob", { id: jobId }));
+      toast(t("customer.text.298"), jobs.find(job => job.id === jobId)?.deliveryMode === "immediate" ? t("customer.publish.checkResult") : t("customer.retryJob", { id: jobId }));
+      router.refresh();
+    } else toast(t("customer.text.564"), data.error || t("customer.text.565"), "error");
+  };
+
+  const handleCheckImmediate = async (jobId: number) => {
+    const res = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "check_immediate", jobId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(t("customer.text.564"), data.error || t("customer.text.565"), "error");
+    } else {
+      toast(t("customer.publish.checkResult"), data.errorMessage || displayStatus(data.status));
       router.refresh();
     }
   };
@@ -374,6 +388,11 @@ export function CalendarClient({
                   {displayStatus(job.status)}
                 </span>
 
+                {job.deliveryMode === "immediate" && (["processing", "queued"].includes(job.status) || (job.status === "completed" && posts.some(post => post.id === job.postId && post.status === "publishing"))) && (
+                  <button type="button" onClick={() => handleCheckImmediate(job.id)} className="inline-flex items-center gap-1 rounded-xl bg-cyan-500 px-3 py-1.5 text-xs font-bold text-slate-950">
+                    <RotateCcw className="h-3.5 w-3.5" /> {t("customer.publish.check")}
+                  </button>
+                )}
                 {["failed", "blocked"].includes(job.status) && (
                   <button
                     type="button"
@@ -434,12 +453,7 @@ export function CalendarClient({
                   <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">
                     {t("customer.text.328")}{timezone})
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="elevated-card mt-1 w-full rounded-xl px-3 py-2 text-xs"
-                  />
+                  <ScheduleFields value={editDate} onChange={setEditDate} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-[var(--text-muted)]">

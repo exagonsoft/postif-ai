@@ -2,10 +2,11 @@ import type { SocialPlatform } from "./social-adapters";
 
 export interface ManagedProviderAvailability {
   platform: SocialPlatform;
-  status: "available" | "not_configured" | "approval_required";
+  status: "available" | "testing" | "not_configured" | "approval_required";
   analyticsAvailable: boolean;
   organizationsAvailable: boolean;
   publicPostingAvailable: boolean;
+  facebookBusinessLogin?: boolean;
 }
 
 export interface ManagedSocialDestination {

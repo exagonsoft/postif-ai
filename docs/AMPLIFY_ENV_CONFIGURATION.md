@@ -222,6 +222,16 @@ Restrict Amplify app/build/artifact/cache access and retention to necessary trus
 
 The optional HTTP invoker already has its own Secrets Manager token retrieval in its undeployed template; that does not make the Next.js application's secrets runtime-managed.
 
+## Publishing schedule design
+
+New scheduled posts select one of six local times: 06:00, 09:00, 12:00, 15:00, 18:00 or 21:00, in the post's chosen IANA timezone. The server validates the slot; previously scheduled times remain valid unless changed. Publish Now is independent of these slots. Calendar drag opens the editor so the user can confirm the date and time.
+
+A single six-times-per-day UTC cron cannot represent these local slots worldwide, including fractional offsets and daylight-saving transitions. The existing disabled `infra\worker-trigger.yaml` template invokes `/api/worker` every minute; the application compares due UTC timestamps and uses the existing claims, approval checks and subscription reservations. The local `npm run worker` poller invokes it every 30 seconds. Execution can be late because of trigger delays, outages, backlogs or provider processing; slots are not a delivery-time guarantee.
+
+Interactive Studio media drafts are advanced by authenticated requests while the page is open, without invoking the worker sweep or processing other posts. Provider task IDs and reservations remain durable; after leaving the page, the user can resume a waiting draft from Posts. If provider submission is uncertain, it is not automatically repeated. The existing worker can still process queued media, including scheduled-media jobs, and also runs other maintenance phases.
+
+This design does not provision, enable or validate a production trigger. Before production, confirm the hosting runtime, configure and authorize a reliable trigger and monitoring, and separately design the remaining periodic phases. Starting the current poller processes due publications and other queued work.
+
 ## Verification and remaining deployment work
 
 | Check | Exact result |

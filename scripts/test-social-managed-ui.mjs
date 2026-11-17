@@ -11,8 +11,18 @@ globalThis.__socialRouter = { refresh() {}, replace() {} };
 globalThis.__socialToasts = [];
 registerHooks({
   resolve(specifier, context, next) {
+    if (context.parentURL?.endsWith("/src/app/app/social/page.tsx")) {
+      const modules = {
+        "@/db": "export const db={async find(){return [];}};",
+        "@/lib/auth": "export async function getAuthContext(){return {user:{id:1},workspace:{id:1},memberRole:'owner'};}",
+        "@/lib/entitlements": "export async function getWorkspaceEntitlements(){return {plan:{maxChannels:3,name:'Test'}};}",
+        "@/i18n/server": "export async function getServerI18n(){return {t:key=>key};}",
+        "@/lib/social-managed-oauth": "export function managedSocialErrorCode(){return 'STATE_INVALID';} export async function readManagedSelection(){throw new Error('unexpected selection lookup');}",
+      };
+      if (modules[specifier]) return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(modules[specifier])}` };
+    }
     if (specifier === "next/navigation") return { shortCircuit: true,
-      url: "data:text/javascript,export function useRouter(){return globalThis.__socialRouter;}" };
+      url: "data:text/javascript,export function useRouter(){return globalThis.__socialRouter;} export function redirect(){throw new Error('unexpected redirect');}" };
     return next(specifier, context);
   },
   load(url, context, next) {
@@ -23,6 +33,7 @@ registerHooks({
 });
 const { ManagedSocialConnect, managedSocialErrorKey } = await import("../src/components/ManagedSocialConnect.tsx");
 const { SocialAccountsClient } = await import("../src/components/SocialAccountsClient.tsx");
+const { default: SocialAccountsPage } = await import("../src/app/app/social/page.tsx");
 const { AppLanguageProvider } = await import("../src/i18n/provider.tsx");
 const { translate, translations } = await import("../src/i18n/config.ts");
 const platforms = ["facebook", "instagram", "linkedin", "x", "tiktok", "pinterest", "youtube", "threads"];
@@ -88,6 +99,37 @@ test("availability gates are truthful and unmanaged members cannot authorize", (
   assert.ok(document.body.textContent.includes(text("social.managed.gate.approval_required")));
   const memberHtml = renderToString(wrap(ManagedSocialConnect, { ...defaultProps, canManage: false, selection: selection("facebook") }));
   assert.equal(new JSDOM(memberHtml).window.document.querySelectorAll("button,form").length, 0);
+});
+
+test("development Facebook testing is explicitly labeled and permits the consent flow", async () => {
+  const testing = availability.map(item => ({ ...item, status: item.platform === "facebook" ? "testing" : "approval_required" }));
+  const view = await mount({ availability: testing });
+  try {
+    const card = view.container.querySelector('[data-managed-provider="facebook"]');
+    assert.ok(card.textContent.includes(text("social.managed.status.testing")));
+    assert.ok(card.textContent.includes(text("social.managed.gate.testing")));
+    assert.equal(card.querySelector("button").disabled, false);
+    await act(async () => card.querySelector("button").click());
+    await act(async () => view.container.querySelector('input[type="checkbox"]').click());
+    await act(async () => button(view.container, "social.managed.continue").click());
+    assert.deepEqual(view.requests[0].body, { mode: "managed", analyticsEnabled: false, organizations: false });
+  } finally { await view.close(); }
+});
+
+test("Facebook Business Login explains that Page discovery does not grant publishing", async () => {
+  const view = await mount({ availability: availability.map(item => ({ ...item, facebookBusinessLogin: item.platform === "facebook" })) });
+  try {
+    await act(async () => view.container.querySelector('[data-managed-provider="facebook"] button').click());
+    assert.ok(view.container.textContent.includes(text("social.managed.facebookBusinessNotice")));
+    assert.ok(!view.container.textContent.includes(text("social.managed.permissionExplain")));
+  } finally { await view.close(); }
+});
+
+test("social callback error is displayed instead of being replaced by an invalid selection error", async () => {
+  const page = await SocialAccountsPage({ searchParams: Promise.resolve({ social_provider: "facebook", social_error: "FACEBOOK_PUBLISH_ACCESS_MISSING" }) });
+  const html = renderToString(wrap(() => page, {}));
+  assert.ok(html.includes(text("social.managed.error.FACEBOOK_PUBLISH_ACCESS_MISSING")));
+  assert.ok(!html.includes(text("social.managed.error.INVALID_REQUEST")));
 });
 
 test("opening Connect does not fetch; consent is explicit and optional analytics defaults off", async () => {

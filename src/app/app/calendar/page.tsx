@@ -46,6 +46,7 @@ export default async function ContentCalendarPage() {
             scheduledFor: j.scheduledFor.toISOString(),
             errorMessage: j.errorMessage,
             idempotencyKey: j.idempotencyKey,
+            deliveryMode: j.deliveryMode ?? "scheduled",
         }))}/>
     </div>);
 }

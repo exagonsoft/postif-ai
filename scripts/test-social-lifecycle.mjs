@@ -77,6 +77,8 @@ globalThis.postifLifecycleBrandError = new WorkflowError("Brand outside plan all
 const { readSocialAnalytics, renewSocialCredentials, syncSocialAnalytics, assertSocialConnectCapacity } = await import("../src/lib/social-lifecycle.ts");
 const { exchangeSocialToken, oauthCallbackUrl, providerJson, oauthAuthorizationUrl, validateSocialOAuthSettings } = await import("../src/lib/social-oauth-provider.ts");
 const { verifyCustomerConnection } = await import("../src/lib/social-provider.ts");
+const { assertSocialMutationOrigin } = await import("../src/lib/social-managed-oauth.ts");
+const { reportFacebookPermissions, reportFacebookPageTasks, reportFacebookPageRestrictions } = await import("../src/lib/facebook-oauth-diagnostics.ts");
 const { withWorkerDeadline } = await import("../src/lib/worker-network.ts");
 const { POST: start } = await import("../src/app/api/social/oauth/[platform]/start/route.ts");
 const { GET: callback } = await import("../src/app/api/social/oauth/[platform]/callback/route.ts");
@@ -109,9 +111,9 @@ beforeEach(() => {
   globalThis.postifLifecycleAuth = { user: { id: 1, email: "owner@example.test" }, workspace: { id: 1 }, activeBrand: { id: 1 }, memberRole: "owner" };
 });
 
-async function managedFacebook() {
+async function managedFacebook({ approved = true } = {}) {
   process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
+  if (approved) process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
   process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
   process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const context = { params: Promise.resolve({ platform: "facebook" }) };
@@ -131,6 +133,11 @@ async function managedFacebook() {
   }), context);
   assert.equal(started.status, 200);
   const authorization = new URL((await started.json()).url);
+  assert.equal(authorization.origin, "https://www.facebook.com");
+  assert.equal(authorization.pathname, "/v27.0/dialog/oauth");
+  assert.equal(authorization.searchParams.get("response_type"), "code");
+  assert.equal(authorization.searchParams.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/facebook/callback`);
+  assert.deepEqual(authorization.searchParams.get("scope").split(","), ["pages_show_list", "pages_manage_posts", "pages_read_engagement"]);
   assert.ok(!authorization.searchParams.get("scope").includes("pages_read_user_content"), "Analytics must be opt-in");
   const state = authorization.searchParams.get("state");
   const response = await callback(new Request(`https://customer-app.example.test/api/social/oauth/facebook/callback?state=${state}&code=provider-code&next=https://evil.example/`), context);
@@ -141,9 +148,291 @@ async function managedFacebook() {
   assert.ok(ticket, target.toString());
   return { context, ticket, state };
 }
+test("Facebook development testing works without claiming external approval", async () => {
+  const previous = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "development";
+    const { context, ticket } = await managedFacebook({ approved: false });
+    assert.equal(process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS, undefined);
+    assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
+});
 const chooseManaged = (context, body) => selectManaged(new Request("https://customer-app.example.test/api/social/oauth/facebook/select", {
   method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: JSON.stringify(body),
 }), context);
+
+async function facebookBusinessAttempt(options = {}) {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
+  process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
+  process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  process.env.FACEBOOK_OAUTH_CONFIG_ID = "123456789";
+  const permissions = options.permissions ?? ["pages_show_list", "pages_manage_posts", "pages_read_engagement"];
+  const context = { params: Promise.resolve({ platform: "facebook" }) };
+  transport = async (url, init) => {
+    if (url.pathname.endsWith("/oauth/access_token")) return reply(url.searchParams.has("grant_type") && options.longTokenResponse
+      ? options.longTokenResponse : { access_token: url.searchParams.has("grant_type") ? "business-long-user-token" : "business-short-user-token", expires_in: 5184000 });
+    if (url.pathname.endsWith("/debug_token")) {
+      assert.equal(init.headers.Authorization, "Bearer managed-app|server-only-managed-secret");
+      const token = url.searchParams.get("input_token");
+      const isPage = token === "business-page-token";
+      const isLongUser = token === "business-long-user-token";
+      return reply({ data: { app_id: options.appId ?? "managed-app", type: isPage ? options.pageType ?? "PAGE" : options.userType ?? "USER",
+        is_valid: isLongUser ? options.longUserValid ?? options.valid ?? true : options.valid ?? true, expires_at: isPage ? 0 : Math.floor(Date.now() / 1000) + 3600,
+        scopes: isPage ? options.pagePermissions ?? permissions : options.debugPermissions ?? permissions,
+        granular_scopes: isPage ? options.pageGranular : options.userGranular } });
+    }
+    if (url.pathname.endsWith("/me/permissions")) return options.permissionsError ? Response.json({ error: { code: 190, error_subcode: 460, message: "sensitive provider body" } }, { status: 403 }) : reply({ data: permissions.map(permission => ({ permission, status: "granted" })) });
+    if (url.pathname.endsWith("/me/accounts")) return reply({ data: options.pages ?? [
+      { id: "456", name: "Managed Page", access_token: "business-page-token", tasks: ["CREATE_CONTENT"], category: "Business" },
+      { id: "789", name: "Read-only Page", access_token: "business-readonly-token", tasks: ["ANALYZE"] },
+    ] });
+    if (url.pathname.endsWith("/me")) return reply({ id: "456", name: "Managed Page", category: "Business" });
+    throw new Error("Unmocked Business Login request");
+  };
+  const started = await start(new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: JSON.stringify({ mode: "managed" }),
+  }), context);
+  assert.equal(started.status, 200);
+  const authorization = new URL((await started.json()).url);
+  assert.equal(authorization.searchParams.get("config_id"), "123456789");
+  assert.equal(authorization.searchParams.get("scope"), null);
+  assert.equal(authorization.searchParams.get("response_type"), "code");
+  assert.equal(authorization.searchParams.get("redirect_uri"), `${process.env.APP_URL}/api/social/oauth/facebook/callback`);
+  const state = authorization.searchParams.get("state");
+  if (options.changeConfig) process.env.FACEBOOK_OAUTH_CONFIG_ID = "987654321";
+  const request = () => new Request(`https://customer-app.example.test/api/social/oauth/facebook/callback?state=${state}&code=provider-code`);
+  const response = await callback(request(), context);
+  const target = new URL(response.headers.get("location"));
+  return { context, request, ticket: target.searchParams.get("social_selection"), error: target.searchParams.get("social_error") };
+}
+
+test("Facebook Business Login validates user and selected Page tokens before saving", async () => {
+  const { context, request, ticket, error } = await facebookBusinessAttempt();
+  assert.equal(error, null);
+  assert.ok(ticket);
+  const discovered = await listManaged(new Request(`https://customer-app.example.test/api/social/oauth/facebook/select?ticket=${ticket}`), context);
+  const selection = await discovered.json();
+  assert.deepEqual(selection.destinations.map(item => item.id), ["456"]);
+  assert.doesNotMatch(JSON.stringify(selection), /business-page-token|server-only|accessToken|clientSecret/);
+  assert.equal(new URL((await callback(request(), context)).headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
+  const stored = JSON.parse(decryptSecret(list(socialCredentials).find(item => item.socialAccountId !== 1).encryptedCredentials));
+  assert.equal(stored.accessToken, "business-page-token");
+  assert.equal(stored.clientSecret, undefined);
+  assert.doesNotMatch(JSON.stringify(stored), /business-(short|long)-user-token/);
+});
+
+test("Facebook Business Login accepts omitted exchange expiry only after validating the long-lived user token", async () => {
+  const { context, ticket, error } = await facebookBusinessAttempt({
+    longTokenResponse: { access_token: "business-long-user-token", token_type: "bearer" },
+  });
+  assert.equal(error, null);
+  assert.ok(ticket);
+  assert.ok(calls.some(call => call.url.pathname.endsWith("/debug_token") && call.url.searchParams.get("input_token") === "business-long-user-token"));
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
+});
+
+test("Facebook Business Login refuses an invalid long-lived user token when exchange expiry is omitted", async () => {
+  const result = await facebookBusinessAttempt({
+    longTokenResponse: { access_token: "business-long-user-token", token_type: "bearer" }, longUserValid: false,
+  });
+  assert.equal(result.error, "FACEBOOK_TOKEN_INVALID");
+  assert.equal(result.ticket, null);
+  assert.equal(list(socialAccounts).length, 1);
+  assert.ok(!calls.some(call => call.url.pathname.endsWith("/me/accounts")));
+});
+
+test("Facebook Business Login distinguishes discovery from missing publishing grants", async () => {
+  const { ticket, error } = await facebookBusinessAttempt({ permissions: ["business_management", "pages_show_list"] });
+  assert.equal(ticket, null);
+  assert.equal(error, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+  assert.ok(calls.some(call => call.url.pathname.endsWith("/me/accounts")));
+  assert.equal(list(socialAccounts).length, 1);
+  assert.equal(list(socialCredentials).length, 1);
+});
+
+test("Facebook Business Login identifies missing publishing grants even without an eligible Page", async () => {
+  const { ticket, error } = await facebookBusinessAttempt({ permissions: ["business_management", "pages_show_list"], pages: [] });
+  assert.equal(ticket, null);
+  assert.equal(error, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+  assert.equal(list(socialAccounts).length, 1);
+});
+
+test("Facebook diagnostics are visible by default only in development and exclude secrets and identifiers", async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const output = [];
+  console.warn = (...args) => output.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    const result = await facebookBusinessAttempt({ permissions: ["business_management", "pages_show_list"] });
+    assert.equal(result.error, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+    const emptyResult = await facebookBusinessAttempt({ permissions: ["business_management", "pages_show_list"], pages: [] });
+    assert.equal(emptyResult.error, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+    const entries = output.map(line => JSON.parse(line.slice(line.indexOf("{"))));
+    assert.ok(entries.some(item => item.stage === "user_permissions" && item.permissions?.some(p => p.permission === "pages_show_list" && p.status === "granted")));
+    assert.ok(entries.some(item => item.stage === "page_tasks" && item.tasks.includes("CREATE_CONTENT")));
+    assert.ok(entries.some(item => item.stage === "page_discovery_result" && item.pageCount === 0 && !item.hasMore));
+    assert.ok(entries.some(item => item.stage === "page_1_debug" && item.tokenType === "PAGE"));
+    assert.ok(entries.some(item => item.stage === "user_grant_check" && item.requestedPermissions === null && item.missingPermissions.includes("pages_manage_posts")));
+    assert.ok(entries.some(item => item.stage === "callback_discovery" && item.outcome === "rejected" && item.code === "FACEBOOK_PUBLISH_ACCESS_MISSING"));
+    reportFacebookPermissions("test", [], [{ permission: "pages_show_list", status: "secret-status" }, { permission: "secret-permission", status: "granted" }]);
+    reportFacebookPageTasks(1, ["CREATE_CONTENT", "secret-task"]);
+    reportFacebookPageRestrictions(1, "secret-page-id", [{ scope: "pages_manage_posts", target_ids: ["secret-page-id"] }]);
+    assert.doesNotMatch(output.join("\n"), /business-page-token|business-long-user-token|server-only-managed-secret|provider-code|Managed Page|secret-|456|789/);
+    const count = output.length;
+    process.env.NODE_ENV = "production";
+    reportFacebookPermissions("test", ["pages_show_list"]);
+    assert.equal(output.length, count);
+    process.env.NODE_ENV = "development";
+    process.env.FACEBOOK_OAUTH_DIAGNOSTICS = "false";
+    reportFacebookPermissions("test", ["pages_show_list"]);
+    assert.equal(output.length, count);
+  } finally {
+    console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("Facebook diagnostics distinguish a Graph 403 from confirmed missing grants without logging its body", async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const output = [];
+  console.warn = (...args) => output.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    process.env.FACEBOOK_OAUTH_DIAGNOSTICS = "true";
+    const result = await facebookBusinessAttempt({ permissionsError: true });
+    assert.equal(result.error, "PERMISSION_MISSING");
+    const entries = output.map(line => JSON.parse(line.slice(line.indexOf("{"))));
+    assert.ok(entries.some(item => item.stage === "user_permissions" && item.status === "provider_error" && item.httpStatus === 403));
+    assert.ok(entries.some(item => item.stage === "user_permissions" && item.providerCode === 190 && item.providerSubcode === 460));
+    assert.ok(entries.some(item => item.stage === "callback_discovery" && item.code === "PERMISSION_MISSING"));
+    assert.doesNotMatch(output.join("\n"), /sensitive provider body|business-long-user-token|server-only-managed-secret|provider-code/);
+  } finally {
+    console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("Facebook long-lived token validation reports only safe field and type information", async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const output = [];
+  console.warn = (...args) => output.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    const result = await facebookBusinessAttempt({
+      longTokenResponse: { access_token: "sensitive-access-token", expires_in: "sensitive-invalid-expiry", token_type: "sensitive-token-type" },
+    });
+    assert.equal(result.error, "INVALID_REQUEST");
+    const entries = output.map(line => JSON.parse(line.slice(line.indexOf("{"))));
+    assert.ok(entries.some(item => item.stage === "user_long_exchange_shape" && item.expiresInType === "string" && item.expiryCategory === "not_numeric"));
+    assert.ok(entries.some(item => item.stage === "user_long_exchange" && item.status === "invalid_response" &&
+      item.issues.some(issue => issue.field === "expires_in" && issue.reason === "invalid_type")));
+    assert.doesNotMatch(output.join("\n"), /sensitive-|business-short-user-token|server-only-managed-secret|provider-code/);
+    assert.equal(list(socialAccounts).length, 1);
+  } finally {
+    console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("Facebook callback logs pre-discovery rejection and exposes the routing probe only in development", async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const output = [];
+  console.warn = (...args) => output.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    globalThis.postifLifecycleAuth.workspace = null;
+    const context = { params: Promise.resolve({ platform: "facebook" }) };
+    const denied = await callback(new Request(`https://customer-app.example.test/api/social/oauth/facebook/callback?state=m_${"a".repeat(43)}`), context);
+    assert.equal(new URL(denied.headers.get("location")).searchParams.get("social_error"), "PERMISSION_MISSING");
+    const entries = output.map(line => JSON.parse(line.slice(line.indexOf("{"))));
+    assert.ok(entries.some(item => item.stage === "callback_session" && item.code === "PERMISSION_MISSING"));
+    const probe = () => new Request("https://customer-app.example.test/api/social/oauth/facebook/callback", { headers: { "x-postif-diagnostic-probe": "1" } });
+    const first = await callback(probe(), context);
+    const second = await callback(probe(), context);
+    assert.match(first.headers.get("x-postif-dev-instance"), /^[0-9a-f]{32}$/);
+    assert.equal(first.headers.get("x-postif-dev-diagnostics"), "on");
+    assert.equal(first.headers.get("x-postif-dev-instance"), second.headers.get("x-postif-dev-instance"));
+    process.env.NODE_ENV = "production";
+    assert.equal((await callback(probe(), context)).headers.get("x-postif-dev-instance"), null);
+  } finally {
+    console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("Facebook Business Login rejects missing Page discovery access and unsupported or foreign tokens", async () => {
+  for (const [options, expected] of [
+    [{ permissions: ["business_management"] }, "FACEBOOK_PAGE_ACCESS_MISSING"],
+    [{ debugPermissions: ["pages_show_list"] }, "FACEBOOK_PUBLISH_ACCESS_MISSING"],
+    [{ userGranular: [{ scope: "pages_manage_posts", target_ids: ["other-page"] }] }, "FACEBOOK_PUBLISH_ACCESS_MISSING"],
+    [{ userType: "SYSTEM_USER" }, "FACEBOOK_USER_TOKEN_REQUIRED"],
+    [{ appId: "other-app" }, "FACEBOOK_TOKEN_INVALID"],
+    [{ valid: false }, "FACEBOOK_TOKEN_INVALID"],
+    [{ changeConfig: true }, "MANAGED_APP_CHANGED"],
+  ]) {
+    rows.delete(socialOAuthAttempts.name);
+    calls = [];
+    const result = await facebookBusinessAttempt(options);
+    assert.equal(result.error, expected);
+    assert.equal(result.ticket, null);
+    assert.equal(list(socialAccounts).length, 1);
+  }
+});
+
+test("Facebook Business Login refuses a Page token without publishing authorization", async () => {
+  const { context, ticket } = await facebookBusinessAttempt({ pagePermissions: ["pages_show_list"] });
+  const response = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+  assert.equal(list(socialAccounts).length, 1);
+  assert.equal(list(socialCredentials).length, 1);
+});
+
+test("Facebook Business Login rejects a selected token that is not a Page token", async () => {
+  const { context, ticket } = await facebookBusinessAttempt({ pageType: "USER" });
+  const response = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "FACEBOOK_TOKEN_INVALID");
+  assert.equal(list(socialAccounts).length, 1);
+});
+
+test("Facebook Business Login rejects publishing grants limited to another Page", async () => {
+  const { context, ticket } = await facebookBusinessAttempt({ pageGranular: [{ scope: "pages_manage_posts", target_ids: ["other-page"] }] });
+  const response = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "FACEBOOK_PUBLISH_ACCESS_MISSING");
+  assert.equal(list(socialAccounts).length, 1);
+});
+
+test("Facebook Business Login selection remains user and workspace bound and enforces channel capacity", async () => {
+  const { context, ticket } = await facebookBusinessAttempt();
+  globalThis.postifLifecycleAuth.user.id = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+  globalThis.postifLifecycleAuth.user.id = 1;
+  globalThis.postifLifecycleAuth.workspace.id = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+  globalThis.postifLifecycleAuth.workspace.id = 1;
+  globalThis.postifLifecycleEntitlement.plan.maxChannels = 1;
+  const blocked = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal((await blocked.json()).code, "CHANNEL_LIMIT");
+  assert.equal(list(socialAccounts).length, 1);
+  globalThis.postifLifecycleEntitlement.plan.maxChannels = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+});
 test("managed Facebook discovers authorized Pages, exposes no tokens and persists only the selected destination", async () => {
   const { context, ticket } = await managedFacebook();
   assert.equal(list(socialAccounts).length, 1, "Callback cannot claim a connection before selection");
@@ -191,10 +480,137 @@ test("managed start rejects cross-origin requests and unconfigured apps without 
   const request = origin => new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
     method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: "{}",
   });
-  assert.equal((await start(request("https://evil.example"), context)).status, 403);
+  const blocked = await start(request("https://evil.example"), context);
+  assert.equal(blocked.status, 403);
+  assert.equal((await blocked.json()).code, "REQUEST_ORIGIN");
   const unconfigured = await start(request(process.env.APP_URL), context);
   assert.equal((await unconfigured.json()).code, "NOT_CONFIGURED");
   assert.equal(calls.length, 0);
+});
+
+test("managed start distinguishes workspace role, request security and brand allowance failures", async () => {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
+  process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
+  process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const context = { params: Promise.resolve({ platform: "facebook" }) };
+  const request = headers => new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL, ...headers }, body: JSON.stringify({ mode: "managed" }),
+  });
+  globalThis.postifLifecycleAuth.memberRole = "viewer";
+  let response = await start(request(), context);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "FORBIDDEN");
+  globalThis.postifLifecycleAuth.memberRole = "owner";
+  response = await start(request({ "Sec-Fetch-Site": "cross-site" }), context);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "REQUEST_CROSS_SITE");
+  response = await start(request({ "Content-Type": "text/plain" }), context);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "REQUEST_FORMAT");
+  globalThis.postifLifecycleDenyBrand = true;
+  response = await start(request(), context);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "BRAND_LIMIT");
+  assert.equal(calls.length, 0);
+  assert.equal(list(socialOAuthAttempts).length, 0);
+});
+
+test("managed selection preserves origin checks and reports the failing check", async () => {
+  const { context, ticket } = await managedFacebook();
+  for (const [headers, expected] of [
+    [{ Origin: "https://evil.example" }, "REQUEST_ORIGIN"],
+    [{ "Sec-Fetch-Site": "cross-site" }, "REQUEST_CROSS_SITE"],
+    [{ "Content-Type": "text/plain" }, "REQUEST_FORMAT"],
+  ]) {
+    const response = await selectManaged(new Request("https://customer-app.example.test/api/social/oauth/facebook/select", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL, ...headers },
+      body: JSON.stringify({ ticket, destinationId: "456" }),
+    }), context);
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).code, expected);
+  }
+  assert.equal(list(socialAccounts).length, 1);
+});
+
+test("development Dev Tunnel accepts only its rewritten same-origin localhost request", () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousAppUrl = process.env.APP_URL;
+  try {
+    process.env.NODE_ENV = "development";
+    process.env.APP_URL = "https://example-3000.brs.devtunnels.ms";
+    const request = (headers = {}) => new Request("https://localhost:3000/api/social/oauth/facebook/start", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:3000",
+        Host: "localhost:3000", "X-Forwarded-Host": "example-3000.brs.devtunnels.ms",
+        "X-Forwarded-Proto": "https", "Sec-Fetch-Site": "same-origin", ...headers }, body: "{}",
+    });
+    assert.doesNotThrow(() => assertSocialMutationOrigin(request(), true));
+    for (const headers of [
+      { Origin: "https://evil.example" },
+      { "Sec-Fetch-Site": "cross-site" },
+      { "Sec-Fetch-Site": "same-site" },
+      { "X-Forwarded-Host": "evil.example" },
+      { "X-Forwarded-Proto": "http" },
+      { Host: "evil.example" },
+    ]) assert.throws(() => assertSocialMutationOrigin(request(headers), true));
+    process.env.NODE_ENV = "production";
+    assert.throws(() => assertSocialMutationOrigin(request(), true));
+    process.env.NODE_ENV = "development";
+    process.env.APP_URL = "https://example.test";
+    assert.throws(() => assertSocialMutationOrigin(request({ "X-Forwarded-Host": "example.test" }), true));
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    process.env.APP_URL = previousAppUrl;
+  }
+});
+
+test("managed callback binds state to user, workspace and the initiating brand", async () => {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
+  process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
+  process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const context = { params: Promise.resolve({ platform: "facebook" }) };
+  const started = await start(new Request("http://localhost:3000/api/social/oauth/facebook/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL },
+    body: JSON.stringify({ mode: "managed" }),
+  }), context);
+  assert.equal(started.status, 200);
+  const state = new URL((await started.json()).url).searchParams.get("state");
+  const attempt = list(socialOAuthAttempts)[0];
+  assert.equal(attempt.userId, 1);
+  assert.equal(attempt.workspaceId, 1);
+  assert.equal(attempt.brandId, 1);
+  const request = () => new Request(`https://customer-app.example.test/api/social/oauth/facebook/callback?state=${state}&code=provider-code`);
+  globalThis.postifLifecycleAuth.user.id = 2;
+  let response = await callback(request(), context);
+  assert.equal(new URL(response.headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+  globalThis.postifLifecycleAuth.user.id = 1;
+  globalThis.postifLifecycleAuth.workspace.id = 2;
+  response = await callback(request(), context);
+  assert.equal(new URL(response.headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+  assert.equal(attempt.consumedAt, null);
+  assert.equal(calls.length, 0);
+});
+
+test("unapproved Facebook remains blocked by the production start endpoint", async () => {
+  const previous = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "production";
+    process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
+    process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
+    process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+    const response = await start(new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: "{}",
+    }), { params: Promise.resolve({ platform: "facebook" }) });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, "APPROVAL_REQUIRED");
+    assert.equal(calls.length, 0);
+    assert.equal(list(socialOAuthAttempts).length, 0);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
 });
 
 for (const platform of ["x", "linkedin", "instagram", "threads", "pinterest", "youtube", "tiktok"]) {
@@ -288,12 +704,25 @@ test("manual inputs cannot forge managed markers to use server application crede
   assert.equal(calls.length, 0);
 });
 test("managed configuration is optional until enabled and validates the selected app group", async () => {
-  const { validateManagedSocialConfiguration } = await import("../src/lib/social-managed-config.ts");
+  const { managedSocialAvailability, validateManagedSocialConfiguration } = await import("../src/lib/social-managed-config.ts");
   assert.doesNotThrow(() => validateManagedSocialConfiguration({ APP_URL: "http://localhost:3000" }));
   assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "x", APP_URL: process.env.APP_URL }), /client ID and secret/);
   assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "x", APP_URL: "http://localhost:3000",
     X_OAUTH_CLIENT_ID: "managed-app", X_OAUTH_CLIENT_SECRET: "server-only-managed-secret" }), /public HTTPS/);
   assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "invented" }), /supported provider/);
+  const facebook = { SOCIAL_MANAGED_PROVIDERS: "facebook", APP_URL: process.env.APP_URL,
+    FACEBOOK_OAUTH_CLIENT_ID: "managed-app", FACEBOOK_OAUTH_CLIENT_SECRET: "server-only-managed-secret" };
+  const status = (env, platform = "facebook") => managedSocialAvailability(env).find(item => item.platform === platform).status;
+  assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CLIENT_SECRET: "" }), "not_configured");
+  assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CLIENT_SECRET: "" }), /client ID and secret/);
+  assert.equal(status({ ...facebook, NODE_ENV: "development" }), "testing");
+  assert.equal(status({ ...facebook, NODE_ENV: "production" }), "approval_required");
+  assert.equal(status({ ...facebook }), "approval_required");
+  assert.equal(status({ ...facebook, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "facebook" }), "available");
+  assert.doesNotThrow(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CONFIG_ID: "" }));
+  assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), /numeric Meta configuration ID/);
+  assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), "not_configured");
+  assert.equal(status({ ...facebook, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "x", X_OAUTH_CLIENT_ID: "id", X_OAUTH_CLIENT_SECRET: "secret" }, "x"), "approval_required");
 });
 test("managed analytics opt-out performs no provider calls and does not prevent token renewal", async () => {
   rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({ ...secret, analyticsEnabled: false }));

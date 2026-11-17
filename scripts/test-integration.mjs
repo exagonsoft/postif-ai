@@ -8,6 +8,7 @@ if (process.env.MONGO_TEST_DATABASE !== "true") throw new Error("Run through the
 import assert from "node:assert/strict";
 import { config } from "dotenv";
 const { deleteMedia } = await import("../src/lib/media-storage.ts");
+const { nextScheduleSlot } = await import("../src/lib/schedule-slots.ts");
 config({ path: ".env.local", quiet: true });
 const origin = process.env.TEST_APP_URL || "http://localhost:3000";
 const accounts = [];
@@ -109,7 +110,7 @@ try {
   assert.equal((await db.find(schema.workspaces, { ownerId: setupUser.userId })).length, 2, "Creating another workspace must be explicit");
   assert.equal((await db.find(schema.workspaces, { id: setupUser.workspaceId }))[0].name, "Configured Workspace");
   assert.equal((await db.find(schema.sessions, { userId: setupUser.userId }))[0].activeWorkspaceId, additionalWorkspace.workspaceId);
-  const future = new Date(Date.now() + 86400000).toISOString();
+  const future = nextScheduleSlot(new Date(Date.now() + 86400000), "UTC").toISOString();
   const input = { action: "create", title: "Integration approval post", topic: "Gardening", baseContent: "Three ways to grow herbs indoors.", platforms: ["linkedin"], status: "scheduled", scheduledAt: future, requiresApproval: true };
   await ((args)=>db.insert(schema.workspaceMembers,{workspaceId:args[0],invitedEmail:"pending@example.test",memberName:"Pending invite",role:"editor",status:"invited"}).then(rows=>({rows})))([user.workspaceId]);
   const { requiresApproval: omitted, ...defaultInput } = input;
@@ -174,14 +175,15 @@ try {
   await request("/api/auth", other.cookie, { action: "switch_workspace", workspaceId: user.workspaceId }, 403);
   const { data: approved } = await request("/api/posts", cookie, { action: "update", postId: id, status: "approved" });
   assert.equal(approved.post.status, "scheduled"); assert.ok(approved.post.approvedAt);
-  await request("/api/posts", cookie, { action: "update", postId: id, status: "scheduled", scheduledAt: new Date(Date.now() + 172800000).toISOString() });
+  await request("/api/posts", cookie, { action: "update", postId: id, status: "scheduled", scheduledAt: nextScheduleSlot(new Date(Date.now() + 172800000), "UTC").toISOString() });
   const jobs = (await ((args)=>db.find(schema.publishingJobs,{postId:args[0]},{}).then(rows=>({rows})))([id])).rows;
   assert.equal(jobs.filter(job => job.status === "queued").length, 1); assert.equal(jobs.filter(job => job.status === "cancelled").length, 1);
   const { data: edited } = await request("/api/posts", cookie, { action: "update", postId: id, baseContent: "Changed after approval", status: "scheduled" });
   assert.equal(edited.post.status, "pending_approval"); assert.equal(edited.post.approvedAt, null);
   await request("/api/posts", cookie, { action: "update", postId: id, status: "cancelled" });
   const { data: automatic } = await request("/api/posts", cookie, { ...input, requiresApproval: false, status: "published" });
-  assert.equal(automatic.post.status, "scheduled"); assert.equal(automatic.post.publishedAt, null);
+  assert.equal(automatic.post.status, "failed"); assert.equal(automatic.post.publishedAt, null);
+  assert.equal(automatic.publishing[0].status, "blocked");
   await Promise.all([request("/api/jobs", cookie, { action: "run_due" }), request("/api/jobs", cookie, { action: "run_due" })]);
   const blocked = (await ((args)=>db.find(schema.publishingJobs,{postId:args[0]},{}).then(rows=>({rows})))([automatic.post.id])).rows;
   assert.equal(blocked[0].status, "blocked"); assert.equal(blocked[0].externalPostId, null);

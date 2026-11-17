@@ -13,6 +13,7 @@ const { default: nodemailer } = await import("nodemailer");
 const { generateSessionToken, hashToken, verifyPassword } = await import("../src/lib/crypto.ts");
 const { setTestSubscription } = await import("./fixtures/subscription.mjs");
 const { savePost } = await import("../src/lib/post-workflow.ts");
+const { nextScheduleSlot } = await import("../src/lib/schedule-slots.ts");
 
 let owner;
 const originalTransport = nodemailer.createTransport;
@@ -39,7 +40,7 @@ try {
   const postContext = { workspaceId: workspace.id, brandId: brand.id, userId: owner.id, email: owner.email, role: "owner" };
   await assert.rejects(savePost(postContext, { title: "Over quota now", baseContent: "Do not publish", platforms: ["linkedin"], status: "published", requiresApproval: false }), error => error.status === 403);
   const nextMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1));
-  const future = await savePost(postContext, { title: "Next month", baseContent: "A future allowance", platforms: ["linkedin"], status: "scheduled", scheduledAt: nextMonth.toISOString(), requiresApproval: false });
+  const future = await savePost(postContext, { title: "Next month", baseContent: "A future allowance", platforms: ["linkedin"], status: "scheduled", scheduledAt: nextScheduleSlot(nextMonth, "UTC").toISOString(), requiresApproval: false });
   assert.equal(future.status, "scheduled", "Exhausted current-month quota must not prevent next-month scheduling");
   await db.remove(posts, { id: future.id });
   const [first] = await db.find(publishingReservations, { workspaceId: workspace.id }, { sort: { postId: 1 } });

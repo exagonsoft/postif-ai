@@ -8,10 +8,13 @@ import {
   generateMultiPlatformPosts,
   transformPostText,
   generateCampaignBlueprint,
+  AIRequestError,
 } from "@/lib/ai-engine";
 
 const requestInput = z.object({
   mode: z.enum(["generate", "transform", "repurpose", "campaign"]),
+  mediaType: z.enum(["none", "image", "video", "gif"]).optional(),
+  automaticMedia: z.object({ kind: z.enum(["image", "video", "gif"]) }).nullable().optional(),
   topic: z.string().max(2000).optional(),
   prompt: z.string().max(10000).optional(),
   brandName: z.string().max(300).optional(),
@@ -46,6 +49,8 @@ export async function POST(req: Request) {
 
     const body = requestInput.parse(await req.json());
     const mode = body.mode;
+    if ((body.mediaType && body.mediaType !== "none") || body.automaticMedia)
+      throw new WorkflowError("Text generation does not create media. Use the Content Studio media draft workflow.");
     const requestKey = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/).optional().parse(req.headers.get("Idempotency-Key") ?? undefined);
 
     if (mode === "generate") {
@@ -144,12 +149,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: "Unsupported AI mode" }, { status: 400 });
   } catch (err) {
+    if (err instanceof AIRequestError) return NextResponse.json({ error: err.message, code: err.code, safeToRetry: err.safeToRetry,
+      ...(err.providerStatus === undefined ? {} : { providerStatus: err.providerStatus }) }, { status: err.status });
     if (err instanceof WorkflowError) return NextResponse.json({ error: err.message }, { status: err.status });
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues[0]?.message || "Invalid AI request." }, { status: 400 });
     console.error("AI generation request failed", { type: err instanceof Error ? err.name : "unknown" });
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "AI operation failed" },
-      { status: 400 }
-    );
+    const safeErrors = new Set(["AI request key is too long.", "AI request key was already used for different content.",
+      "Workspace not found.", "Invalid AI billing mode.", "Configure a valid OpenAI key in workspace settings.",
+      "Managed OpenAI is not configured. Use your own API key.", "Insufficient AI credits.", "Select supported platforms.",
+      "AI credit balance requires administrator reconciliation.", "AI reservation credits require administrator reconciliation.",
+      "Saved AI result cannot be decrypted; it will not be regenerated automatically."]);
+    const message = err instanceof Error && safeErrors.has(err.message) ? err.message : "AI operation failed. Check server diagnostics.";
+    return NextResponse.json({ error: message }, { status: message === "AI operation failed. Check server diagnostics." ? 500 : 400 });
   }
 }

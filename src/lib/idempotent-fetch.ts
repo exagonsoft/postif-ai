@@ -10,7 +10,10 @@ export function createIdempotentFetcher() {
     headers.set("Idempotency-Key", key);
     const response = await fetch(url, { ...init, headers });
     const result: unknown = await response.clone().json();
-    if (response.ok && result !== null && typeof result === "object" && "ok" in result && result.ok === true) pending.delete(signature);
+    if (result !== null && typeof result === "object" &&
+      ((response.ok && "ok" in result && result.ok === true) ||
+       (url === "/api/ai/generate" && !response.ok && "code" in result && result.code === "AI_REQUEST_FAILED" && "safeToRetry" in result && result.safeToRetry === true)) &&
+      pending.get(signature) === key) pending.delete(signature);
     return response;
   };
 }

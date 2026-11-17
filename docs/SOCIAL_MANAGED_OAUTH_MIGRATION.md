@@ -1,5 +1,155 @@
 # Managed social OAuth migration
 
+## Local Facebook Pages test — PostifAI Publisher
+
+The separate **PostifAI Publisher** Meta application is intended for Facebook
+Pages; do not use credentials from PostifAI Connect. For local `next dev` only,
+`.env.local` needs `FACEBOOK_OAUTH_CLIENT_ID` and
+`FACEBOOK_OAUTH_CLIENT_SECRET` from PostifAI Publisher and
+`FACEBOOK_OAUTH_CONFIG_ID=1118642664098729` for the **PostifAI Page
+Publishing** configuration, plus `SOCIAL_MANAGED_PROVIDERS=facebook`. The ID
+is not a secret. The existing `.env.local` already contains the matching ID;
+credentials were not changed. Keep Facebook out of
+`SOCIAL_OAUTH_APPROVED_PROVIDERS` and `SOCIAL_OAUTH_ANALYTICS_PROVIDERS`
+until the relevant access has actually been approved.
+
+The development server shows **Development testing** when Facebook is enabled
+and both credentials exist but external approval has not been attested. It
+allows an authenticated workspace owner/admin to initiate the existing flow;
+Meta still determines who can authorize and which permissions are granted.
+This status is not available in production. Other unapproved providers remain
+blocked in all environments. Missing credentials show **Not configured**;
+production runtime validation rejects any enabled provider without its complete
+client pair. Restart `next dev` after changing local environment settings.
+
+Set `APP_URL` to the current publicly reachable HTTPS tunnel origin. On the local
+check the previous tunnel and local `/api/health` returned matching successful
+responses, but tunnels can expire or be reassigned. Verify ownership and
+reachability before each test. Register the exact callback in the selected Meta
+application, for example:
+
+`https://sd2vxlp8-3000.brs.devtunnels.ms/api/social/oauth/facebook/callback`
+
+In PostifAI Publisher, Facebook Login for Business is enabled with web/client
+OAuth, HTTPS and strict redirect matching. Register the tunnel domain and exact
+callback; assign the test person an appropriate app role and Page
+content-creation task. The operator confirmed this configuration selects a
+**User access token**, `business_management`, and `pages_show_list`. The
+configuration interface does not offer `pages_manage_posts` or
+`pages_read_engagement`; their presence in the separate Content Management use
+case does not establish a grant. Do not assume inheritance or try to add them to
+that configuration interface. Determine with Meta how these publishing
+permissions can be authorized for this configuration and whether App Review is
+required.
+Meta's Pages getting-started page currently also lists
+`pages_manage_metadata` and spells another permission
+`pages_manage_read_engagement`; the supported Login for Business permission
+list spells it `pages_read_engagement`. Confirm the actual dashboard and endpoint
+requirements rather than treating those inconsistent documents as approval.
+
+When the optional config ID is set, the managed Facebook dialog sends
+`client_id`, `config_id`, `response_type=code`, `redirect_uri`, and `state`,
+without `scope`. Meta recommends replacing `scope` with the configuration ID.
+The encrypted one-time state records the configuration ID and fixed callback;
+changing either rejects an in-flight attempt. Advanced customer-owned OAuth
+and managed Facebook without a config ID retain their scope-based behavior.
+Business-integration system-user tokens are **not supported** by this user-token
+Page-discovery flow. The configured type is operator-reported; the token type
+from the reported real callback was not retained.
+
+The server exchanges the code, checks the short and long user tokens with
+Graph `/debug_token` against the Publisher app and verifies `USER`, validity,
+expiry and confirmed scopes. It cross-checks the long user token's scopes with
+`/me/permissions` and checks Page-target restrictions when Meta returns granular
+scopes. `pages_show_list` is required before `/me/accounts`; Page
+discovery and content-creation tasks alone do not prove publishing access. If
+eligible Pages are found but `pages_manage_posts` or `pages_read_engagement` is
+missing, the UI explains the blocker and no connection is saved. If both are
+present, only an eligible Page can be selected. The selected Page token is
+checked server-side for app, `PAGE` type, validity, expiry and required scopes,
+including returned granular Page restrictions, and its identity is verified
+before encrypted, quota-controlled persistence.
+No token or authorization code is intentionally logged or sent to the UI.
+Provider errors, unsupported token responses, missing permissions, or an app
+configuration that cannot grant these scopes remain blockers; no discovery-only
+or publishing-capable connection is fabricated.
+
+Meta's [Login for Business documentation](https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business)
+and [manual authorization flow](https://developers.facebook.com/documentation/facebook-login/guides/advanced/manual-flow)
+describe the distinction. Its [Pages overview](https://developers.facebook.com/documentation/pages-api/overview)
+describes app-role testing, Page tasks and Advanced Access for external users.
+
+Offline tests exercise configuration-based and legacy authorization URLs, token
+type/app validation, grant checks, Page discovery, selection, quota, replay and
+workspace controls with mocked providers. They do not prove
+the app configuration, provider permissions, callback reachability during a real
+login, or Meta App Review approval. Do not publish a post during connection
+testing. Existing connections are retained; changing the managed application ID
+can require reauthorization for accounts tied to the previous app.
+
+### Manual local acceptance
+
+1. Start `npm run dev`, start the HTTPS tunnel, and confirm the tunnel's `/login`
+   reaches this local server. Confirm `APP_URL` and Meta's strict callback match.
+2. Sign in through the tunnel as a workspace owner/admin. Open Social, select
+   Facebook and consent. Use a Meta account with an appropriate app role and
+   Page task; do not publish a post.
+3. After returning, inspect only the POSTIF-AI message and destination names.
+   A missing `pages_show_list` blocks discovery; missing publishing grants blocks
+   saving. A selection list means discovery and the user-token grant checks
+   passed, not that a Page has already been saved.
+4. Select the intended Page. A success message appears only after Page-token
+   checks, identity verification and encrypted persistence succeed; provider
+   acceptance of an actual post is not tested. If rejected, retain only the
+   sanitized message and ask Meta about the missing authorization or review.
+   Never paste codes, tokens, cookies or secrets into logs, tickets or messages.
+
+### Diagnosing a real callback locally
+
+The generic permission error can also represent a Graph HTTP 403, so it does
+not identify which permission or endpoint failed. Failed callback tokens are
+not retained and a new manual authorization is required to inspect them.
+Start the development server with `npm run dev`, then perform the manual
+acceptance steps above. Diagnostics are enabled automatically only in development;
+set `FACEBOOK_OAUTH_DIAGNOSTICS=false` to turn them off. The server prints only
+fixed stages, HTTP status, numeric Graph error code/subcode, allowlisted permission
+names and statuses, token type/validity, and allowlisted Page tasks. It does not
+print tokens, authorization codes, URLs, Page identifiers, names, or response bodies. It
+inspects the first three discovered Page tokens; these extra requests may consume
+the callback's deadline. A Page's numeric diagnostic label is only its order in
+that attempt, not its identity. `not_returned` is not proof of denial, and a
+reported scope or lack of a granular restriction does not alone prove that a
+Page can publish. A `null` requested-permission list means the configuration
+controls the request; it does not mean Meta requested no permissions. No post is
+made. Remove an explicit opt-out (`Remove-Item Env:FACEBOOK_OAUTH_DIAGNOSTICS`)
+before starting the development server to make the logs visible.
+
+If publishing permissions are not granted, the Publisher configuration must
+offer a Meta-supported way to request and obtain them; dashboard availability
+alone is insufficient. Since this configuration exposes only
+`business_management` and `pages_show_list`, confirm the available configuration
+and access path with Meta before changing the request. Advanced Access/App
+Review requirements for external businesses are separate from test access.
+
+One real local attempt confirmed valid `USER` tokens and granted
+`business_management` and `pages_show_list`. Both `/me/permissions` and
+`/debug_token` did not return `pages_manage_posts` or `pages_read_engagement`;
+the app rejected the connection. Page discovery succeeded but the supplied
+diagnostic contained no Page-task or Page-token results. Therefore Page access
+and effective Page-token permissions remain unverified, and a missing permission
+must not be interpreted as a confirmed denial or App Review outcome.
+In a subsequent local attempt Meta confirmed the three required publishing
+scopes on the initial user token, but the long-lived exchange response omitted
+`expires_in`. For Business Login, the server accepts that omission and still
+requires the long-lived token's app, `USER` type, validity, expiry and scopes to
+pass `/debug_token` before Page discovery. An omitted exchange field does not
+establish that a token is non-expiring.
+After that correction, a real local attempt confirmed those scopes on the
+long-lived `USER` token and one valid `PAGE` token; Meta reported the Page's
+`CREATE_CONTENT` task and included Page targets for the required scopes. The
+user reported a successful connection after selection. No publication or
+independent database inspection was performed.
+
 ## Architecture audit (before implementation)
 
 The existing implementation was inspected before editing. Reuse:
@@ -91,7 +241,7 @@ an app review, or actual authorization.
 
 | Provider | Authorized destination and minimal publishing scopes | Additional gates / lifecycle |
 | --- | --- | --- |
-| Facebook Pages | Discover `/me/accounts`, require content-creation tasks, select an actual Page. `pages_show_list pages_manage_posts pages_read_engagement`. Confirm granted permissions before offering Pages. | **REQUIRES PROVIDER APPROVAL** for serving external customers. Exchange short user token to long user token, then retain only the selected Page token. No scheduled expiry is not a permanent validity guarantee; invalidation requires reauthorization. Optional analytics adds `pages_read_user_content`. |
+| Facebook Pages | Discover `/me/accounts`, require content-creation tasks, select an actual Page. `pages_show_list pages_manage_posts pages_read_engagement` must be confirmed. Business Login requests the configured permissions via `config_id`, not `scope`; this configuration may lack publishing grants. | **REQUIRES PROVIDER APPROVAL** for serving external customers. Exchange short user token to long user token, then retain only the selected Page token. No scheduled expiry is not a permanent validity guarantee; invalidation requires reauthorization. Optional analytics requires `pages_read_user_content`. |
 | Instagram | Instagram Login professional account, confirmed `account_type` and identity. `instagram_business_basic instagram_business_content_publish`. No arbitrary professional-account ID. | **REQUIRES PROVIDER APPROVAL** / Advanced Access for accounts not owned/managed by the app owner. Instagram-specific app credentials, not Facebook app credentials. Sixty-day long-lived exchange uses actual returned expiry; refresh requires valid token at least 24 hours old. Optional reviewed insights only. |
 | LinkedIn | Member identity via userinfo; `openid profile w_member_social`. Optional organization flow discovers approved ACLs and names, accepts only ADMINISTRATOR/CONTENT_ADMINISTRATOR, rechecks the initiating member's ACL before selection. | Organizations **REQUIRES PROVIDER APPROVAL** for Community Management and explicit operator enablement; supported `YYYYMM` version required. No sponsored-content-only role is accepted for managed organic posting. `w_organization_social r_organization_admin` requested only for that mode; discovery does not need organization-admin write access. Refresh only if LinkedIn actually issued a grant to an eligible app. |
 | X | `/2/users/me`; `tweet.read tweet.write users.read media.write offline.access`; confidential web client and mandatory S256 PKCE. | Actual developer-project/API access and permitted automation are external gates. Refresh retains rotated grants. No pricing tier is inferred or promised. |
@@ -129,9 +279,10 @@ entitlements still apply even when scopes are granted.
 
 ## Required environment configuration
 
-No values were invented or configured. Existing deployments default to managed
-providers disabled. `env_sample` and the Amplify runtime allowlist contain exactly
-these optional server-side settings:
+Existing deployments default to managed providers disabled. The new
+`FACEBOOK_OAUTH_CONFIG_ID` is prepared for local development; no Amplify
+environment or runtime allowlist was changed. The sample lists these optional
+server-side settings:
 
 | Setting | Meaning |
 | --- | --- |
@@ -140,6 +291,7 @@ these optional server-side settings:
 | `SOCIAL_OAUTH_ANALYTICS_PROVIDERS` | Reviewed optional reporting integrations, requested only after user consent. |
 | `SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS` | Only `tiktok,youtube`; blank means private-only. Never set before required provider audit AND product-compliance verification. |
 | `FACEBOOK_OAUTH_CLIENT_ID`, `FACEBOOK_OAUTH_CLIENT_SECRET` | POSTIF-AI Facebook app. |
+| `FACEBOOK_OAUTH_CONFIG_ID` | Optional numeric Facebook Login for Business configuration ID for the managed User access token flow. Blank keeps the existing scope-based flow. |
 | `INSTAGRAM_OAUTH_CLIENT_ID`, `INSTAGRAM_OAUTH_CLIENT_SECRET` | POSTIF-AI Instagram Login app. |
 | `LINKEDIN_OAUTH_CLIENT_ID`, `LINKEDIN_OAUTH_CLIENT_SECRET` | POSTIF-AI LinkedIn app. |
 | `X_OAUTH_CLIENT_ID`, `X_OAUTH_CLIENT_SECRET` | POSTIF-AI confidential X web client. |
@@ -183,8 +335,11 @@ callback. No arbitrary redirect or developer-supplied token endpoint is accepted
   preserved. No new collection, ORM, auth service or database migration.
 - Authorization/selection payloads and candidates are encrypted; consumed payloads
   are cleared and existing expiry/TTL cleanup removes expired attempts.
-- Only the selected Facebook Page token persists. Intermediate user tokens and
-  unselected destination tokens are not copied into account credentials.
+- Only the selected Facebook Page token is saved as an account credential.
+  Until selection, the existing encrypted, ten-minute selection ticket in
+  MongoDB temporarily contains tokens for the eligible Page candidates. It is
+  cleared when claimed, or expires and is removed by TTL cleanup. Intermediate
+  user tokens and unselected Page tokens are not copied into account credentials.
 - Provider app secrets remain server-owned; selection responses and React props
   contain no access tokens, refresh tokens or app secrets.
 - Same-origin JSON mutation checks complement session cookies and bound random

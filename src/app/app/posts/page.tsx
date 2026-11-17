@@ -50,6 +50,7 @@ export default async function PostsPage() {
             timezone: p.timezone,
             automaticMedia: p.automaticMedia,
             automaticMediaStatus: assets.find(asset => asset.id === p.automaticMediaId)?.generationStatus || null,
+            mediaDraft: !!p.mediaDraft,
             media: assets.filter(asset => p.mediaIds.includes(asset.id)).map(asset => ({ id: asset.id, title: asset.title, assetType: asset.assetType, url: `/api/media/${asset.id}/content`, generationStatus: asset.generationStatus })),
         }))}/>
     </div>);

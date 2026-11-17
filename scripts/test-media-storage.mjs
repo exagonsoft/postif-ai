@@ -6,12 +6,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 process.env.MEDIA_STORAGE_UNIT_TEST = "true";
 const { objects, calls, failS3 } = await import("./fixtures/mock-s3.mjs");
-const { storeMedia, readMedia, deleteMedia, mediaDownloadUrl, MAX_MEDIA_BYTES } = await import("../src/lib/media-storage.ts");
+const { storeMedia, readMedia, deleteMedia, mediaDownloadUrl, checkMediaStorageCredentials, MAX_MEDIA_BYTES } = await import("../src/lib/media-storage.ts");
 const { getMediaStorageConfig } = await import("../src/lib/media-storage-config.ts");
 const { validateRuntimeConfig } = await import("../src/lib/runtime-config.ts");
 const png = Buffer.from("89504e470d0a1a0a0000000000000000", "hex");
 const directory = await mkdtemp(path.join(tmpdir(), "postif-storage-unit-"));
 let stored;
+test("S3 credential readiness resolves without contacting the bucket", async () => {
+  const before = calls.length;
+  await checkMediaStorageCredentials(getMediaStorageConfig());
+  assert.equal(calls.length, before);
+});
 test("S3 puts private, unique, workspace-scoped objects with validated metadata", async () => {
   stored = { workspaceId: 101, ...await storeMedia(png, 101) };
   const second = { workspaceId: 101, ...await storeMedia(png, 101) };

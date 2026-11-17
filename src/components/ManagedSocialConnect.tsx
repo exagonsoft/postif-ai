@@ -9,7 +9,7 @@ import type { ManagedProviderAvailability, ManagedSocialSelection } from "@/lib/
 import { useToast } from "./ToastProvider";
 
 const icons = { facebook: Users, instagram: Camera, linkedin: BriefcaseBusiness, x: MessageCircle, tiktok: Music2, pinterest: Pin, youtube: Play, threads: AtSign };
-const errorCodes = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
+const errorCodes = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "FACEBOOK_PAGE_ACCESS_MISSING", "FACEBOOK_PUBLISH_ACCESS_MISSING", "FACEBOOK_TOKEN_INVALID", "FACEBOOK_USER_TOKEN_REQUIRED", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "BRAND_LIMIT", "REQUEST_BLOCKED", "REQUEST_FORMAT", "REQUEST_CROSS_SITE", "REQUEST_ORIGIN", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
 export function managedSocialErrorKey(code: unknown) {
   return `social.managed.error.${typeof code === "string" && errorCodes.includes(code) ? code : "AUTHORIZATION_FAILED"}`;
 }
@@ -47,7 +47,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
   const buttonClass = "rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50";
 
   async function start() {
-    if (!active || !consent || selectedAvailability?.status !== "available" || !canManage || busy) return;
+    if (!active || !consent || !["available", "testing"].includes(selectedAvailability?.status ?? "") || !canManage || busy) return;
     setBusy(true); setError(null);
     try {
       const response = await fetch(`/api/social/oauth/${active}/start`, {
@@ -146,7 +146,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
           <p className="text-xs text-[var(--text-secondary)]">{t(`social.managed.eligibility.${spec.id}`)}</p>
           {status !== "available" && <p className="text-xs text-amber-400">{t(`social.managed.gate.${status}`)}</p>}
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-2">
-            {canManage && <button type="button" disabled={busy || status !== "available" || !!pending} className={buttonClass} onClick={() => { setActive(spec.id); setConsent(false); setAnalyticsEnabled(false); setOrganizations(false); setError(null); }}>
+            {canManage && <button type="button" disabled={busy || !["available", "testing"].includes(status) || !!pending} className={buttonClass} onClick={() => { setActive(spec.id); setConsent(false); setAnalyticsEnabled(false); setOrganizations(false); setError(null); }}>
               {t(reconnect ? "social.managed.reconnect" : "social.managed.connect")}
             </button>}
             {!!connected.length && <a className="text-sm underline" href={`#social-account-${connected[0].id}`}>{t("social.managed.manage")}</a>}
@@ -154,10 +154,11 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
         </article>;
       })}
     </div>
-    {active && selectedAvailability?.status === "available" && canManage && !pending && <section ref={permissionsRef} tabIndex={-1} className="surface-card space-y-4 rounded-3xl p-5" aria-label={t("social.managed.permissionStep")}>
+    {active && selectedAvailability && ["available", "testing"].includes(selectedAvailability.status) && canManage && !pending && <section ref={permissionsRef} tabIndex={-1} className="surface-card space-y-4 rounded-3xl p-5" aria-label={t("social.managed.permissionStep")}>
       <h2 className="font-bold">{t("social.managed.permissionStep")} · {SOCIAL_PLATFORM_SPECS[active].name}</h2>
-      <p className="text-sm">{t("social.managed.permissionExplain")}</p>
+      {!(active === "facebook" && selectedAvailability.facebookBusinessLogin) && <p className="text-sm">{t("social.managed.permissionExplain")}</p>}
       <p className="text-sm">{t(`social.managed.eligibility.${active}`)}</p>
+      {active === "facebook" && selectedAvailability.facebookBusinessLogin && <p className="text-sm text-amber-400">{t("social.managed.facebookBusinessNotice")}</p>}
       {["youtube", "tiktok"].includes(active) && !selectedAvailability.publicPostingAvailable && <p className="text-sm text-amber-400">{t("social.managed.privateOnly")}</p>}
       <p className="text-sm text-[var(--text-secondary)]">{t("social.managed.revocation")}</p>
       {selectedAvailability.analyticsAvailable && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={analyticsEnabled} onChange={event => setAnalyticsEnabled(event.target.checked)} />{t("social.managed.analytics")}</label>}

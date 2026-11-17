@@ -10,6 +10,9 @@ import { publishingReservations } from "@/db/entitlement-schema";
 import { queueMedia, cancelQueuedMedia } from "./media-generation";
 import { buildBrandMediaBrief } from "./brand-media-brief";
 import { getWorkspacePublishing } from "./workspace-publishing";
+import { createHash } from "node:crypto";
+import { mediaReservations } from "@/db/worker-schema";
+import { isScheduleSlot, SCHEDULE_SLOTS } from "./schedule-slots";
 type Context = {
     workspaceId: number;
     userId: number;
@@ -32,19 +35,40 @@ const fields = z.object({
     automaticMedia: z.object({ kind: z.enum(["image", "video", "gif"]) }).nullable().optional(),
     retryMedia: z.boolean().optional(),
 });
-export async function savePost(ctx: Context, raw: unknown, postId?: number) {
+export function studioMediaKey(workspaceId: number, userId: number, key: string) {
+    return createHash("sha256").update(`${workspaceId}:${userId}:${key}`).digest("hex");
+}
+export async function savePost(ctx: Context, raw: unknown, postId?: number, studioDraftKey?: string) {
     if (!["owner", "admin", "editor", "approver"].includes(ctx.role))
         throw new WorkflowError("Your role cannot modify posts.", 403);
     const parsed = fields.safeParse(raw);
     if (!parsed.success)
         throw new WorkflowError(parsed.error.issues[0]?.message || "Invalid post.");
     const body = parsed.data;
+    if (studioDraftKey && (postId || body.status !== "draft" || !body.automaticMedia))
+        throw new WorkflowError("A generated media draft requires a media type and draft status.");
+    const studioKey = studioDraftKey ? studioMediaKey(ctx.workspaceId, ctx.userId, studioDraftKey) : null;
+    const studioFingerprint = studioKey ? createHash("sha256").update(JSON.stringify(body)).digest("hex") : null;
     return db.transaction(async (tx) => {
+        if (studioKey) {
+            await tx.find(workspaces, eq("id", ctx.workspaceId), { lock: true });
+            const [reservation] = await tx.find(mediaReservations, { workspaceId: ctx.workspaceId, studioKey });
+            if (reservation) {
+                if (reservation.studioFingerprint !== studioFingerprint) throw new WorkflowError("This generation request was already used for different content.", 409);
+                const [previous] = await tx.find(posts, { id: reservation.studioPostId, workspaceId: ctx.workspaceId });
+                if (!previous) throw new WorkflowError("The generated draft was removed. Verify the media operation before starting another.", 409);
+                return previous;
+            }
+        }
         const publishing = await getWorkspacePublishing(ctx.workspaceId, tx);
         const role = !publishing.isTeamWorkspace && publishing.ownerId === ctx.userId ? "owner" : ctx.role;
         const [existing] = postId ? await tx.find(posts, and(eq("id", postId), eq("workspaceId", ctx.workspaceId)), { lock: true }) : [];
         if (postId && !existing)
             throw new WorkflowError("Post not found.", 404);
+        if (existing?.mediaDraft && existing.status === "waiting_media" && body.status !== "cancelled")
+            throw new WorkflowError("Wait for media generation to finish before changing the draft.", 409);
+        if (existing?.mediaDraft && body.retryMedia)
+            throw new WorkflowError("Verify the provider before creating another media generation.", 409);
         const brandId = body.brandId ?? existing?.brandId ?? ctx.brandId;
         const [brand] = await tx.find(brands, and(eq("id", brandId), eq("workspaceId", ctx.workspaceId)), {});
         if (!brand)
@@ -80,15 +104,29 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
             requiresApproval, approved: !!existing?.approvedAt, contentChanged, role,
             scheduledAt: body.scheduledAt !== undefined ? (body.scheduledAt ? new Date(body.scheduledAt) : null) : existing?.scheduledAt ?? null, now,
         });
+        if (body.status !== "published" && state.scheduledAt && ["scheduled", "pending_approval", "approved"].includes(state.status)) {
+            const timezone = body.timezone ?? existing?.timezone ?? "UTC";
+            const unchanged = !!existing?.scheduledAt && existing.scheduledAt.getTime() === state.scheduledAt.getTime() &&
+                existing.timezone === timezone && ["scheduled", "pending_approval", "approved", "waiting_media", "media_failed"].includes(existing.status);
+            if (!unchanged) {
+                let valid: boolean;
+                try { valid = isScheduleSlot(state.scheduledAt, timezone); }
+                catch { throw new WorkflowError("Choose a valid timezone for scheduling."); }
+                if (!valid) throw new WorkflowError(`Choose a publishing time from: ${SCHEDULE_SLOTS.join(", ")} in the selected timezone.`);
+            }
+        }
+        if (platforms.includes("facebook") && (state.status === "scheduled" || (state.status === "pending_approval" && !!state.scheduledAt)) &&
+            (media.some(asset => asset.assetType !== "image") || (automaticMedia && automaticMedia.kind !== "image")))
+            throw new WorkflowError("Facebook publishing currently supports text and a single image, not video or GIF. Choose an image or another platform.", 400);
         if (existing?.automaticMediaId && (state.status === "cancelled" || mediaSettingsChanged)) {
             await cancelQueuedMedia(tx, existing.automaticMediaId, ctx.workspaceId);
             if (state.status === "cancelled")
                 automaticMediaId = null;
         }
-        if (automaticMedia && !["draft", "cancelled"].includes(state.status)) {
+        if (automaticMedia && (!["draft", "cancelled"].includes(state.status) || !!studioKey)) {
             if (body.status === "approved" && ["waiting_media", "media_failed"].includes(existing?.status || ""))
                 throw new WorkflowError("Wait for the generated media before approving the post.", 409);
-            if (!state.scheduledAt || state.scheduledAt <= now)
+            if (!studioKey && (!state.scheduledAt || state.scheduledAt <= now))
                 throw new WorkflowError("Choose a future publishing time for automatic media generation.");
             if (!automaticMediaId || body.retryMedia) {
                 if (mediaIds.length >= 10)
@@ -128,7 +166,11 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
         const values = {
             brandId, title, baseContent, platforms, variants, mediaIds, requiresApproval, automaticMedia, automaticMediaId,
             topic: body.topic ?? existing?.topic ?? "", contentType: body.contentType ?? existing?.contentType ?? "Educational Post",
-            tone: body.tone ?? existing?.tone ?? "Professional", status: state.status, scheduledAt: state.scheduledAt,
+            tone: body.tone ?? existing?.tone ?? "Professional",
+            status: state.status === "scheduled" && body.status === "published" ? "publishing" : state.status,
+            deliveryMode: state.status === "scheduled" && body.status === "published" ? "immediate" as const : "scheduled" as const,
+            mediaDraft: studioKey ? true : existing?.mediaDraft && body.automaticMedia !== null ? true : false,
+            scheduledAt: state.scheduledAt,
             timezone: body.timezone ?? existing?.timezone ?? "UTC", notifyOnPublish: body.notifyOnPublish ?? existing?.notifyOnPublish ?? true,
             approvedAt: state.approved ? existing?.approvedAt ?? now : null,
             approvedBy: state.approved ? existing?.approvedBy ?? ctx.userId : null,
@@ -137,15 +179,21 @@ export async function savePost(ctx: Context, raw: unknown, postId?: number) {
         const [post] = existing
             ? await tx.update(posts, eq("id", existing.id), values)
             : await tx.insert(posts, { ...values, workspaceId: ctx.workspaceId });
+        if (studioKey && automaticMediaId) {
+            await tx.update(mediaReservations, { workspaceId: ctx.workspaceId, assetId: automaticMediaId }, {
+                studioKey, studioFingerprint: studioFingerprint!, studioPostId: post.id,
+            });
+        }
         await tx.update(publishingJobs, and(eq("postId", post.id), inArray("status", ["queued", "blocked", "retrying", "failed"])), { status: "cancelled" });
         if (post.status === "cancelled") await releasePublishingReservation(ctx.workspaceId, post.id, tx);
-        if (post.status === "scheduled" && post.scheduledAt) {
+        if (["scheduled", "publishing"].includes(post.status) && post.scheduledAt) {
             for (const platform of platforms)
                 await tx.insert(publishingJobs, {
                     workspaceId: ctx.workspaceId,
                     postId: post.id,
                     platform,
                     scheduledFor: post.scheduledAt,
+                    deliveryMode: body.status === "published" ? "immediate" : "scheduled",
                     idempotencyKey: `post-${post.id}-${platform}-${crypto.randomUUID()}`,
                 });
         }

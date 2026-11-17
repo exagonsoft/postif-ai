@@ -232,6 +232,8 @@ export interface PostsDocument {
   automaticMedia: { kind: "image" | "video" | "gif" } | null;
   automaticMediaId: number | null;
   idempotencyKey: string | null;
+  deliveryMode?: "immediate" | "scheduled";
+  mediaDraft?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -263,6 +265,7 @@ export interface PublishingJobsDocument {
   socialAccountId?: number | null;
   startedAt?: Date | null;
   nextCheckAt?: Date | null;
+  deliveryMode?: "immediate" | "scheduled";
 }
 export const publishingJobs = defineCollection<PublishingJobsDocument>("publishing_jobs", {
   defaults: () => ({ status: "queued", attempts: 0, maxAttempts: 3, executedAt: null, errorMessage: null, externalPostId: null, encryptedProviderState: null, socialAccountId: null, startedAt: null, nextCheckAt: null, createdAt: new Date() }),
@@ -283,6 +286,7 @@ export const publishingJobs = defineCollection<PublishingJobsDocument>("publishi
       idempotencyKey: { bsonType: "string" }, createdAt: { bsonType: "date" },
       encryptedProviderState: { bsonType: ["string", "null"] }, socialAccountId: { bsonType: ["int", "long", "double", "null"] },
       startedAt: { bsonType: ["date", "null"] }, nextCheckAt: { bsonType: ["date", "null"] },
+      deliveryMode: { enum: ["immediate", "scheduled"] },
     },
   },
 });

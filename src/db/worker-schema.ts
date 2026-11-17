@@ -40,6 +40,7 @@ export interface MediaReservation {
   usageRecordId: number | null;
   status: "reserved" | "succeeded" | "refunded"; credits: number; refundedCredits: number;
   lastCheckedAt: Date; nextCheckAt: Date; createdAt: Date;
+  studioKey?: string; studioFingerprint?: string; studioPostId?: number;
 }
 export const mediaReservations = model<MediaReservation>("media_reservations", ["assetId"], () => ({
   status: "reserved", transport: "legacy", responseModel: null, usageRecordId: null, refundedCredits: 0, lastCheckedAt: new Date(0), nextCheckAt: new Date(0), createdAt: new Date(),

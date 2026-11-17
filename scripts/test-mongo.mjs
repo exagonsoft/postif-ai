@@ -111,10 +111,10 @@ try {
   await run("scripts/test-entitlements.mjs");
   await run("scripts/test-social-managed-mongo.mjs");
   if (!process.argv.includes("--managed-social")) {
-    if (!process.argv.includes("--social")) await run("scripts/test-media-generation.mjs");
-    await run("scripts/test-social.mjs");
-    if (!process.argv.includes("--social")) await run("scripts/test-media-generation.mjs", { TEST_STORAGE_PROVIDER: "s3" });
-    await run("scripts/test-social.mjs", { TEST_STORAGE_PROVIDER: "s3" });
+    if (!process.argv.includes("--social") && !process.argv.includes("--social-local")) await run("scripts/test-media-generation.mjs");
+    if (!process.argv.includes("--media-local")) await run("scripts/test-social.mjs");
+    if (!process.argv.includes("--social") && !process.argv.includes("--social-local") && !process.argv.includes("--media-local")) await run("scripts/test-media-generation.mjs", { TEST_STORAGE_PROVIDER: "s3" });
+    if (!process.argv.includes("--social-local") && !process.argv.includes("--media-local")) await run("scripts/test-social.mjs", { TEST_STORAGE_PROVIDER: "s3" });
   }
   if(process.argv.includes("--http")) {
     const portServer = createServer();

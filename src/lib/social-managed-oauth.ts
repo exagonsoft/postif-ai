@@ -8,13 +8,15 @@ import { customerCredentials, SocialProviderError, verifyCustomerConnection } fr
 import { assertBrandEntitlement } from "./entitlements";
 import { persistSocialConnection } from "./social-connect";
 import { managedSocialConfiguration } from "./social-managed-config";
-import { managedCredentials, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
+import { managedCredentials, managedScopes, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
 import type { ManagedSocialSelection } from "./social-managed-types";
 import { WorkflowError } from "./post-policy";
+import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken } from "./social-oauth-provider";
+import { reportFacebookGrantCheck } from "./facebook-oauth-diagnostics";
 
 const ticketFormat = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const selectionPayload = z.object({
-  stage: z.literal("select"), organizations: z.boolean(), analyticsEnabled: z.boolean(),
+  stage: z.literal("select"), organizations: z.boolean(), analyticsEnabled: z.boolean(), facebookConfigId: z.string().regex(/^\d{1,32}$/).optional(),
   destinations: z.array(z.object({
     id: z.string().min(1).max(250), name: z.string().min(1).max(500), handle: z.string().min(1).max(500),
     accountType: z.string().max(500), permissions: z.array(z.string().max(200)).max(100),
@@ -23,7 +25,8 @@ const selectionPayload = z.object({
 });
 export function managedSocialErrorCode(error: unknown): string {
   if (error instanceof ManagedSocialOAuthError) return error.code;
-  if (error instanceof WorkflowError) return /channel/i.test(error.message) ? "CHANNEL_LIMIT" : "FORBIDDEN";
+  if (error instanceof FacebookBusinessTokenError) return error.code;
+  if (error instanceof WorkflowError) return /channel/i.test(error.message) ? "CHANNEL_LIMIT" : /brand/i.test(error.message) ? "BRAND_LIMIT" : "AUTHORIZATION_FAILED";
   if (error instanceof SocialProviderError) {
     if (/application changed/.test(error.message)) return "MANAGED_APP_CHANGED";
     if (/channel limit/i.test(error.message)) return "CHANNEL_LIMIT";
@@ -33,22 +36,30 @@ export function managedSocialErrorCode(error: unknown): string {
   }
   return error instanceof z.ZodError ? "INVALID_REQUEST" : "AUTHORIZATION_FAILED";
 }
-export function assertSocialMutationOrigin(req: Request) {
+export function assertSocialMutationOrigin(req: Request, detailedErrors = false) {
   const origin = req.headers.get("origin");
-  let applicationOrigin: string | undefined;
-  try { applicationOrigin = new URL(process.env.APP_URL || "").origin; } catch { /* Advanced token connections do not require a public OAuth origin. */ }
-  if (!/^application\/json(?:\s*;|$)/i.test(req.headers.get("content-type") || "") ||
-    req.headers.get("sec-fetch-site") === "cross-site" ||
-    (origin && origin !== new URL(req.url).origin && origin !== applicationOrigin)) {
-    throw new ManagedSocialOAuthError("FORBIDDEN", 403);
-  }
+  const requestUrl = new URL(req.url);
+  let applicationUrl: URL | undefined;
+  try { applicationUrl = new URL(process.env.APP_URL || ""); } catch { /* Advanced token connections do not require a public OAuth origin. */ }
+  if (!/^application\/json(?:\s*;|$)/i.test(req.headers.get("content-type") || ""))
+    throw new ManagedSocialOAuthError(detailedErrors ? "REQUEST_FORMAT" : "FORBIDDEN", 403);
+  if (req.headers.get("sec-fetch-site") === "cross-site")
+    throw new ManagedSocialOAuthError(detailedErrors ? "REQUEST_CROSS_SITE" : "FORBIDDEN", 403);
+  // VS Code Dev Tunnels rewrite a same-origin HTTPS Origin to the local HTTP target.
+  const devTunnelOrigin = process.env.NODE_ENV === "development" &&
+    applicationUrl?.protocol === "https:" && applicationUrl.hostname.endsWith(".devtunnels.ms") &&
+    req.headers.get("x-forwarded-host") === applicationUrl.host && req.headers.get("x-forwarded-proto") === "https" &&
+    req.headers.get("sec-fetch-site") === "same-origin" && requestUrl.hostname === "localhost" &&
+    req.headers.get("host") === requestUrl.host && origin === `http://${requestUrl.host}`;
+  if (origin && origin !== requestUrl.origin && origin !== applicationUrl?.origin && !devTunnelOrigin)
+    throw new ManagedSocialOAuthError(detailedErrors ? "REQUEST_ORIGIN" : "FORBIDDEN", 403);
 }
 export async function createManagedSelection(input: {
   workspaceId: number; userId: number; brandId: number; platform: SocialPlatform;
-  organizations: boolean; analyticsEnabled: boolean; destinations: AuthorizedSocialDestination[];
+  organizations: boolean; analyticsEnabled: boolean; destinations: AuthorizedSocialDestination[]; facebookConfigId?: string;
 }) {
   const payload = selectionPayload.parse({ stage: "select", organizations: input.organizations,
-    analyticsEnabled: input.analyticsEnabled, destinations: input.destinations });
+    analyticsEnabled: input.analyticsEnabled, destinations: input.destinations, facebookConfigId: input.facebookConfigId });
   const ticket = randomBytes(32).toString("base64url");
   await db.insert(socialOAuthAttempts, { workspaceId: input.workspaceId, userId: input.userId, brandId: input.brandId, platform: input.platform,
     stateHash: createHash("sha256").update(`select:${ticket}`).digest("hex"),
@@ -89,6 +100,17 @@ export async function selectManagedDestination(input: z.infer<typeof managedSele
   const current = managedCredentials(platform, payload.analyticsEnabled, payload.organizations);
   if (destination.credentials.oauthMode !== "managed" || current.clientId !== destination.credentials.clientId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
   const credentials = { ...destination.credentials };
+  if (platform === "facebook" && payload.facebookConfigId) {
+    if (managedSocialConfiguration().facebookConfigId !== payload.facebookConfigId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
+    const token = await inspectFacebookToken(credentials, credentials.accessToken, Date.now() + 20000, "selected_page_debug");
+    if (token.type !== "PAGE") throw new ManagedSocialOAuthError("FACEBOOK_TOKEN_INVALID", 403);
+    reportFacebookGrantCheck("selected_page_grant_check", managedScopes("facebook", payload.analyticsEnabled, false),
+      token.scopes.filter(scope => facebookScopeForPage(token, scope, destination.id)), true);
+    if (["pages_show_list", "pages_manage_posts", "pages_read_engagement"].some(scope => !facebookScopeForPage(token, scope, destination.id))) throw new ManagedSocialOAuthError("FACEBOOK_PUBLISH_ACCESS_MISSING", 403);
+    if (managedScopes("facebook", payload.analyticsEnabled, false).some(scope => !facebookScopeForPage(token, scope, destination.id))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+    credentials.grantedScopes = (credentials.grantedScopes || []).filter(scope => token.scopes.includes(scope));
+    if (token.expires_at) credentials.expiresAt = new Date(token.expires_at * 1000).toISOString();
+  }
   const publicPosting = managedSocialConfiguration().publicPosting.includes(platform);
   if (platform === "youtube") {
     if (!input.privacyLevel || !["private", "unlisted", "public"].includes(input.privacyLevel) || typeof input.madeForKids !== "boolean") throw new ManagedSocialOAuthError("INVALID_REQUEST");

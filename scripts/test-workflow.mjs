@@ -11,15 +11,20 @@ async function load(file) {
 }
 const { resolvePostState, isPublishable } = await load("post-policy");
 const { scheduleToISO, formatScheduleInput } = await load("schedule-time");
+const { isScheduleSlot, nextScheduleSlot } = await import("../src/lib/schedule-slots.ts");
 const { detectMedia } = await import("../src/lib/media-storage.ts");
 const now = new Date("2026-11-15T12:00:00Z");
 const base = { requested: "scheduled", requiresApproval: true, approved: false, contentChanged: false, role: "owner", scheduledAt: new Date("2026-11-16T12:00:00Z"), now };
 test("scheduled review posts cannot bypass approval", () => assert.equal(resolvePostState(base).status, "pending_approval"));
-test("Publish Now enqueues and does not claim delivery", () => {
+test("Publish Now starts eligible delivery without claiming confirmation", () => {
   const state = resolvePostState({ ...base, requested: "published", requiresApproval: false });
   assert.equal(state.status, "scheduled"); assert.equal(state.scheduledAt, now);
 });
-test("Publish Now cannot bypass review", () => assert.equal(resolvePostState({ ...base, requested: "published" }).status, "pending_approval"));
+test("Publish Now cannot bypass review or leave an expired schedule", () => {
+  const state = resolvePostState({ ...base, requested: "published" });
+  assert.equal(state.status, "pending_approval");
+  assert.equal(state.scheduledAt, null);
+});
 test("approval schedules a pending post at its original time", () => {
   const state = resolvePostState({ ...base, previous: "pending_approval", requested: "approved" });
   assert.equal(state.status, "scheduled"); assert.equal(state.approved, true); assert.equal(state.scheduledAt, base.scheduledAt);
@@ -46,6 +51,15 @@ test("timezone scheduling uses the selected zone, not the server zone", () => {
   assert.equal(formatScheduleInput(now, "America/Montevideo"), "2026-11-15T09:00");
 });
 test("nonexistent daylight-saving time is rejected", () => assert.throws(() => scheduleToISO("2026-03-08T02:30", "America/New_York"), /does not exist/));
+test("publishing slots use local time across offsets and daylight-saving transitions", () => {
+  const nepal = new Date(scheduleToISO("2026-07-16T09:00", "Asia/Kathmandu"));
+  assert.equal(nepal.toISOString(), "2026-07-16T03:15:00.000Z");
+  assert.ok(isScheduleSlot(nepal, "Asia/Kathmandu"));
+  assert.equal(isScheduleSlot(new Date(nepal.getTime() + 1000), "Asia/Kathmandu"), false);
+  assert.equal(isScheduleSlot(nepal, "UTC"), false);
+  const next = nextScheduleSlot(new Date("2026-03-08T06:59:00Z"), "America/New_York");
+  assert.equal(formatScheduleInput(next, "America/New_York"), "2026-03-08T06:00");
+});
 test("uploads inspect bytes instead of trusting extensions", () => {
   assert.equal(detectMedia(Buffer.from('<script>alert("not an image")</script>')), null);
   assert.equal(detectMedia(Buffer.from("89504e470d0a1a0a0000000000000000", "hex")).mimeType, "image/png");

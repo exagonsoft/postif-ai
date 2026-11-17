@@ -33,11 +33,11 @@ export function resolvePostState(input: {
   if (requested === "cancelled") return { status: "cancelled", approved: false, scheduledAt };
   if (requested === "draft") return { status: "draft", approved: false, scheduledAt };
   if (requested === "pending_approval") return { status: "pending_approval", approved: false, scheduledAt };
-  if (requested === "published") scheduledAt = now; // Publish now means enqueue, never fabricate success.
+  if (requested === "published") scheduledAt = now;
   if (!scheduledAt) throw new WorkflowError("Choose a date and time before scheduling.");
   if (requested === "scheduled" && scheduledAt <= now) throw new WorkflowError("Choose a future publishing time.");
   if ((requiresApproval && !approved) || (role === "editor" && !approved)) {
-    return { status: "pending_approval", approved: false, scheduledAt };
+    return { status: "pending_approval", approved: false, scheduledAt: requested === "published" ? null : scheduledAt };
   }
   return { status: "scheduled", approved, scheduledAt };
 }

@@ -1,11 +1,12 @@
 import "./register-ts.mjs";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
+import { registerHooks } from "node:module";
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 const { db } = await import("../src/db/index.ts");
 const { encryptSecret } = await import("../src/lib/crypto.ts");
-const { generateMultiPlatformPosts, reconcileAIRequests } = await import("../src/lib/ai-engine.ts");
+const { AIRequestError, generateMultiPlatformPosts, reconcileAIRequests } = await import("../src/lib/ai-engine.ts");
 const { queueMedia, refreshPendingMedia, cancelQueuedMedia } = await import("../src/lib/media-generation.ts");
 const { runRecurringPlanning } = await import("../src/lib/recurring-planner.ts");
 const { runWorkerSweep } = await import("../src/lib/worker-orchestrator.ts");
@@ -16,6 +17,20 @@ const { deliverNotifications } = await import("../src/lib/notification-service.t
 const { backgroundImageResult } = await import("../src/lib/openai-background-images.ts");
 const { getWorkerDeadline } = await import("../src/lib/worker-network.ts");
 const { getPlanDefinition } = await import("../src/lib/plans.ts");
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "next/server") return next("next/server.js", context);
+    if (context.parentURL?.includes("/src/app/api/ai/generate/route.ts")) {
+      if (specifier === "@/lib/auth") return { url: `data:text/javascript,${encodeURIComponent("export async function getAuthContext(){return globalThis.aiGenerateTestAuth;}")}`, shortCircuit: true };
+      if (specifier === "@/lib/entitlements") return { url: `data:text/javascript,${encodeURIComponent("export async function assertBrandEntitlement(){} export async function assertFeature(){}")}`, shortCircuit: true };
+    }
+    if (context.parentURL?.includes("/src/app/api/media/generate/route.ts") && specifier === "@/lib/auth")
+      return { url: `data:text/javascript,${encodeURIComponent("export async function getAuthContext(){return globalThis.mediaGenerateTestAuth;}")}`, shortCircuit: true };
+    return next(specifier, context);
+  },
+});
+const { POST: generateRoute } = await import("../src/app/api/ai/generate/route.ts");
+const { GET: mediaPreflightRoute } = await import("../src/app/api/media/generate/route.ts");
 
 process.env.ENCRYPTION_SECRET = "test-encryption-secret-not-for-production";
 process.env.OPENAI_API_KEY = "test-managed-key";
@@ -106,6 +121,54 @@ function fakeDatabase() {
   return { repo, rows };
 }
 const input = { workspaceId: 1, userId: 7, brandName: "Test Brand", topic: "Useful topic", prompt: "Write clearly", objective: "Educate", audience: "Readers", platforms: ["linkedin"], tone: "Professional", language: "English", contentType: "Educational Post", length: "medium", keywords: [], cta: "", requestKey: "deliberate-action-1" };
+
+test("media preflight identifies unexpected failures without exposing their details", async () => {
+  const { repo } = fakeDatabase();
+  const env = { node: process.env.NODE_ENV, storage: process.env.MEDIA_STORAGE_PROVIDER, dir: process.env.MEDIA_STORAGE_DIR };
+  const info = console.info, error = console.error, events = [];
+  globalThis.mediaGenerateTestAuth = { workspace: { id: 1 }, activeBrand: { id: 3 }, memberRole: "owner" };
+  process.env.NODE_ENV = "development";
+  process.env.MEDIA_STORAGE_PROVIDER = "local";
+  delete process.env.MEDIA_STORAGE_DIR;
+  console.info = (...args) => events.push(args);
+  console.error = (...args) => events.push(args);
+  db.find = async (model, ...args) => {
+    if (model.name === "workspaces") throw new Error("sensitive database detail");
+    return repo.find(model, ...args);
+  };
+  try {
+    const response = await mediaPreflightRoute(new Request("http://localhost/api/media/generate?kind=image&brandId=3"));
+    assert.equal(response.status, 500);
+    const body = await response.text();
+    assert.ok(events.some(([label, event]) => label === "[Media diagnostic]" && event?.stage === "gate" && event.step === "workspace" && event.category === "unexpected"));
+    assert.doesNotMatch(JSON.stringify(events) + body, /sensitive database detail/);
+  } finally {
+    console.info = info; console.error = error;
+    for (const [key, value] of Object.entries({ NODE_ENV: env.node, MEDIA_STORAGE_PROVIDER: env.storage, MEDIA_STORAGE_DIR: env.dir })) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    delete globalThis.mediaGenerateTestAuth;
+  }
+});
+
+test("media preflight reports an invalid credit balance without starting generation", async () => {
+  const { rows } = fakeDatabase();
+  const storage = process.env.MEDIA_STORAGE_PROVIDER, dir = process.env.MEDIA_STORAGE_DIR;
+  process.env.MEDIA_STORAGE_PROVIDER = "local";
+  delete process.env.MEDIA_STORAGE_DIR;
+  globalThis.mediaGenerateTestAuth = { workspace: { id: 1 }, activeBrand: { id: 3 }, memberRole: "owner" };
+  rows("workspaces")[0].aiCreditsBalance = -1;
+  try {
+    const response = await mediaPreflightRoute(new Request("http://localhost/api/media/generate?kind=image&brandId=3"));
+    assert.equal(response.status, 409);
+    assert.match((await response.json()).error, /credit balance requires administrator reconciliation/i);
+    assert.equal(rows("media_assets").length, 0);
+  } finally {
+    if (storage === undefined) delete process.env.MEDIA_STORAGE_PROVIDER; else process.env.MEDIA_STORAGE_PROVIDER = storage;
+    if (dir === undefined) delete process.env.MEDIA_STORAGE_DIR; else process.env.MEDIA_STORAGE_DIR = dir;
+    delete globalThis.mediaGenerateTestAuth;
+  }
+});
 const generated = { baseContent: "Useful actual copy.", variants: { linkedin: { content: "Useful actual copy.", hashtags: [], cta: "", formatLabel: "Text" } } };
 function completion(result) {
   return Response.json({ choices: [{ message: { content: JSON.stringify(result) } }], usage: { total_tokens: 123 } });
@@ -127,11 +190,69 @@ test("stable text request keys settle once, replay saved results, and reject cha
   assert.equal(calls, 1);
 });
 
+test("media preflight rejects missing S3 credentials before generation", async () => {
+  const { rows } = fakeDatabase();
+  const names = ["MEDIA_STORAGE_PROVIDER", "S3_MEDIA_REGION", "S3_MEDIA_BUCKET", "S3_MEDIA_PREFIX", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_EC2_METADATA_DISABLED", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_WEB_IDENTITY_TOKEN_FILE"];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  for (const name of names) delete process.env[name];
+  Object.assign(process.env, {
+    MEDIA_STORAGE_PROVIDER: "s3", S3_MEDIA_REGION: "us-east-1", S3_MEDIA_BUCKET: "isolated-media-test", S3_MEDIA_PREFIX: "media/",
+    AWS_PROFILE: "isolated-missing-profile", AWS_CONFIG_FILE: path.join(process.cwd(), ".missing-test-aws-config"),
+    AWS_SHARED_CREDENTIALS_FILE: path.join(process.cwd(), ".missing-test-aws-credentials"), AWS_EC2_METADATA_DISABLED: "true",
+  });
+  globalThis.mediaGenerateTestAuth = { workspace: { id: 1 }, activeBrand: { id: 3 }, memberRole: "owner" };
+  try {
+    const response = await mediaPreflightRoute(new Request("http://localhost/api/media/generate?kind=image&brandId=3"));
+    assert.equal(response.status, 503);
+    assert.match((await response.json()).error, /S3 credentials are unavailable/);
+    assert.equal(rows("media_assets").length, 0);
+    assert.equal(rows("workspaces")[0].aiCreditsBalance, 1000);
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+    delete globalThis.mediaGenerateTestAuth;
+  }
+});
+
+test("social generation requests a strict schema for the selected platforms on supported OpenAI models", async () => {
+  const { rows } = fakeDatabase();
+  let requestBody;
+  globalThis.fetch = async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return completion({ baseContent: "Useful copy", variants: {
+      linkedin: { content: "LinkedIn copy", hashtags: [], cta: "", formatLabel: "Text" },
+      facebook: { content: "Facebook copy", hashtags: [], cta: "", formatLabel: "Text" },
+    } });
+  };
+  const result = await generateMultiPlatformPosts({ ...input, platforms: ["linkedin", "facebook", "facebook"] });
+  assert.deepEqual(Object.keys(result.variants), ["linkedin", "facebook"]);
+  const format = requestBody.response_format;
+  assert.equal(format.type, "json_schema");
+  assert.equal(format.json_schema.strict, true);
+  const schema = format.json_schema.schema;
+  assert.deepEqual(schema.required, ["baseContent", "variants"]);
+  assert.deepEqual(schema.properties.variants.required, ["linkedin", "facebook"]);
+  assert.equal(schema.properties.variants.additionalProperties, false);
+  assert.deepEqual(schema.properties.variants.properties.facebook.required, ["content", "hashtags", "cta", "formatLabel"]);
+  assert.equal(schema.properties.variants.properties.facebook.additionalProperties, false);
+  assert.equal(rows("ai_requests")[0].status, "succeeded");
+});
+
+test("other configured models retain JSON mode and the same output validation", async () => {
+  const { rows } = fakeDatabase();
+  rows("ai_configurations").push({ id: 8, workspaceId: 1, mode: "managed", preferredModel: "gpt-4-turbo" });
+  let requestBody;
+  globalThis.fetch = async (_url, init) => { requestBody = JSON.parse(init.body); return completion(generated); };
+  await generateMultiPlatformPosts(input);
+  assert.deepEqual(requestBody.response_format, { type: "json_object" });
+});
+
 test("ambiguous text failures refund exactly once and cannot repeat a paid request", async () => {
   const { rows } = fakeDatabase();
   let calls = 0;
   globalThis.fetch = async () => { calls++; throw new DOMException("Timed out", "TimeoutError"); };
-  await assert.rejects(generateMultiPlatformPosts(input), /Timed out/);
+  await assert.rejects(generateMultiPlatformPosts(input), error => error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry);
   assert.equal(rows("ai_requests")[0].status, "uncertain");
   assert.equal(rows("workspaces")[0].aiCreditsBalance, 1000);
   await assert.rejects(generateMultiPlatformPosts(input), /will not be sent again/);
@@ -139,6 +260,134 @@ test("ambiguous text failures refund exactly once and cannot repeat a paid reque
   await reconcileAIRequests();
   assert.equal(rows("ai_usage_records").length, 2);
   assert.equal(calls, 1);
+});
+
+test("invalid AI responses produce sanitized stage diagnostics and remain unsafe to retry", async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.warn = (...args) => logs.push(args.join(" "));
+  try {
+    process.env.NODE_ENV = "development";
+    const cases = [
+      { response: () => Response.json({ choices: [{ finish_reason: "stop", message: { content: "private-generated-content" } }] }), stage: "envelope", path: "usage" },
+      { response: () => Response.json({ choices: [{ finish_reason: "length", message: { content: "private-not-json" } }], usage: { total_tokens: 1 } }), stage: "content_json", path: null },
+      { response: () => completion({ baseContent: "private-generated-content", variants: { linkedin: { content: "private-generated-content", hashtags: "private-value", cta: "", formatLabel: "Text" } } }), stage: "generated_schema", path: "hashtags" },
+      { response: () => completion({ baseContent: "private-generated-content", variants: {} }), stage: "generated_schema", path: "linkedin" },
+    ];
+    for (const [index, item] of cases.entries()) {
+      const { rows } = fakeDatabase();
+      let calls = 0;
+      globalThis.fetch = async () => { calls++; return item.response(); };
+      await assert.rejects(generateMultiPlatformPosts(input), error => error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry);
+      await assert.rejects(generateMultiPlatformPosts(input), error => error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry);
+      assert.equal(calls, 1);
+      assert.equal(rows("ai_requests")[0].status, "uncertain");
+      const entry = JSON.parse(logs[index].slice(logs[index].indexOf("{")));
+      assert.equal(entry.stage, item.stage);
+      if (item.path) assert.ok(entry.issues.some(issue => issue.path.includes(item.path)));
+      if (item.stage === "content_json") assert.equal(entry.finishReason, "length");
+    }
+    assert.doesNotMatch(logs.join("\n"), /private-|test-managed-key|Useful topic/);
+    process.env.NODE_ENV = "production";
+    fakeDatabase();
+    globalThis.fetch = async () => completion({ baseContent: "private-generated-content", variants: {} });
+    await assert.rejects(generateMultiPlatformPosts(input), error => error instanceof AIRequestError && !error.safeToRetry);
+    assert.equal(logs.length, cases.length);
+  } finally {
+    console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test("definite OpenAI rejection records the cause and permits a separate user action", async () => {
+  const { rows } = fakeDatabase();
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response("sensitive provider response", { status: 401 }); };
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_FAILED" && error.safeToRetry && /HTTP 401/.test(error.message));
+  assert.equal(rows("ai_requests")[0].status, "refunded");
+  assert.match(rows("ai_requests")[0].error, /HTTP 401/);
+  assert.doesNotMatch(rows("ai_requests")[0].error, /sensitive/);
+  assert.equal(rows("workspaces")[0].aiCreditsBalance, 1000);
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_FAILED" && error.safeToRetry && /HTTP 401/.test(error.message));
+  assert.equal(calls, 1);
+  globalThis.fetch = async () => { calls++; return completion(generated); };
+  await generateMultiPlatformPosts({ ...input, requestKey: "deliberate-action-2" });
+  assert.equal(calls, 2);
+  assert.equal(rows("ai_requests")[1].status, "succeeded");
+});
+
+test("in-progress and uncertain requests never authorize a new attempt", async () => {
+  const { rows } = fakeDatabase();
+  let release;
+  let calls = 0;
+  const pending = new Promise(resolve => { release = resolve; });
+  globalThis.fetch = async () => { calls++; await pending; return new Response("", { status: 503 }); };
+  const first = generateMultiPlatformPosts(input);
+  while (!rows("ai_requests").length || rows("ai_requests")[0].status !== "sending") await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_IN_PROGRESS" && !error.safeToRetry);
+  release();
+  await assert.rejects(first, error => error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry && error.providerStatus === 503);
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry && error.providerStatus === 503);
+  assert.equal(calls, 1);
+});
+
+test("an inconsistent refunded record cannot authorize a fresh attempt", async () => {
+  const { rows } = fakeDatabase();
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response("", { status: 401 }); };
+  await assert.rejects(generateMultiPlatformPosts(input), error => error instanceof AIRequestError && error.safeToRetry);
+  rows("ai_requests")[0].refundedAt = null;
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry);
+  assert.equal(calls, 1);
+});
+
+test("AI generation API reports provider rejection and refuses replay without a second charge", async () => {
+  const { rows } = fakeDatabase();
+  globalThis.aiGenerateTestAuth = { user: { id: 7 }, workspace: { id: 1, name: "Test" }, memberRole: "owner", activeBrand: { id: 3 } };
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response("sensitive provider body", { status: 401 }); };
+  const request = () => new Request("https://example.test/api/ai/generate", {
+    method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": "generate-route-test-1" },
+    body: JSON.stringify({ mode: "generate", topic: "Test", platforms: ["linkedin"] }),
+  });
+
+  const first = await generateRoute(request());
+  const firstBody = await first.json();
+  assert.equal(first.status, 502);
+  assert.equal(firstBody.code, "AI_REQUEST_FAILED");
+  assert.equal(firstBody.safeToRetry, true);
+  assert.equal(firstBody.providerStatus, 401);
+  assert.doesNotMatch(JSON.stringify(firstBody), /sensitive provider body/);
+  const replay = await generateRoute(request());
+  const replayBody = await replay.json();
+  assert.equal(replay.status, 409);
+  assert.equal(replayBody.code, "AI_REQUEST_FAILED");
+  assert.equal(replayBody.safeToRetry, true);
+  assert.equal(replayBody.providerStatus, 401);
+  assert.equal(calls, 1);
+  assert.equal(rows("ai_requests").length, 1);
+  assert.equal(rows("workspaces")[0].aiCreditsBalance, 1000);
+});
+
+test("text generation does not silently ignore a media request", async () => {
+  fakeDatabase();
+  globalThis.aiGenerateTestAuth = { user: { id: 7 }, workspace: { id: 1, name: "Test" }, memberRole: "owner", activeBrand: { id: 3 } };
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("Unexpected provider call"); };
+  const response = await generateRoute(new Request("https://example.test/api/ai/generate", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "generate", topic: "A topic", mediaType: "image" }),
+  }));
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /does not create media/);
+  assert.equal(calls, 0);
 });
 
 test("stale text reservations reconcile idempotently without calling the provider", async () => {
@@ -173,7 +422,7 @@ test("delayed AI and media refunds cannot recreate credits after an allowance re
   rows("paypal_subscriptions")[0].creditEpoch = "next-allowance";
   rows("workspaces")[0].aiCreditsBalance = 1000;
   release();
-  await assert.rejects(generation, /Uncertain/);
+  await assert.rejects(generation, /uncertain/);
   await cancelQueuedMedia(repo, asset.id, 1);
   assert.equal(rows("workspaces")[0].aiCreditsBalance, 1000);
   assert.equal(rows("ai_requests")[0].refundedCredits, 0);
@@ -191,7 +440,8 @@ test("crashed settlement/refund is recoverable without a second provider call", 
     if (transactions === 2 || transactions === 3) throw new Error("Mock settlement storage outage");
     return repo.transaction(callback);
   };
-  await assert.rejects(generateMultiPlatformPosts(input), /storage outage/);
+  await assert.rejects(generateMultiPlatformPosts(input), error =>
+    error instanceof AIRequestError && error.code === "AI_REQUEST_UNCERTAIN" && !error.safeToRetry && /reconciliation/.test(error.message));
   assert.equal(rows("ai_requests")[0].status, "sending");
   assert.ok(rows("workspaces")[0].aiCreditsBalance < 1000);
   db.transaction = repo.transaction;

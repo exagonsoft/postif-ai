@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppLanguage } from "@/i18n/provider";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createIdempotentFetcher } from "@/lib/idempotent-fetch";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -11,6 +11,8 @@ import { SOCIAL_PLATFORM_SPECS, SocialPlatformSpec } from "@/lib/social-adapters
 import { PlatformVariant } from "@/db/schema";
 import { PostMediaPicker, MediaPreview, PostMedia } from "./PostMediaPicker";
 import { formatScheduleInput, scheduleToISO } from "@/lib/schedule-time";
+import { nextScheduleSlot } from "@/lib/schedule-slots";
+import { ScheduleFields } from "./ScheduleFields";
 import { AutomaticMediaSettings, AutomaticMedia } from "./AutomaticMediaSettings";
 import {
   Wand2,
@@ -88,6 +90,10 @@ export function ContentStudioClient({
   const teamReviewRequired = isTeamWorkspace && !["owner", "admin", "approver"].includes(memberRole);
   const [notifyOnPublish, setNotifyOnPublish] = useState(true);
   const [automaticMedia, setAutomaticMedia] = useState<AutomaticMedia>(null);
+  const [mediaDraft, setMediaDraft] = useState<{ postId: number; assetId: number } | null>(null);
+  const [draftId, setDraftId] = useState<number | null>(null);
+  const [pendingMediaRequest, setPendingMediaRequest] = useState<string | null>(null);
+  const [mediaMessage, setMediaMessage] = useState("");
   const [topic, setTopic] = useState("");
   const [prompt, setPrompt] = useState("");
   const [objective, setObjective] = useState(t("customer.text.362"));
@@ -107,7 +113,7 @@ export function ContentStudioClient({
 
   const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [scheduledAt, setScheduledAt] = useState(() => {
-    const d = new Date(Date.now() + 24 * 3600 * 1000);
+    const d = nextScheduleSlot(new Date(Date.now() + 24 * 3600 * 1000), timezone);
     return formatScheduleInput(d, timezone);
   });
 
@@ -116,6 +122,76 @@ export function ContentStudioClient({
   const [saving, setSaving] = useState(false);
   const [lastExecutionBadge, setLastExecutionBadge] = useState<string>("");
   const [requestAi] = useState(createIdempotentFetcher);
+
+  useEffect(() => {
+    if (!mediaDraft) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      let continuePolling = true;
+      try {
+        const response = await fetch("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "advance_media_draft", postId: mediaDraft.postId }) });
+        const data = await response.json();
+        if (!response.ok) {
+          if (response.status < 500) continuePolling = false;
+          throw new Error(data.error || t("customer.mediaDraft.checkFailed"));
+        }
+        const post = data.post;
+        if (!post) throw new Error(t("customer.mediaDraft.notFound"));
+        if (!active) return;
+        if (post.status === "draft" && post.mediaIds.includes(mediaDraft.assetId)) {
+          setMediaIds((ids) => [...new Set([...ids, mediaDraft.assetId])]);
+          setMediaMessage(t("customer.mediaDraft.ready"));
+          setMediaDraft(null);
+          router.refresh();
+          continuePolling = false;
+        } else if (post.status === "media_failed" || post.status === "cancelled") {
+          setMediaMessage(post.approvalNote || t("customer.mediaDraft.failed"));
+          setMediaDraft(null);
+          router.refresh();
+          continuePolling = false;
+        } else if (post.status !== "waiting_media") {
+          setMediaMessage(t("customer.mediaDraft.failed"));
+          setMediaDraft(null);
+          router.refresh();
+          continuePolling = false;
+        }
+      } catch (error) {
+        if (active) setMediaMessage(error instanceof Error ? error.message : t("customer.mediaDraft.checkFailed"));
+      } finally {
+        if (active && continuePolling) timer = setTimeout(() => void check(), 5000);
+      }
+    };
+    void check();
+    return () => { active = false; clearTimeout(timer); };
+  }, [mediaDraft, router, t]);
+
+  const startMediaDraft = async (payload: string) => {
+    setPendingMediaRequest(payload);
+    try {
+      const response = await requestAi("/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status >= 400 && response.status < 500) setPendingMediaRequest(null);
+        throw new Error(data.error || t("customer.mediaDraft.failed"));
+      }
+      setDraftId(data.post.id);
+      setAutomaticMedia(null);
+      if (data.post.status === "draft" && data.post.mediaIds.includes(data.mediaAssetId)) {
+        setMediaIds(data.post.mediaIds);
+        setMediaMessage(t("customer.mediaDraft.ready"));
+      } else if (data.post.status === "waiting_media" && data.post.automaticMediaId) {
+        setMediaDraft({ postId: data.post.id, assetId: data.post.automaticMediaId });
+        setMediaMessage(t("customer.mediaDraft.queued"));
+      } else {
+        setMediaMessage(data.post.approvalNote || t("customer.mediaDraft.failed"));
+      }
+      setPendingMediaRequest(null);
+      router.refresh();
+    } catch (error) {
+      setMediaMessage(`${t("customer.mediaDraft.notQueued")} ${error instanceof Error ? error.message : t("customer.mediaDraft.failed")}`);
+    }
+  };
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) => {
@@ -138,6 +214,11 @@ export function ContentStudioClient({
     }
     setGenerating(true);
     try {
+      if (automaticMedia) {
+        const check = await fetch(`/api/media/generate?kind=${encodeURIComponent(automaticMedia.kind)}&brandId=${brandId}`, { cache: "no-store" });
+        const readiness = await check.json();
+        if (!check.ok) throw new Error(readiness.error || t("customer.mediaDraft.failed"));
+      }
       const brandObj = brands.find((b) => b.id === brandId);
       const res = await requestAi("/api/ai/generate", {
         method: "POST",
@@ -170,10 +251,19 @@ export function ContentStudioClient({
       setLastExecutionBadge(
         t("customer.executionBadge", { source: data.meta.executionSource, model: data.meta.model, count: formatNumber(data.meta.creditsCharged) })
       );
-      toast(
-        t("customer.text.375"),
-        t("customer.tailoredCopy", { count: formatNumber(selectedPlatforms.length) })
-      );
+      if (automaticMedia) {
+        const primary = data.variants[selectedPlatforms[0]];
+        const payload = JSON.stringify({
+          action: "create_media_draft", brandId, title: topic.trim() || prompt.trim().slice(0, 100) || t("customer.text.386"),
+          topic, baseContent: primary?.content || data.baseContent, contentType, tone, platforms: selectedPlatforms,
+          variants: data.variants, mediaIds, automaticMedia, requiresApproval, notifyOnPublish, timezone,
+        });
+        await startMediaDraft(payload);
+      } else {
+        setDraftId(null);
+        setMediaMessage("");
+        toast(t("customer.text.375"), t("customer.tailoredCopy", { count: formatNumber(selectedPlatforms.length) }));
+      }
       router.refresh();
     } catch (error) {
       toast(t("customer.text.376"), error instanceof Error ? error.message : t("customer.text.60"), "error");
@@ -240,7 +330,8 @@ export function ContentStudioClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "create",
+          action: draftId ? "update" : "create",
+          ...(draftId ? { postId: draftId } : {}),
           brandId,
           title: topic.trim() || prompt.trim().slice(0, 100) || t("customer.text.386"),
           topic,
@@ -267,10 +358,13 @@ export function ContentStudioClient({
         draft: t("customer.text.61"),
         pending_approval: isTeamWorkspace ? t("customer.text.390") : t("customer.text.391"),
         scheduled: t("customer.text.392"),
-        published: t("customer.text.393"),
+        published: t("customer.status.published"),
       };
-      toast(statusLabels[data.post.status as typeof status] || t("customer.text.394"), data.post.status === "waiting_media" ? t("customer.text.395") : data.post.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.396") : t("customer.text.397")) : t("customer.text.398"));
+      const immediate = status === "published" && data.publishing;
+      const issue = immediate && data.publishing.find((job: { status: string }) => ["failed", "blocked", "uncertain"].includes(job.status));
+      toast(statusLabels[data.post.status as typeof status] || t("customer.text.394"), data.post.status === "waiting_media" ? t("customer.text.395") : data.post.status === "pending_approval" ? (isTeamWorkspace ? t("customer.text.396") : t("customer.text.397")) : immediate ? (issue ? `${t("customer.publish.problem")} ${issue.errorMessage || ""}` : data.post.status === "published" ? t("customer.publish.confirmed") : t("customer.publish.pending")) : data.post.status === "scheduled" ? t("customer.text.569") : t("customer.text.570"), issue ? "error" : undefined);
       router.refresh();
+      setDraftId(data.post.id);
     } catch (error) {
       toast(t("customer.text.387"), error instanceof Error ? error.message : t("customer.text.400"), "error");
     } finally {
@@ -500,9 +594,21 @@ export function ContentStudioClient({
           </div>
         </div>
 
+        <fieldset className="space-y-2 rounded-2xl border border-[var(--border-subtle)] p-4">
+          <legend className="px-2 text-sm font-bold">{t("customer.mediaDraft.choose")}</legend>
+          <div className="flex flex-wrap gap-3">
+            {([["none", t("customer.text.285")], ["image", t("customer.text.286")], ["video", t("customer.text.287")], ["gif", t("customer.text.288")]] as const).map(([kind, label]) => (
+              <label key={kind} className="cursor-pointer text-sm"><input type="radio" name="studio-generation-media" checked={(automaticMedia?.kind || "none") === kind} disabled={generating || !!mediaDraft || !!pendingMediaRequest} onChange={() => setAutomaticMedia(kind === "none" ? null : { kind })} className="mr-2" />{label}</label>
+            ))}
+          </div>
+          <p className="text-xs text-[var(--text-secondary)]">{t("customer.mediaDraft.explanation")}</p>
+          {selectedPlatforms.includes("facebook") && automaticMedia && automaticMedia.kind !== "image" && <p role="status" className="text-xs text-amber-400">{t("customer.mediaDraft.facebookUnsupported")}</p>}
+        </fieldset>
+        {mediaMessage && <p role="status" className="text-sm">{mediaMessage}</p>}
+        {pendingMediaRequest && <button type="button" disabled={generating} onClick={async () => { setGenerating(true); try { await startMediaDraft(pendingMediaRequest); } finally { setGenerating(false); } }} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold">{t("customer.mediaDraft.retry")}</button>}
         <button
           type="button"
-          disabled={generating}
+          disabled={generating || !!mediaDraft || !!pendingMediaRequest}
           onClick={handleGenerate}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 py-3.5 text-sm font-extrabold text-white shadow-xl shadow-violet-600/25 transition-all hover:opacity-95 disabled:opacity-60"
         >
@@ -697,7 +803,7 @@ export function ContentStudioClient({
         {/* Scheduling & Lifecycle Action Bar */}
         <div className="surface-card rounded-3xl p-6">
           <h3 className="mb-3 font-bold">{t("customer.text.457")}</h3>
-          <AutomaticMediaSettings value={automaticMedia} onChange={setAutomaticMedia} />
+          <AutomaticMediaSettings value={automaticMedia} onChange={setAutomaticMedia} disabled={generating || !!mediaDraft || !!pendingMediaRequest} />
           <label className="mb-3 block text-sm">{isTeamWorkspace ? t("customer.text.458") : t("customer.text.459")}
             <select disabled={teamReviewRequired} value={requiresApproval ? "review" : "automatic"} onChange={event => setRequiresApproval(event.target.value === "review")} className="elevated-card mt-2 w-full rounded-xl p-3">
               <option value="automatic">{t("customer.text.460")}</option>
@@ -711,12 +817,7 @@ export function ContentStudioClient({
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 {t("customer.text.465")}
               </label>
-              <input
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2 text-xs font-semibold"
-              />
+              <ScheduleFields value={scheduledAt} onChange={setScheduledAt} />
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
@@ -727,6 +828,7 @@ export function ContentStudioClient({
                 onChange={(e) => setTimezone(e.target.value)}
                 className="elevated-card mt-1.5 w-full rounded-xl px-3.5 py-2 text-xs font-semibold"
               >
+                {!["America/Montevideo", "America/New_York", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Asia/Tokyo"].includes(timezone) && <option value={timezone}>{timezone}</option>}
                 <option value="America/Montevideo">America/Montevideo (UTC−3)</option>
                 <option value="America/New_York">America/New_York (EST/EDT)</option>
                 <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
@@ -740,7 +842,7 @@ export function ContentStudioClient({
           <div className="mt-5 flex flex-wrap gap-2.5">
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || generating || !!mediaDraft || !!pendingMediaRequest}
               onClick={() => handleSavePost("draft")}
               className="elevated-card inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold hover:border-violet-500/40"
             >
@@ -749,7 +851,7 @@ export function ContentStudioClient({
 
             {isTeamWorkspace && <button
               type="button"
-              disabled={saving}
+              disabled={saving || generating || !!mediaDraft || !!pendingMediaRequest}
               onClick={() => handleSavePost("pending_approval")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30"
             >
@@ -758,7 +860,7 @@ export function ContentStudioClient({
 
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || generating || !!mediaDraft || !!pendingMediaRequest}
               onClick={() => handleSavePost(requiresApproval ? "pending_approval" : "scheduled")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg"
             >
@@ -767,7 +869,7 @@ export function ContentStudioClient({
 
             {!requiresApproval && !automaticMedia && <button
               type="button"
-              disabled={saving}
+              disabled={saving || generating || !!mediaDraft || !!pendingMediaRequest}
               onClick={() => handleSavePost("published")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg"
             >

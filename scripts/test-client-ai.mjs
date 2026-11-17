@@ -9,6 +9,7 @@ globalThis.fetch = async (url, init) => {
   calls.push({ url, key: new Headers(init.headers).get("Idempotency-Key") });
   if (mode === "network-error") throw new Error("Network interrupted");
   if (mode === "unknown-result") return Response.json({ error: "Still reconciling" }, { status: 409 });
+  if (mode === "failed") return Response.json({ code: "AI_REQUEST_FAILED", safeToRetry: true, error: "Provider rejected the request" }, { status: 502 });
   return Response.json({ ok: true });
 };
 try {
@@ -26,6 +27,35 @@ try {
   await request("/api/ai/generate", input);
   await request("/api/ai/generate", { ...input, body: JSON.stringify({ mode: "generate", topic: "A different customer input" }) });
   assert.notEqual(calls[4].key, calls[5].key, "Different payloads cannot accidentally reuse a pending request");
+  mode = "failed";
+  await request("/api/ai/generate", input);
+  assert.equal(calls[4].key, calls[6].key, "The confirmed failure applies to the original pending key");
+  mode = "unknown-result";
+  await request("/api/ai/generate", input);
+  assert.notEqual(calls[6].key, calls[7].key, "A new action after a confirmed failure gets a fresh key");
+  await request("/api/ai/generate", input);
+  assert.equal(calls[7].key, calls[8].key, "A subsequent uncertain request retains its key");
+  mode = "failed";
+  await request("/api/campaigns", input);
+  await request("/api/campaigns", input);
+  assert.equal(calls[9].key, calls[10].key, "AI-only recovery must not alter other endpoint retries");
+  const raceRequest = createIdempotentFetcher();
+  const deferred = [];
+  globalThis.fetch = async (_url, init) => new Promise(resolve => deferred.push({ key: new Headers(init.headers).get("Idempotency-Key"), resolve }));
+  const older = raceRequest("/api/ai/generate", input);
+  const failing = raceRequest("/api/ai/generate", input);
+  assert.equal(deferred[0].key, deferred[1].key);
+  deferred[1].resolve(Response.json({ code: "AI_REQUEST_FAILED", safeToRetry: true }, { status: 409 }));
+  await failing;
+  const newer = raceRequest("/api/ai/generate", input);
+  assert.notEqual(deferred[2].key, deferred[0].key);
+  deferred[0].resolve(Response.json({ ok: true }));
+  await older;
+  const retry = raceRequest("/api/ai/generate", input);
+  assert.equal(deferred[3].key, deferred[2].key, "An old response must not clear a newer in-flight key");
+  deferred[2].resolve(Response.json({ code: "AI_REQUEST_UNCERTAIN", safeToRetry: false }, { status: 409 }));
+  deferred[3].resolve(Response.json({ code: "AI_REQUEST_UNCERTAIN", safeToRetry: false }, { status: 409 }));
+  await Promise.all([newer, retry]);
   console.log("Client AI retry checks passed: interrupted/uncertain request reuse, new successful actions, and payload isolation.");
 } finally {
   globalThis.fetch = originalFetch;

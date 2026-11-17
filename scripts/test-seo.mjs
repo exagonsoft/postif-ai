@@ -7,6 +7,32 @@ const { getSiteUrl, privatePageMetadata, PUBLIC_PAGES, publicPageMetadata, siteS
 const { default: sitemap } = await import("../src/app/sitemap.ts");
 const { default: robots } = await import("../src/app/robots.ts");
 
+test("the browser favicon uses the conventional app route with valid, matching ICO image sizes", () => {
+  const icon = readFileSync(path.join("src", "app", "favicon.ico"));
+  assert.equal(icon.readUInt16LE(0), 0);
+  assert.equal(icon.readUInt16LE(2), 1);
+  const count = icon.readUInt16LE(4);
+  const sizes = new Set();
+  for (let index = 0; index < count; index++) {
+    const entry = 6 + index * 16;
+    const width = icon[entry] || 256, height = icon[entry + 1] || 256;
+    const length = icon.readUInt32LE(entry + 8), offset = icon.readUInt32LE(entry + 12);
+    assert.ok(offset >= 6 + count * 16 && length > 0 && offset + length <= icon.length);
+    const image = icon.subarray(offset, offset + length);
+    if (image.subarray(0, 8).toString("hex") === "89504e470d0a1a0a") {
+      assert.equal(image.readUInt32BE(16), width, "ICO directory width must match the embedded PNG.");
+      assert.equal(image.readUInt32BE(20), height, "ICO directory height must match the embedded PNG.");
+    } else {
+      assert.equal(image.readUInt32LE(0), 40);
+      assert.equal(image.readInt32LE(4), width);
+      assert.equal(image.readInt32LE(8), height * 2);
+    }
+    assert.equal(width, height);
+    sizes.add(width);
+  }
+  for (const size of [16, 32, 48, 256]) assert.ok(sizes.has(size), `Missing ${size}px browser icon.`);
+});
+
 test("SEO origins reject missing, insecure, credential-bearing and non-origin URLs", () => {
   for (const APP_URL of [undefined, "", "https://", "http://example.test", "https://user:password@example.test", "https://example.test/path", "https://example.test/?token=private", "https://example.test/#fragment"]) {
     assert.throws(() => getSiteUrl({ APP_URL }));

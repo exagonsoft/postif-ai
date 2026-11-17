@@ -17,6 +17,7 @@ export const PUBLIC_PAGES = {
   smallBusinesses: { path: "/solutions/small-businesses", title: "Social Media Tools for Small Businesses", description: "Plan, create, and schedule social content for your business with POSTIF-AI. Build a consistent brand presence with AI assistance and approval controls." },
   privacy: { path: "/privacy", title: "Privacy Policy", description: "Read how POSTIF-AI by ExagonSoft handles workspace data, content ownership, BYOK credentials, and privacy." },
   terms: { path: "/terms", title: "Terms of Service", description: "Review the terms for using POSTIF-AI by ExagonSoft, including subscriptions, AI-assisted content, and social publishing." },
+  dataDeletion: { path: "/data-deletion", title: "Data Deletion Instructions", description: "Learn how to disconnect social accounts and request deletion of POSTIF-AI / PostifAI Connect data, including Facebook, Instagram, and Threads." },
 } as const;
 
 const SOCIAL_IMAGES = [

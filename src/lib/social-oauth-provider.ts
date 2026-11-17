@@ -3,6 +3,7 @@ import { isIP } from "node:net";
 import { customerCredentials, SocialProviderError, type CustomerCredentials } from "./social-provider";
 import type { SocialPlatform } from "./social-adapters";
 import { workerFetch as fetch } from "./worker-network";
+import { managedSocialConfiguration } from "./social-managed-config";
 
 const configs = {
   x: { authorize: "https://x.com/i/oauth2/authorize", token: "https://api.x.com/2/oauth2/token", scope: "tweet.read tweet.write users.read media.write offline.access" },
@@ -31,19 +32,20 @@ export function validateSocialOAuthSettings(platform: string, credentials: Omit<
   if (platform === "linkedin" && !/^20\d{4}$/.test(credentials.apiVersion || "")) throw new SocialProviderError("Set your app's supported LinkedIn API version (YYYYMM) before authorizing.");
   if (platform === "youtube" && (typeof credentials.madeForKids !== "boolean" || !["public", "unlisted", "private"].includes(credentials.privacyLevel || ""))) throw new SocialProviderError("Choose the YouTube audience declaration and visibility before authorizing.");
   if (platform === "tiktok" && (typeof credentials.aiGenerated !== "boolean" || !["SELF_ONLY", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "PUBLIC_TO_EVERYONE"].includes(credentials.privacyLevel || ""))) throw new SocialProviderError("Choose the TikTok AI declaration and visibility before authorizing.");
-  if (["facebook", "instagram"].includes(platform) && !/^\d+$/.test(credentials.accountId || "")) throw new SocialProviderError("Enter the intended Facebook Page ID or Instagram professional account ID before authorizing. The app never guesses a target account.");
+  if (credentials.oauthMode !== "managed" && ["facebook", "instagram"].includes(platform) && !/^\d+$/.test(credentials.accountId || "")) throw new SocialProviderError("Enter the intended Facebook Page ID or Instagram professional account ID before authorizing. The app never guesses a target account.");
   if (["facebook", "instagram"].includes(platform)) metaVersion(credentials);
 }
-export function oauthAuthorizationUrl(platform: string, clientId: string, state: string, challenge: string, settings: Omit<CustomerCredentials, "accessToken"> = {}) {
+export function oauthAuthorizationUrl(platform: string, clientId: string, state: string, challenge: string, settings: Omit<CustomerCredentials, "accessToken"> = {}, managedScopes?: string[]) {
   const config = oauthConfig(platform);
   const url = new URL(platform === "facebook" ? `https://www.facebook.com/${metaVersion(settings)}/dialog/oauth` : config.authorize);
   let scope: string = config.scope;
   if (platform === "linkedin" && settings.accountId?.startsWith("urn:li:organization:")) scope = "openid profile w_organization_social rw_organization_admin";
-  if (settings.analyticsEnabled !== false) {
+  if (!managedScopes && settings.analyticsEnabled !== false) {
     if (platform === "linkedin" && !settings.accountId?.startsWith("urn:li:organization:")) scope += " r_member_postAnalytics";
     if (platform === "instagram") scope += ",instagram_business_manage_insights";
     if (platform === "threads") scope += ",threads_manage_insights";
   }
+  if (managedScopes) scope = managedScopes.join(["x", "youtube", "linkedin"].includes(platform) ? " " : ",");
   url.search = new URLSearchParams({ response_type: "code", [platform === "tiktok" ? "client_key" : "client_id"]: clientId, redirect_uri: oauthCallbackUrl(platform), scope, state }).toString();
   if (platform === "x" || platform === "youtube") { url.searchParams.set("code_challenge", challenge); url.searchParams.set("code_challenge_method", "S256"); }
   if (platform === "youtube") { url.searchParams.set("access_type", "offline"); url.searchParams.set("prompt", "consent"); }
@@ -56,19 +58,30 @@ export function metaVersion(credentials: Pick<CustomerCredentials, "apiVersion">
 }
 const metaId = z.union([z.string().min(1), z.number().int().safe().nonnegative()]).transform(String);
 const metaToken = z.object({ access_token: z.string().min(10).max(10000), expires_in: z.number().int().positive().max(315360000), token_type: z.string().optional() });
+export function resolveSocialOAuthClient(platform: SocialPlatform, credentials: CustomerCredentials): CustomerCredentials {
+  if (credentials.oauthMode !== "managed") return credentials;
+  const client = managedSocialConfiguration().clients[platform];
+  if (!client.clientId?.trim() || !client.clientSecret?.trim()) throw new SocialProviderError("Managed provider application is not configured.", 503);
+  if (credentials.clientId !== client.clientId.trim()) throw new SocialProviderError("Managed provider application changed. Reconnect this account.", 422);
+  return { ...credentials, clientId: client.clientId.trim(), clientSecret: client.clientSecret };
+}
+export async function exchangeFacebookUserToken(input: CustomerCredentials, code: string, deadline: number) {
+  const credentials = resolveSocialOAuthClient("facebook", input);
+  const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
+  const shortUrl = new URL(`${root}/oauth/access_token`);
+  shortUrl.search = new URLSearchParams({ client_id: credentials.clientId!, client_secret: credentials.clientSecret!, redirect_uri: oauthCallbackUrl("facebook"), code }).toString();
+  const short = z.object({ access_token: z.string().min(10).max(10000) }).parse(await providerJson(shortUrl.toString(), { method: "GET" }, deadline));
+  const longUrl = new URL(`${root}/oauth/access_token`);
+  longUrl.search = new URLSearchParams({ grant_type: "fb_exchange_token", client_id: credentials.clientId!, client_secret: credentials.clientSecret!, fb_exchange_token: short.access_token }).toString();
+  return metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline));
+}
 async function exchangeMetaCode(platform: "facebook" | "instagram" | "threads", credentials: CustomerCredentials, code: string, deadline: number) {
   validateSocialOAuthSettings(platform, credentials);
   const fields = new URLSearchParams({ client_id: credentials.clientId!, client_secret: credentials.clientSecret!, redirect_uri: oauthCallbackUrl(platform), code, grant_type: "authorization_code" });
   if (platform === "facebook") {
     const root = `https://graph.facebook.com/${metaVersion(credentials)}`;
     // Exchange the short-lived user token before deriving a token for the exact intended Page.
-    const shortUrl = new URL(`${root}/oauth/access_token`);
-    fields.delete("grant_type");
-    shortUrl.search = fields.toString();
-    const short = z.object({ access_token: z.string().min(10).max(10000) }).parse(await providerJson(shortUrl.toString(), { method: "GET" }, deadline));
-    const longUrl = new URL(`${root}/oauth/access_token`);
-    longUrl.search = new URLSearchParams({ grant_type: "fb_exchange_token", client_id: credentials.clientId!, client_secret: credentials.clientSecret!, fb_exchange_token: short.access_token }).toString();
-    const user = metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline));
+    const user = await exchangeFacebookUserToken(credentials, code, deadline);
     let after: string | undefined;
     for (let page = 0; page < 5; page++) {
       const url = new URL(`${root}/me/accounts`);
@@ -85,25 +98,35 @@ async function exchangeMetaCode(platform: "facebook" | "instagram" | "threads", 
     }
     throw new SocialProviderError("The intended Page was not found in the authorized Page list (up to 500 Pages). Grant access to that exact Page and try again.", 422);
   }
-  const shortSchema = z.object({ access_token: z.string().min(10).max(10000), user_id: metaId });
+  const shortSchema = z.object({ access_token: z.string().min(10).max(10000), user_id: metaId,
+    permissions: z.union([z.string().max(20000), z.array(z.string().max(200)).max(100)]).optional() });
   const body = platform === "instagram" ? (() => { const form = new FormData(); fields.forEach((value, key) => form.set(key, value)); return form; })() : fields;
   const result = await providerJson(oauthConfig(platform).token, { method: "POST", body, ...(platform === "threads" ? { headers: { "Content-Type": "application/x-www-form-urlencoded" } } : {}) }, deadline);
   const short = z.union([shortSchema, z.object({ data: z.array(shortSchema).length(1) }).transform(value => value.data[0])]).parse(result);
+  const grantedScopes = typeof short.permissions === "string" ? short.permissions.split(/[,\s]+/).filter(Boolean) : short.permissions;
+  if (platform === "instagram" && credentials.oauthMode === "managed" && !grantedScopes) throw new SocialProviderError("Instagram did not confirm the granted permissions. Authorize the required permissions again.", 403);
   if (platform === "threads" && credentials.accountId && short.user_id !== credentials.accountId) throw new SocialProviderError("The authorized Threads account does not match your intended account.", 422);
   const longUrl = new URL(platform === "instagram" ? "https://graph.instagram.com/access_token" : "https://graph.threads.com/access_token");
   longUrl.search = new URLSearchParams({ grant_type: platform === "instagram" ? "ig_exchange_token" : "th_exchange_token", client_secret: credentials.clientSecret!, access_token: short.access_token }).toString();
   const long = metaToken.parse(await providerJson(longUrl.toString(), { method: "GET" }, deadline));
   if (long.token_type && long.token_type.toLowerCase() !== "bearer") throw new SocialProviderError("Provider returned an unsupported token type.", 502);
-  return customerCredentials.parse({ ...credentials, accessToken: long.access_token, tokenKind: "long_lived", expiresAt: new Date(Date.now() + long.expires_in * 1000).toISOString(), refreshToken: undefined, refreshExpiresAt: undefined });
+  return customerCredentials.parse({ ...credentials, ...(credentials.oauthMode === "managed" && grantedScopes ? { grantedScopes } : {}),
+    accessToken: long.access_token, tokenKind: "long_lived", expiresAt: new Date(Date.now() + long.expires_in * 1000).toISOString(), refreshToken: undefined, refreshExpiresAt: undefined });
 }
 const tokenResponse = z.object({
   access_token: z.string().min(10).max(10000), expires_in: z.coerce.number().int().positive().max(315360000),
   refresh_token: z.string().min(1).max(10000).optional(),
   refresh_expires_in: z.coerce.number().int().nonnegative().optional(),
   refresh_token_expires_in: z.coerce.number().int().nonnegative().optional(),
+  refresh_token_expires_at: z.coerce.number().int().nonnegative().safe().optional(),
   token_type: z.string().optional(), open_id: z.string().optional(),
+  scope: z.string().max(20000).optional(),
 });
 export async function exchangeSocialToken(platform: SocialPlatform, credentials: CustomerCredentials, grant: { code: string; verifier: string } | { refresh: true }, deadline = Date.now() + 20000) {
+  const result = await exchangeWithClient(platform, resolveSocialOAuthClient(platform, credentials), grant, deadline);
+  return credentials.oauthMode === "managed" ? customerCredentials.parse({ ...result, clientSecret: undefined }) : result;
+}
+async function exchangeWithClient(platform: SocialPlatform, credentials: CustomerCredentials, grant: { code: string; verifier: string } | { refresh: true }, deadline: number) {
   const config = oauthConfig(platform);
   if (!credentials.clientId || (platform !== "x" && !credentials.clientSecret)) throw new SocialProviderError("Configure your own OAuth client ID and required client secret before authorizing or renewing.", 422);
   if (platform === "facebook" || platform === "instagram" || platform === "threads") {
@@ -111,6 +134,7 @@ export async function exchangeSocialToken(platform: SocialPlatform, credentials:
     return exchangeMetaCode(platform, credentials, grant.code, deadline);
   }
   const fields = new URLSearchParams({ grant_type: "refresh" in grant ? "refresh_token" : "authorization_code" });
+  if (platform === "pinterest" && credentials.oauthMode === "managed") fields.set("continuous_refresh", "true");
   if ("refresh" in grant) {
     if (!credentials.refreshToken) throw new SocialProviderError("This token has no refresh grant. Authorize again or replace it.", 422);
     if (credentials.refreshExpiresAt && Date.parse(credentials.refreshExpiresAt) <= Date.now()) throw new SocialProviderError("Refresh grant expired. Authorize again.", 422);
@@ -127,14 +151,23 @@ export async function exchangeSocialToken(platform: SocialPlatform, credentials:
   if (platform === "tiktok" && (!data.open_id || !data.refresh_token)) throw new SocialProviderError("TikTok omitted its required account identity or rotating refresh token.", 502);
   if (platform === "tiktok" && credentials.accountId && data.open_id && data.open_id !== credentials.accountId) throw new SocialProviderError("Renewed token identity did not match.", 422);
   const refreshSeconds = data.refresh_expires_in ?? data.refresh_token_expires_in;
-  return customerCredentials.parse({ ...credentials, tokenKind: "oauth", accessToken: data.access_token, refreshToken: data.refresh_token || credentials.refreshToken, expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(), ...(refreshSeconds !== undefined ? { refreshExpiresAt: new Date(Date.now() + refreshSeconds * 1000).toISOString() } : {}) });
+  return customerCredentials.parse({ ...credentials, tokenKind: "oauth", accessToken: data.access_token, refreshToken: data.refresh_token || credentials.refreshToken,
+    ...(platform === "tiktok" && data.open_id ? { accountId: data.open_id } : {}),
+    ...(data.scope && credentials.oauthMode === "managed" ? { grantedScopes: data.scope.split(/[,\s]+/).filter(Boolean) } : {}),
+    expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(), ...(refreshSeconds !== undefined
+      ? { refreshExpiresAt: new Date(Date.now() + refreshSeconds * 1000).toISOString() }
+      : data.refresh_token_expires_at !== undefined ? { refreshExpiresAt: new Date(data.refresh_token_expires_at * 1000).toISOString() } : {}) });
 }
-export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000): Promise<unknown> {
+export async function providerResponse(url: string, init: RequestInit, deadline = Date.now() + 20000): Promise<Response> {
   if (deadline <= Date.now()) throw new SocialProviderError("Provider operation deadline reached.", 503);
   let response: Response;
   try { response = await fetch(url, { ...init, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(Math.max(1, Math.min(15000, deadline - Date.now()))) }); }
   catch { throw new SocialProviderError("Provider request interrupted. Recheck authorization before retrying.", 503); }
   if (!response.ok) throw new SocialProviderError(response.status === 401 || response.status === 403 ? "Provider denied authorization. Reauthorize or review approved permissions." : `Provider request failed (HTTP ${response.status}).`, response.status);
+  return response;
+}
+export async function providerJson(url: string, init: RequestInit, deadline = Date.now() + 20000): Promise<unknown> {
+  const response = await providerResponse(url, init, deadline);
   try {
     // Some Meta token endpoints encode 17-digit account IDs as JSON numbers.
     // Preserve unsafe integer lexemes instead of silently rounding a tenant identity.

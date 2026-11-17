@@ -81,6 +81,7 @@ const { withWorkerDeadline } = await import("../src/lib/worker-network.ts");
 const { POST: start } = await import("../src/app/api/social/oauth/[platform]/start/route.ts");
 const { GET: callback } = await import("../src/app/api/social/oauth/[platform]/callback/route.ts");
 const { POST: social } = await import("../src/app/api/social/route.ts");
+const { POST: selectManaged, GET: listManaged } = await import("../src/app/api/social/oauth/[platform]/select/route.ts");
 const secret = {
   accessToken: "original-access-token-test", accountId: "x-account", apiVersion: "v27.0",
   privacyLevel: "private", madeForKids: true, clientId: "customer-client", clientSecret: "customer-secret",
@@ -97,6 +98,7 @@ globalThis.fetch = async (input, init = {}) => {
 };
 const reply = value => Response.json(value);
 beforeEach(() => {
+  for (const key of Object.keys(process.env)) if (/^(SOCIAL_(MANAGED|OAUTH)_|(?:FACEBOOK|INSTAGRAM|LINKEDIN|X|TIKTOK|PINTEREST|YOUTUBE|THREADS)_OAUTH_)/.test(key)) delete process.env[key];
   rows.clear(); leases.clear(); calls = []; transport = undefined;
   globalThis.postifLifecycleEntitlement = { plan: { maxChannels: 10 }, features: { advancedAnalytics: true }, paid: true };
   globalThis.postifLifecycleDenyBrand = false;
@@ -105,6 +107,218 @@ beforeEach(() => {
   rows.set(socialAccounts.name, [{ id: 1, workspaceId: 1, brandId: 1, platform: "x", accountName: "X customer", handle: "@customer", status: "connected", lastSyncAt: new Date(0), createdAt: new Date(0) }]);
   rows.set(socialCredentials.name, [{ socialAccountId: 1, workspaceId: 1, encryptedCredentials: encryptSecret(JSON.stringify(secret)), verifiedAt: new Date(0), expiresAt: new Date(secret.expiresAt) }]);
   globalThis.postifLifecycleAuth = { user: { id: 1, email: "owner@example.test" }, workspace: { id: 1 }, activeBrand: { id: 1 }, memberRole: "owner" };
+});
+
+async function managedFacebook() {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
+  process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
+  process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const context = { params: Promise.resolve({ platform: "facebook" }) };
+  transport = async url => {
+    if (url.pathname.endsWith("/oauth/access_token")) return reply({ access_token: url.searchParams.has("grant_type") ? "private-long-user-token" : "private-short-user-token", expires_in: 5184000 });
+    if (url.pathname.endsWith("/me/permissions")) return reply({ data: ["pages_show_list", "pages_manage_posts", "pages_read_engagement"].map(permission => ({ permission, status: "granted" })) });
+    if (url.pathname.endsWith("/me/accounts")) return reply({ data: [
+      { id: "123", name: "First Page", access_token: "private-page-123-token", tasks: ["CREATE_CONTENT"], category: "Business" },
+      { id: "456", name: "Second Page", access_token: "private-page-456-token", tasks: ["CREATE_CONTENT"], category: "Business" },
+      { id: "789", name: "Read-only Page", access_token: "private-page-789-token", tasks: ["ANALYZE"] },
+    ] });
+    if (url.pathname.endsWith("/me")) return reply({ id: "456", name: "Second Page", category: "Business" });
+    throw new Error("Unmocked managed Facebook request");
+  };
+  const started = await start(new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: JSON.stringify({ mode: "managed" }),
+  }), context);
+  assert.equal(started.status, 200);
+  const authorization = new URL((await started.json()).url);
+  assert.ok(!authorization.searchParams.get("scope").includes("pages_read_user_content"), "Analytics must be opt-in");
+  const state = authorization.searchParams.get("state");
+  const response = await callback(new Request(`https://customer-app.example.test/api/social/oauth/facebook/callback?state=${state}&code=provider-code&next=https://evil.example/`), context);
+  assert.equal(response.status, 307);
+  const target = new URL(response.headers.get("location"));
+  assert.equal(target.origin, process.env.APP_URL);
+  const ticket = target.searchParams.get("social_selection");
+  assert.ok(ticket, target.toString());
+  return { context, ticket, state };
+}
+const chooseManaged = (context, body) => selectManaged(new Request("https://customer-app.example.test/api/social/oauth/facebook/select", {
+  method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: JSON.stringify(body),
+}), context);
+test("managed Facebook discovers authorized Pages, exposes no tokens and persists only the selected destination", async () => {
+  const { context, ticket } = await managedFacebook();
+  assert.equal(list(socialAccounts).length, 1, "Callback cannot claim a connection before selection");
+  const discovered = await listManaged(new Request(`https://customer-app.example.test/api/social/oauth/facebook/select?ticket=${ticket}`), context);
+  const dto = await discovered.json();
+  assert.deepEqual(dto.destinations.map(item => item.id), ["123", "456"]);
+  assert.doesNotMatch(JSON.stringify(dto), /private-|server-only|accessToken|clientSecret/);
+  assert.ok(list(socialOAuthAttempts).every(item => !item.encryptedPayload.includes("private-")));
+  const selected = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal(selected.status, 200);
+  const account = list(socialAccounts).find(item => item.platform === "facebook");
+  assert.equal(account.integrationMode, "managed_oauth");
+  const stored = JSON.parse(decryptSecret(list(socialCredentials).find(item => item.socialAccountId === account.id).encryptedCredentials));
+  assert.equal(stored.accessToken, "private-page-456-token");
+  assert.equal(stored.oauthMode, "managed");
+  assert.equal(stored.clientSecret, undefined);
+  assert.doesNotMatch(JSON.stringify(stored), /private-long|private-short|page-123|server-only/);
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+});
+test("managed selection rejects account substitution, cross-workspace/user access and expired tickets", async () => {
+  const { context, ticket } = await managedFacebook();
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "789" })).status, 403);
+  globalThis.postifLifecycleAuth.workspace.id = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+  globalThis.postifLifecycleAuth.workspace.id = 1;
+  globalThis.postifLifecycleAuth.user.id = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+  globalThis.postifLifecycleAuth.user.id = 1;
+  rows.get(socialOAuthAttempts.name).find(item => !item.consumedAt).expiresAt = new Date(0);
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 400);
+  assert.equal(list(socialAccounts).length, 1);
+});
+test("managed selection and channel quota commit atomically, retaining the ticket after a quota rejection", async () => {
+  const { context, ticket } = await managedFacebook();
+  globalThis.postifLifecycleEntitlement.plan.maxChannels = 1;
+  const result = await chooseManaged(context, { ticket, destinationId: "456" });
+  assert.equal(result.status, 403);
+  assert.equal((await result.json()).code, "CHANNEL_LIMIT");
+  assert.equal(list(socialAccounts).length, 1);
+  globalThis.postifLifecycleEntitlement.plan.maxChannels = 2;
+  assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
+});
+test("managed start rejects cross-origin requests and unconfigured apps without contacting a provider", async () => {
+  const context = { params: Promise.resolve({ platform: "facebook" }) };
+  const request = origin => new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: "{}",
+  });
+  assert.equal((await start(request("https://evil.example"), context)).status, 403);
+  const unconfigured = await start(request(process.env.APP_URL), context);
+  assert.equal((await unconfigured.json()).code, "NOT_CONFIGURED");
+  assert.equal(calls.length, 0);
+});
+
+for (const platform of ["x", "linkedin", "instagram", "threads", "pinterest", "youtube", "tiktok"]) {
+  test(`managed ${platform} authorization discovers a real destination and preserves server-only credentials`, async () => {
+    process.env.SOCIAL_MANAGED_PROVIDERS = platform;
+    process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = platform;
+    process.env[`${platform.toUpperCase()}_OAUTH_CLIENT_ID`] = "managed-app";
+    process.env[`${platform.toUpperCase()}_OAUTH_CLIENT_SECRET`] = "server-only-managed-secret";
+    process.env.LINKEDIN_API_VERSION = "202610";
+    const context = { params: Promise.resolve({ platform }) };
+    transport = async (url, init) => {
+      if (["/2/oauth2/token", "/oauth/v2/accessToken", "/v5/oauth/token", "/token", "/v2/oauth/token/"].includes(url.pathname)) {
+        if (platform === "pinterest") assert.equal(init.body.get("continuous_refresh"), "true");
+        return reply({ access_token: "private-managed-access", refresh_token: "private-managed-refresh", expires_in: 7200, refresh_expires_in: 864000, open_id: "creator-id" });
+      }
+      if (["api.instagram.com", "graph.threads.com"].includes(url.hostname) && url.pathname === "/oauth/access_token") return reply({ access_token: "private-short-token", user_id: "123",
+        permissions: platform === "instagram" ? "instagram_business_basic,instagram_business_content_publish" : "threads_basic,threads_content_publish" });
+      if (url.pathname === "/access_token") return reply({ access_token: "private-long-token", expires_in: 5184000 });
+      if (url.pathname === "/2/users/me") return reply({ data: { id: "managed-x-id", name: "Managed X", username: "managed-x" } });
+      if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Member" });
+      if (url.hostname === "graph.instagram.com") return reply({ user_id: "123", username: "professional", account_type: "BUSINESS" });
+      if (url.hostname === "graph.threads.com") return reply({ id: "123", username: "threads-user" });
+      if (url.pathname === "/v5/user_account") return reply({ username: "owner", account_type: "BUSINESS" });
+      if (url.pathname === "/v5/boards") return reply({ items: [{ id: "board1", name: "Owned Board", owner: { username: "owner" } }, { id: "board2", name: "Other Board", owner: { username: "other" } }] });
+      if (url.pathname === "/v5/boards/board1") return reply({ id: "board1" });
+      if (url.pathname === "/youtube/v3/channels") return reply({ items: [{ id: "channel1", snippet: { title: "Channel" } }] });
+      if (url.pathname === "/v2/user/info/") return reply({ data: { user: { open_id: "creator-id", display_name: "Creator" } }, error: { code: "ok" } });
+      if (url.pathname === "/v2/post/publish/creator_info/query/") return reply({ data: { creator_username: "creator", privacy_level_options: ["SELF_ONLY", "PUBLIC_TO_EVERYONE"] }, error: { code: "ok" } });
+      throw new Error("Unmocked managed provider request");
+    };
+    const result = await start(new Request(`https://customer-app.example.test/api/social/oauth/${platform}/start`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    }), context);
+    assert.equal(result.status, 200);
+    const auth = new URL((await result.json()).url);
+    if (["x", "youtube"].includes(platform)) assert.equal(auth.searchParams.get("code_challenge_method"), "S256");
+    const completed = await callback(new Request(`https://customer-app.example.test/api/social/oauth/${platform}/callback?state=${auth.searchParams.get("state")}&code=provider-code`), context);
+    const target = new URL(completed.headers.get("location"));
+    const ticket = target.searchParams.get("social_selection");
+    assert.ok(ticket, `${platform}: ${target}`);
+    const discovery = await listManaged(new Request(`https://customer-app.example.test/api/social/oauth/${platform}/select?ticket=${ticket}`), context);
+    const dto = await discovery.json();
+    assert.equal(dto.destinations.length, 1);
+    assert.doesNotMatch(JSON.stringify(dto), /private-|server-only|accessToken|clientSecret/);
+    if (platform === "tiktok") assert.deepEqual(dto.destinations[0].privacyLevels, ["SELF_ONLY"]);
+    const selection = { ticket, destinationId: dto.destinations[0].id };
+    if (["youtube", "tiktok"].includes(platform)) {
+      assert.equal((await chooseManaged(context, selection)).status, 400, "Video declarations must never be assumed");
+      Object.assign(selection, platform === "youtube" ? { privacyLevel: "private", madeForKids: false } : { privacyLevel: "SELF_ONLY", aiGenerated: true });
+    }
+    const selected = await chooseManaged(context, selection);
+    assert.equal(selected.status, 200, JSON.stringify(await selected.json()));
+    const saved = list(socialCredentials).filter(item => item.socialAccountId !== 1);
+    assert.equal(saved.length, 1);
+    const stored = JSON.parse(decryptSecret(saved[0].encryptedCredentials));
+    assert.equal(stored.oauthMode, "managed");
+    assert.equal(stored.clientSecret, undefined);
+    assert.equal(stored.analyticsEnabled, false);
+  });
+}
+test("managed renew resolves the current server secret without storing it, and detects an app-ID change", async () => {
+  process.env.X_OAUTH_CLIENT_ID = "managed-app";
+  process.env.X_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  transport = async (url, init) => {
+    assert.equal(init.headers.Authorization, `Basic ${Buffer.from("managed-app:server-only-managed-secret").toString("base64")}`);
+    return reply({ access_token: "private-rotated-token", refresh_token: "private-rotated-refresh", expires_in: 7200 });
+  };
+  const result = await exchangeSocialToken("x", { ...secret, oauthMode: "managed", clientId: "managed-app", clientSecret: undefined }, { refresh: true });
+  assert.equal(result.clientSecret, undefined);
+  assert.equal(result.refreshToken, "private-rotated-refresh");
+  process.env.X_OAUTH_CLIENT_ID = "different-app";
+  await assert.rejects(() => exchangeSocialToken("x", result, { refresh: true }), /application changed/);
+  assert.equal(calls.length, 1);
+});
+test("managed organization verification accepts current ACL fields but never another member or a sponsored-only role", async () => {
+  const credentials = { ...secret, oauthMode: "managed", accountId: "urn:li:organization:123", apiVersion: "202610" };
+  let role = { organizationTarget: credentials.accountId, roleAssignee: "urn:li:person:other", role: "ADMINISTRATOR", state: "APPROVED" };
+  transport = async url => url.pathname === "/v2/userinfo" ? reply({ sub: "member", name: "Member" }) : reply({ elements: [role] });
+  await assert.rejects(() => verifyCustomerConnection("linkedin", credentials), /cannot publish/);
+  role = { ...role, roleAssignee: "urn:li:person:member", role: "DIRECT_SPONSORED_CONTENT_POSTER" };
+  await assert.rejects(() => verifyCustomerConnection("linkedin", credentials), /cannot publish/);
+  role.role = "CONTENT_ADMINISTRATOR";
+  assert.equal((await verifyCustomerConnection("linkedin", credentials)).credentials.accountId, credentials.accountId);
+});
+test("manual inputs cannot forge managed markers to use server application credentials", async () => {
+  assert.equal((await socialRequest({ action: "connect", platform: "x", credentials: { ...secret, oauthMode: "managed" } })).status, 400);
+  const result = await start(new Request("https://customer-app.example.test/api/social/oauth/x/start", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentials: { clientId: "managed-app", oauthMode: "managed" } }),
+  }), { params: Promise.resolve({ platform: "x" }) });
+  assert.equal(result.status, 400);
+  assert.equal(calls.length, 0);
+});
+test("managed configuration is optional until enabled and validates the selected app group", async () => {
+  const { validateManagedSocialConfiguration } = await import("../src/lib/social-managed-config.ts");
+  assert.doesNotThrow(() => validateManagedSocialConfiguration({ APP_URL: "http://localhost:3000" }));
+  assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "x", APP_URL: process.env.APP_URL }), /client ID and secret/);
+  assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "x", APP_URL: "http://localhost:3000",
+    X_OAUTH_CLIENT_ID: "managed-app", X_OAUTH_CLIENT_SECRET: "server-only-managed-secret" }), /public HTTPS/);
+  assert.throws(() => validateManagedSocialConfiguration({ SOCIAL_MANAGED_PROVIDERS: "invented" }), /supported provider/);
+});
+test("managed analytics opt-out performs no provider calls and does not prevent token renewal", async () => {
+  rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({ ...secret, analyticsEnabled: false }));
+  assert.deepEqual(await syncSocialAnalytics({ workspaceId: 1, accountId: 1 }), { processed: 0, failed: 0, skipped: 1 });
+  assert.equal(calls.length, 0);
+  transport = async () => reply({ access_token: "private-rotated-token", refresh_token: "private-rotated-refresh", expires_in: 7200 });
+  assert.equal((await renewSocialCredentials({ workspaceId: 1, accountId: 1 })).processed, 1);
+});
+test("provider grant revocation is explicit, tenant-bound and never reported successful on provider failure", async () => {
+  process.env.YOUTUBE_OAUTH_CLIENT_ID = "managed-app";
+  process.env.YOUTUBE_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  rows.get(socialAccounts.name)[0].platform = "youtube";
+  rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({ ...secret, oauthMode: "managed", clientId: "managed-app", clientSecret: undefined }));
+  transport = async (url, init) => {
+    assert.equal(url.href, "https://oauth2.googleapis.com/revoke");
+    assert.equal(init.body.get("token"), secret.refreshToken);
+    return new Response(null, { status: 503 });
+  };
+  const failed = await socialRequest({ action: "disconnect", accountId: 1, revokeProvider: true });
+  assert.equal(failed.status, 502);
+  assert.equal(list(socialCredentials).length, 1);
+  transport = async () => new Response(null, { status: 200 });
+  const removed = await socialRequest({ action: "disconnect", accountId: 1, revokeProvider: true });
+  assert.equal((await removed.json()).revocation, "revoked");
+  assert.equal(list(socialCredentials).length, 0);
 });
 
 test("refresh rotates tenant tokens and preserves identity, API version and publishing declarations", async () => {

@@ -27,7 +27,7 @@ export default async function DashboardOverviewPage() {
         db.find(agentConfigurations, eq("workspaceId", wsId), {}),
         db.find(agentActions, eq("workspaceId", wsId), { sort: { createdAt: -1 } }),
     ]);
-    const connectedChannels = wsSocials.filter((s) => s.status === "connected" && s.integrationMode === "customer_credentials").length;
+    const connectedChannels = wsSocials.filter((s) => s.status === "connected" && ["customer_credentials", "managed_oauth"].includes(s.integrationMode)).length;
     const scheduledCount = wsPosts.filter((p) => p.status === "scheduled").length;
     const pendingApprovals = wsPosts.filter((p) => p.status === "pending_approval").length;
     const completedJobs = wsJobs.filter((j) => j.status === "completed").length;

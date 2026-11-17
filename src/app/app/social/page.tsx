@@ -9,8 +9,12 @@ import { getWorkspaceEntitlements } from "@/lib/entitlements";
 import { socialLifecycleStatuses } from "@/db/social-lifecycle-schema";
 import { oauthCallbackUrl } from "@/lib/social-oauth-provider";
 import { SocialAccountsClient } from "@/components/SocialAccountsClient";
+import { managedSocialAvailability } from "@/lib/social-managed-config";
+import { managedSocialErrorCode, readManagedSelection } from "@/lib/social-managed-oauth";
+import type { ManagedSocialSelection } from "@/lib/social-managed-types";
+import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 export const dynamic = "force-dynamic";
-export default async function SocialAccountsPage() {
+export default async function SocialAccountsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t } = await getServerI18n();
 
     const ctx = await getAuthContext();
@@ -18,6 +22,19 @@ export default async function SocialAccountsPage() {
         redirect("/login");
     }
     const { plan } = await getWorkspaceEntitlements(ctx.workspace.id);
+    const query = await searchParams;
+    const canManage = ["owner", "admin"].includes(ctx.memberRole);
+    let managedSelection: ManagedSocialSelection | null = null;
+    const safeErrors = ["NOT_CONFIGURED", "APPROVAL_REQUIRED", "AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED", "STATE_INVALID", "PERMISSION_MISSING", "ACCOUNT_UNSUPPORTED", "CHANNEL_LIMIT", "PROVIDER_UNAVAILABLE", "TOKEN_EXPIRED", "MANAGED_APP_CHANGED", "DISCOVERY_INCOMPLETE", "FORBIDDEN", "INVALID_REQUEST"];
+    let managedError = typeof query.social_error === "string" ? (safeErrors.includes(query.social_error) ? query.social_error : "AUTHORIZATION_FAILED") : null;
+    if (canManage && (query.social_provider !== undefined || query.social_selection !== undefined)) {
+      if (typeof query.social_provider === "string" && Object.hasOwn(SOCIAL_PLATFORM_SPECS, query.social_provider) &&
+          typeof query.social_selection === "string" && query.social_selection.length > 0 && query.social_selection.length <= 4096) {
+        try {
+          managedSelection = await readManagedSelection({ workspaceId: ctx.workspace.id, userId: ctx.user.id, platform: query.social_provider, ticket: query.social_selection });
+        } catch (error) { managedError = managedSocialErrorCode(error); }
+      } else managedError = "INVALID_REQUEST";
+    }
     const accounts = await db.find(socialAccounts, eq("workspaceId", ctx.workspace.id), {});
     const lifecycle = await db.find(socialLifecycleStatuses, { workspaceId: ctx.workspace.id });
     let callbackOrigin: string | null = null;
@@ -28,7 +45,7 @@ export default async function SocialAccountsPage() {
           {t("customer.text.100")}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-secondary)] sm:text-sm">
-          {t("customer.text.101")}
+          {t("social.managed.subtitle")}
         </p>
       </div>
 
@@ -49,6 +66,6 @@ export default async function SocialAccountsPage() {
             renewalMessage: lifecycle.find(s => s.socialAccountId === a.id)?.renewalMessage,
             analyticsStatus: lifecycle.find(s => s.socialAccountId === a.id)?.analyticsStatus,
             analyticsMessage: lifecycle.find(s => s.socialAccountId === a.id)?.analyticsMessage,
-        }))} maxChannels={plan.maxChannels} planName={plan.name} callbackOrigin={callbackOrigin} canManage={["owner", "admin"].includes(ctx.memberRole)}/>
+        }))} maxChannels={plan.maxChannels} planName={plan.name} callbackOrigin={callbackOrigin} canManage={canManage} managedAvailability={managedSocialAvailability()} managedSelection={managedSelection} managedError={managedError}/>
     </div>);
 }

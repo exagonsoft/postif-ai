@@ -12,34 +12,65 @@ import type { SocialPlatform } from "@/lib/social-adapters";
 import { WorkflowError } from "@/lib/post-policy";
 import { assertBrandEntitlement } from "@/lib/entitlements";
 import { withWorkerDeadline } from "@/lib/worker-network";
+import { discoverManagedDestinations, ManagedSocialOAuthError } from "@/lib/social-managed-provider";
+import { createManagedSelection, managedSocialErrorCode } from "@/lib/social-managed-oauth";
+import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 
 export async function GET(req: Request, context: { params: Promise<{ platform: string }> }) {
   return withWorkerDeadline(Date.now() + 20000, () => completeAuthorization(req, context));
 }
 async function completeAuthorization(req: Request, context: { params: Promise<{ platform: string }> }) {
+  const url = new URL(req.url);
+  let managed = url.searchParams.get("state")?.startsWith("m_") || false;
+  const { platform } = await context.params;
   try {
     const ctx = await getAuthContext();
     if (!ctx?.workspace || !["owner", "admin"].includes(ctx.memberRole)) throw new SocialProviderError("Sign in as the workspace owner or administrator before authorizing.", 403);
-    const { platform } = await context.params;
-    const url = new URL(req.url);
-    const state = z.string().regex(/^[A-Za-z0-9_-]{43}$/).parse(url.searchParams.get("state"));
+    if (!Object.hasOwn(SOCIAL_PLATFORM_SPECS, platform)) throw new ManagedSocialOAuthError("INVALID_REQUEST");
+    if (url.searchParams.getAll("state").length !== 1 || url.searchParams.getAll("code").length > 1 || url.searchParams.getAll("error").length > 1) throw new ManagedSocialOAuthError("STATE_INVALID");
+    const state = z.string().regex(/^(?:m_)?[A-Za-z0-9_-]{43}$/).parse(url.searchParams.get("state"));
     const filter = { stateHash: createHash("sha256").update(state).digest("hex"), platform, workspaceId: ctx.workspace.id, userId: ctx.user.id, consumedAt: null, expiresAt: { $gt: new Date() } };
     const [pending] = await db.find(socialOAuthAttempts, filter);
-    if (!pending) throw new SocialProviderError("Authorization state expired, was already used, or belongs to a different workspace/user.", 400);
+    if (!pending) throw new ManagedSocialOAuthError("STATE_INVALID");
+    const payload = z.object({ stage: z.literal("authorize").optional(), mode: z.enum(["managed", "advanced"]).optional(),
+      redirectUri: z.string().optional(), organizations: z.boolean().default(false),
+      verifier: z.string().min(32), credentials: customerCredentials.omit({ accessToken: true }) }).parse(JSON.parse(decryptSecret(pending.encryptedPayload) || "{}"));
+    managed = payload.mode === "managed";
+    if (managed !== (payload.credentials.oauthMode === "managed") || payload.redirectUri && payload.redirectUri !== oauthCallbackUrl(platform)) throw new ManagedSocialOAuthError("STATE_INVALID");
     await assertBrandEntitlement(ctx.workspace.id, pending.brandId);
-    const [attempt] = await db.update(socialOAuthAttempts, { ...filter, expiresAt: { $gt: new Date() } }, { consumedAt: new Date() });
-    if (!attempt) throw new SocialProviderError("Authorization state expired, was already used, or belongs to a different workspace/user.", 400);
+    const [attempt] = await db.update(socialOAuthAttempts, { ...filter, expiresAt: { $gt: new Date() } }, { consumedAt: new Date(), encryptedPayload: "" });
+    if (!attempt) throw new ManagedSocialOAuthError("STATE_INVALID");
     // Consume on provider refusal too. Never relay provider error text or codes to the browser.
-    const encryptedPayload = attempt.encryptedPayload;
-    await db.update(socialOAuthAttempts, { id: attempt.id }, { encryptedPayload: "" });
-    if (url.searchParams.has("error")) throw new SocialProviderError("Provider authorization was declined. Start again when ready.", 422);
+    if (url.searchParams.has("error")) {
+      if (managed) throw new ManagedSocialOAuthError("AUTHORIZATION_DENIED", 422);
+      throw new SocialProviderError("Provider authorization was declined. Start again when ready.", 422);
+    }
     const code = z.string().min(1).max(4096).parse(url.searchParams.get("code"));
-    const payload = z.object({ verifier: z.string().min(32), credentials: customerCredentials.omit({ accessToken: true }) }).parse(JSON.parse(decryptSecret(encryptedPayload) || "{}"));
+    if (managed) {
+      const destinations = await discoverManagedDestinations(platform as SocialPlatform, payload.credentials, { code, verifier: payload.verifier }, payload.organizations);
+      if (!destinations.length) throw new ManagedSocialOAuthError("ACCOUNT_UNSUPPORTED", 422);
+      const ticket = await createManagedSelection({ workspaceId: ctx.workspace.id, userId: ctx.user.id, brandId: attempt.brandId,
+        platform: platform as SocialPlatform, destinations, analyticsEnabled: !!payload.credentials.analyticsEnabled, organizations: payload.organizations });
+      const target = new URL("/app/social", oauthCallbackUrl(platform));
+      target.search = new URLSearchParams({ social_provider: platform, social_selection: ticket }).toString();
+      return NextResponse.redirect(target, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    }
     const credentials = await exchangeSocialToken(platform as SocialPlatform, { ...payload.credentials, accessToken: "pending-authorization" }, { code, verifier: payload.verifier });
     const verified = await verifyCustomerConnection(platform as SocialPlatform, credentials);
     await persistSocialConnection({ workspaceId: ctx.workspace.id, brandId: attempt.brandId, platform: platform as SocialPlatform, actorEmail: ctx.user.email, verified });
     return NextResponse.redirect(new URL("/app/social", oauthCallbackUrl(platform)), { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
+    if (managed && Object.hasOwn(SOCIAL_PLATFORM_SPECS, platform)) {
+      let callback: string;
+      try { callback = oauthCallbackUrl(platform); } catch (configurationError) {
+        if (!(configurationError instanceof SocialProviderError || configurationError instanceof TypeError)) throw configurationError;
+        return NextResponse.json({ code: "NOT_CONFIGURED", error: "Managed provider callback configuration is unavailable." },
+          { status: 503, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+      }
+      const target = new URL("/app/social", callback);
+      target.search = new URLSearchParams({ social_error: managedSocialErrorCode(error), social_provider: platform }).toString();
+      return NextResponse.redirect(target, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    }
     return NextResponse.json({ error: error instanceof SocialProviderError || error instanceof WorkflowError ? error.message : "Authorization failed. Start again and check your app permissions." }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   }
 }

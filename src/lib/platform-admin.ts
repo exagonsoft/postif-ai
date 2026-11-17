@@ -57,7 +57,7 @@ export async function getPlatformOverview(actor: PlatformActor) {
   const paid = { environment, status: "ACTIVE", paidThrough: { $gt: now }, planSnapshot: { $ne: null }, paypalSubscriptionId: { $type: "string" } };
   const [customers, administrators, tenants, channels, queued, failed, aiRecords, paidSubscriptions, revenue, workers] = await Promise.all([
     db.count(users, { systemRole: { $ne: "operator" } }), db.count(users, { systemRole: "operator" }),
-    db.count(workspaces), db.count(socialAccounts, { status: "connected", integrationMode: "customer_credentials" }),
+    db.count(workspaces), db.count(socialAccounts, { status: "connected", integrationMode: { $in: ["customer_credentials", "managed_oauth"] } }),
     db.count(publishingJobs, { status: "queued" }), db.count(publishingJobs, { status: "failed" }),
     db.count(aiUsageRecords), db.count(billingSubscriptions, paid),
     db.aggregate<{ total: number; invalid: number }>(billingSubscriptions, [

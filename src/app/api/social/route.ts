@@ -12,6 +12,8 @@ import { WorkflowError } from "@/lib/post-policy";
 import { assertBrandEntitlement } from "@/lib/entitlements";
 import { socialOAuthAttempts, socialLifecycleStatuses } from "@/db/social-lifecycle-schema";
 import { withWorkerDeadline } from "@/lib/worker-network";
+import { assertSocialMutationOrigin, managedSocialErrorCode } from "@/lib/social-managed-oauth";
+import { revokeManagedSocialGrant } from "@/lib/social-managed-revocation";
 
 export async function POST(req: Request) {
   return withWorkerDeadline(Date.now() + 20000, () => socialAction(req));
@@ -21,20 +23,38 @@ async function socialAction(req: Request) {
     const ctx = await getAuthContext();
     if (!ctx?.workspace || !ctx.activeBrand) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!["owner", "admin"].includes(ctx.memberRole)) return NextResponse.json({ error: "Only workspace owners and admins can manage social credentials." }, { status: 403 });
-    const body = z.object({ action: z.enum(["connect", "refresh", "renew", "disconnect"]), accountId: z.number().int().positive().optional(), brandId: z.number().int().positive().optional(), platform: z.string().optional(), credentials: customerCredentials.optional() }).parse(await req.json());
+    assertSocialMutationOrigin(req);
+    const body = z.object({ action: z.enum(["connect", "refresh", "renew", "disconnect"]), revokeProvider: z.boolean().default(false), accountId: z.number().int().positive().optional(), brandId: z.number().int().positive().optional(), platform: z.string().optional(), credentials: customerCredentials.omit({ oauthMode: true, grantedScopes: true }).optional() }).parse(await req.json());
     const workspaceId = ctx.workspace.id;
     if (body.action === "disconnect") {
       if (!body.accountId) throw new SocialProviderError("Choose an account.");
-      await db.transaction(async tx => {
+      const completed = await db.withLease(`social:${workspaceId}:${body.accountId}`, async () => {
+        let expectedCredentials: string | undefined;
+        if (body.revokeProvider) {
+          const [account] = await db.find(socialAccounts, { id: body.accountId, workspaceId });
+          const [stored] = await db.find(socialCredentials, { socialAccountId: body.accountId, workspaceId });
+          const decrypted = stored && decryptSecret(stored.encryptedCredentials);
+          if (!account || !Object.hasOwn(SOCIAL_PLATFORM_SPECS, account.platform) || !decrypted) throw new SocialProviderError("Account credentials not found.", 404);
+          expectedCredentials = stored.encryptedCredentials;
+          await revokeManagedSocialGrant(account.platform as SocialPlatform, customerCredentials.parse(JSON.parse(decrypted)));
+        }
+        await db.transaction(async tx => {
         const [account] = await tx.find(socialAccounts, { id: body.accountId, workspaceId }, { lock: true });
         if (!account) throw new SocialProviderError("Account not found.", 404);
+        if (expectedCredentials) {
+          const [current] = await tx.find(socialCredentials, { socialAccountId: account.id, workspaceId }, { lock: true });
+          if (current?.encryptedCredentials !== expectedCredentials) throw new SocialProviderError("Connection changed while revoking. Verify the current connection.", 409);
+        }
         await tx.remove(socialCredentials, { socialAccountId: account.id, workspaceId });
         await tx.remove(socialOAuthAttempts, { workspaceId, brandId: account.brandId, platform: account.platform });
-        await tx.upsert(socialLifecycleStatuses, "socialAccountId", { workspaceId, socialAccountId: account.id }, { renewalStatus: "disconnected", renewalMessage: "Local credentials deleted. Revoke authorization with the provider separately.", analyticsStatus: "paused", analyticsMessage: "Account disconnected.", updatedAt: new Date() });
+        await tx.upsert(socialLifecycleStatuses, "socialAccountId", { workspaceId, socialAccountId: account.id }, { renewalStatus: "disconnected", renewalMessage: body.revokeProvider ? "Provider confirmed grant revocation and local credentials were deleted." : "Local credentials deleted. Revoke authorization with the provider separately.", analyticsStatus: "paused", analyticsMessage: "Account disconnected.", updatedAt: new Date() });
         await tx.update(socialAccounts, { id: account.id }, { status: "disconnected", lastSyncAt: new Date(), lastError: null });
-        await tx.insert(auditLogs, { workspaceId, actorEmail: ctx.user.email, action: "social_account.disconnected", resourceType: "social_account", resourceId: String(account.id) });
-      });
-      return NextResponse.json({ ok: true });
+        await tx.insert(auditLogs, { workspaceId, actorEmail: ctx.user.email, action: "social_account.disconnected", resourceType: "social_account", resourceId: String(account.id), metadata: { revocation: body.revokeProvider ? "revoked" : "local_only" } });
+        });
+        return true;
+      }, false);
+      if (!completed) throw new SocialProviderError("Another account operation is in progress. Retry disconnecting.", 409);
+      return NextResponse.json({ ok: true, revocation: body.revokeProvider ? "revoked" : "local_only" });
     }
     if (body.action === "renew") {
       if (!body.accountId || !(await db.find(socialAccounts, { id: body.accountId, workspaceId })).length) throw new SocialProviderError("Account not found.", 404);
@@ -81,8 +101,8 @@ async function socialAction(req: Request) {
     return NextResponse.json({ ok: true, account });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid account details or credential format." }, { status: 400 });
-    if (error instanceof WorkflowError) return NextResponse.json({ error: error.message }, { status: error.status });
-    if (error instanceof SocialProviderError) return NextResponse.json({ error: error.message }, { status: error.status >= 500 ? 502 : error.status === 401 ? 422 : error.status });
+    if (error instanceof WorkflowError) return NextResponse.json({ error: error.message, code: managedSocialErrorCode(error) }, { status: error.status });
+    if (error instanceof SocialProviderError) return NextResponse.json({ error: error.message, code: managedSocialErrorCode(error) }, { status: error.status >= 500 ? 502 : error.status === 401 ? 422 : error.status });
     console.error("Social connection failed", { type: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Social connection failed. Check provider availability and encryption configuration." }, { status: 500 });
   }

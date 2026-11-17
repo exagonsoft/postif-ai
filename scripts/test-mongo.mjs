@@ -109,10 +109,13 @@ try {
   await assert.rejects((await getMongoDatabase()).collection("posts").insertOne({title:123}),{code:121});
   console.log("MongoDB checks passed: repeatable initialization, defaults, unique indexes, atomic batches/updates, concurrent duplicate-ignore, reference validation, rollback, concurrent credit reservations, numeric IDs, cascade and set-null deletion.");
   await run("scripts/test-entitlements.mjs");
-  await run("scripts/test-media-generation.mjs");
-  await run("scripts/test-social.mjs");
-  await run("scripts/test-media-generation.mjs", { TEST_STORAGE_PROVIDER: "s3" });
-  await run("scripts/test-social.mjs", { TEST_STORAGE_PROVIDER: "s3" });
+  await run("scripts/test-social-managed-mongo.mjs");
+  if (!process.argv.includes("--managed-social")) {
+    if (!process.argv.includes("--social")) await run("scripts/test-media-generation.mjs");
+    await run("scripts/test-social.mjs");
+    if (!process.argv.includes("--social")) await run("scripts/test-media-generation.mjs", { TEST_STORAGE_PROVIDER: "s3" });
+    await run("scripts/test-social.mjs", { TEST_STORAGE_PROVIDER: "s3" });
+  }
   if(process.argv.includes("--http")) {
     const portServer = createServer();
     await new Promise((resolve, reject) => { portServer.once("error", reject); portServer.listen(0, "127.0.0.1", resolve); });

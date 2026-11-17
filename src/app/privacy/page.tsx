@@ -1,6 +1,5 @@
 import { getServerI18n } from "@/i18n/server";
-import React from "react";
-import { PublicShell } from "@/components/PublicShell";
+import { LegalDocument } from "@/components/LegalDocument";
 import { publicPageMetadata } from "@/lib/seo";
 
 export async function generateMetadata() {
@@ -8,28 +7,6 @@ export async function generateMetadata() {
   return publicPageMetadata("privacy", locale);
 }
 
-export default async function PrivacyPage() {
-  const { t } = await getServerI18n();
-  return (
-    <PublicShell>
-      <article className="mx-auto max-w-3xl space-y-6 px-4 py-20 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-extrabold sm:text-4xl">{t("public.privacy.text01")}</h1>
-        <p className="text-xs text-[var(--text-muted)]">{t("public.privacy.text02")}</p>
-
-        <div className="surface-card space-y-4 rounded-3xl p-8 text-sm leading-relaxed text-[var(--text-secondary)]">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{t("public.privacy.text03")}</h2>
-          <p>{t("public.privacy.text04")}</p>
-
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{t("public.privacy.text05")}</h2>
-          <p>{t("public.privacy.text06")}</p>
-
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{t("public.privacy.text07")}</h2>
-          <p>{t("public.privacy.text08")}</p>
-
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{t("public.privacy.text09")}</h2>
-          <p>{t("public.privacy.text10")}</p>
-        </div>
-      </article>
-    </PublicShell>
-  );
+export default function PrivacyPage() {
+  return <LegalDocument kind="privacy" />;
 }

@@ -1,6 +1,6 @@
 import "./register-ts.mjs";
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
+import { createRequire, registerHooks } from "node:module";
 import { test } from "node:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
@@ -8,6 +8,11 @@ import { JSDOM } from "jsdom";
 
 globalThis.__legalLocale = undefined;
 globalThis.__legalRouter = { refresh() {} };
+const require = createRequire(import.meta.url);
+globalThis.__legalNextComponents = {
+  "next/link": require("next/link").default,
+  "next/image": require("next/image").default,
+};
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "next/headers") return { shortCircuit: true,
@@ -17,6 +22,9 @@ registerHooks({
       }}}`)}` };
     if (specifier === "next/navigation") return { shortCircuit: true,
       url: "data:text/javascript,export function useRouter(){return globalThis.__legalRouter;}" };
+    // Bridge Next's CommonJS defaults, normally unwrapped by its bundler, into native ESM.
+    if (Object.hasOwn(globalThis.__legalNextComponents, specifier)) return { shortCircuit: true,
+      url: `data:text/javascript,${encodeURIComponent(`export default globalThis.__legalNextComponents[${JSON.stringify(specifier)}];`)}` };
     return next(specifier, context);
   },
   load(url, context, next) {

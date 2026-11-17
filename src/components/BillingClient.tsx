@@ -176,11 +176,18 @@ export function BillingClient({
   const refreshSubscription = async () => {
     setRedirecting(true);
     try {
-      const response = await fetch("/api/billing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "refresh_subscription" }) });
-      const data = await response.json();
-      if (!response.ok) { toast(t("billing.reconciliationPending"), data.error || t("billing.retry"), "error"); return; }
-      toast(t("billing.statusRefreshed"), message(data.message));
-      router.refresh();
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const response = await fetch("/api/billing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "refresh_subscription" }) });
+        const data = await response.json();
+        if (response.status === 409 && data.code === "BILLING_BUSY" && attempt < 3) {
+          await new Promise(resolve => window.setTimeout(resolve, 2000));
+          continue;
+        }
+        if (!response.ok) { toast(t("billing.reconciliationPending"), data.error || t("billing.retry"), "error"); return; }
+        toast(t("billing.statusRefreshed"), message(data.message));
+        router.refresh();
+        return;
+      }
     } catch { toast(t("billing.paypalUnavailable"), t("billing.refreshError"), "error"); }
     finally { setRedirecting(false); }
   };

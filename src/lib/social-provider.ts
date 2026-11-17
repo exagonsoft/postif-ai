@@ -4,6 +4,7 @@ import { readMedia } from "./media-storage";
 import { publishingMediaUrl } from "./publishing-media";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "./social-adapters";
 import { workerFetch as fetch } from "./worker-network";
+import { managedSocialConfiguration } from "./social-managed-config";
 
 const identifier = z.string().regex(/^[A-Za-z0-9:_-]{1,250}$/);
 export const customerCredentials = z.object({
@@ -21,6 +22,8 @@ export const customerCredentials = z.object({
   refreshExpiresAt: z.iso.datetime().optional(),
   tokenKind: z.enum(["oauth", "manual", "long_lived"]).optional(),
   analyticsEnabled: z.boolean().optional(),
+  oauthMode: z.enum(["managed", "advanced"]).optional(),
+  grantedScopes: z.array(z.string().min(1).max(200)).max(100).optional(),
 }).strict();
 export type CustomerCredentials = z.infer<typeof customerCredentials>;
 export const providerState = z.object({
@@ -100,8 +103,20 @@ export async function verifyCustomerConnection(platform: SocialPlatform, input: 
       const member = `urn:li:person:${me.sub}`;
       if (credentials.accountId && credentials.accountId !== member) {
         if (!/^urn:li:organization:\d+$/.test(credentials.accountId)) throw new SocialProviderError("The LinkedIn author does not match your token.");
-        const roles = await json("https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&state=APPROVED", credentials, z.object({ elements: z.array(z.object({ organization: z.string(), role: z.string() })) }), undefined, linkedInHeaders(credentials));
-        if (!roles.elements.some(role => role.organization === credentials.accountId && ["ADMINISTRATOR", "CONTENT_ADMINISTRATOR", "DIRECT_SPONSORED_CONTENT_POSTER"].includes(role.role))) throw new SocialProviderError("Your token cannot publish for that LinkedIn organization.", 403);
+        let allowed = false;
+        const managed = credentials.oauthMode === "managed";
+        for (let page = 0; page < (managed ? 5 : 1); page++) {
+          const roleUrl = `https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&state=APPROVED${managed ? `&count=100&start=${page * 100}` : ""}`;
+          const roles = await json(roleUrl, credentials, z.object({ elements: z.array(z.object({
+            organization: z.string().optional(), organizationTarget: z.string().optional(), roleAssignee: z.string().optional(),
+            role: z.string(), state: z.string().optional(),
+          })), paging: z.object({ links: z.array(z.object({ rel: z.string() })).optional() }).optional() }), undefined, linkedInHeaders(credentials));
+          allowed = roles.elements.some(role => (role.organizationTarget || role.organization) === credentials.accountId &&
+            (managed ? role.state === "APPROVED" && role.roleAssignee === member : !role.state || role.state === "APPROVED") &&
+            (managed ? ["ADMINISTRATOR", "CONTENT_ADMINISTRATOR"] : ["ADMINISTRATOR", "CONTENT_ADMINISTRATOR", "DIRECT_SPONSORED_CONTENT_POSTER"]).includes(role.role));
+          if (allowed || roles.elements.length < 100 && !roles.paging?.links?.some(link => link.rel === "next")) break;
+        }
+        if (!allowed) throw new SocialProviderError("Your token cannot publish for that LinkedIn organization.", 403);
       }
       identity = { id: credentials.accountId || member, name: me.name, handle: credentials.accountId || member };
       break;
@@ -130,8 +145,9 @@ export async function verifyCustomerConnection(platform: SocialPlatform, input: 
     case "pinterest": {
       if (!credentials.boardId) throw new SocialProviderError("Enter the destination Pinterest board ID.");
       const me = await json("https://api.pinterest.com/v5/user_account", credentials, z.object({ username: z.string() }));
-      await json(`https://api.pinterest.com/v5/boards/${encodeURIComponent(credentials.boardId)}`, credentials, idResponse);
-      identity = { id: me.username, name: me.username, handle: me.username };
+      const board = await json(`https://api.pinterest.com/v5/boards/${encodeURIComponent(credentials.boardId)}`, credentials, idResponse);
+      if (board.id !== credentials.boardId) throw new SocialProviderError("The Pinterest board does not match the authorized destination.", 403);
+      identity = { id: me.username, name: me.username, handle: credentials.oauthMode === "managed" ? `${me.username}:${credentials.boardId}` : me.username };
       break;
     }
     case "youtube": {
@@ -184,6 +200,12 @@ async function sendLinkedIn(post: PostsDocument, text: string, credentials: Cust
 
 export async function publishToCustomerAccount(platform: SocialPlatform, credentials: CustomerCredentials, post: PostsDocument, media: MediaAssetsDocument[], checkpoint: Checkpoint, savedState?: ProviderState): Promise<ProviderResult> {
   if (credentials.expiresAt && new Date(credentials.expiresAt).getTime() <= Date.now()) throw new SocialProviderError("Reconnect this account: its access token has expired.", 401);
+  if (credentials.oauthMode === "managed" && !savedState) {
+    const config = managedSocialConfiguration();
+    if (platform === "tiktok" && credentials.privacyLevel !== "SELF_ONLY" && !config.publicPosting.includes("tiktok")) throw new SocialProviderError("TikTok public posting requires provider audit approval.", 403);
+    if (platform === "youtube" && credentials.privacyLevel !== "private" && !config.publicPosting.includes("youtube")) throw new SocialProviderError("YouTube non-private posting requires provider audit approval.", 403);
+    if (platform === "linkedin" && credentials.accountId?.startsWith("urn:li:organization:") && !config.linkedinOrganizations) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
+  }
   const text = textFor(post, platform);
   if (savedState) return resume(platform, credentials, post, text, checkpoint, savedState);
   if (media.some(asset => asset.workspaceId !== post.workspaceId)) throw new SocialProviderError("Media does not belong to this workspace.", 403);

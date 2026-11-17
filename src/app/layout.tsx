@@ -15,9 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: getSiteUrl(),
     applicationName: "POSTIF-AI",
-    icons: {
-      icon: { url: "/icons/favico.ico", type: "image/x-icon" },
-    },
     title: {
       default: title,
       template: "%s | POSTIF-AI",

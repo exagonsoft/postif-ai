@@ -270,10 +270,13 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                   <Link href="/contact" className="hover:text-[var(--text-primary)]">{t("public.publicShell.text37")}</Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="hover:text-[var(--text-primary)]">{t("public.privacy.text01")}</Link>
+                  <Link href="/privacy" className="hover:text-[var(--text-primary)]">{t("legal.privacy.title")}</Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="hover:text-[var(--text-primary)]">{t("public.terms.text01")}</Link>
+                  <Link href="/terms" className="hover:text-[var(--text-primary)]">{t("legal.terms.title")}</Link>
+                </li>
+                <li>
+                  <Link href="/data-deletion" className="hover:text-[var(--text-primary)]">{t("legal.dataDeletion.title")}</Link>
                 </li>
               </ul>
             </div>

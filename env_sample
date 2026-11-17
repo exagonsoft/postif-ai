@@ -47,7 +47,40 @@ VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
 
-# Social access tokens belong to customers and are added in Social Media Integrations.
-# No shared LinkedIn/X/Meta/TikTok/Pinterest/Google app keys are used by this credential flow.
+# Managed social OAuth: optional until the respective provider is explicitly enabled.
+# Comma-separated identifiers: facebook,instagram,linkedin,x,tiktok,pinterest,youtube,threads.
+# Enabling requires the corresponding server client ID/secret and a public HTTPS APP_URL.
+# Approval lists are operator attestations, NOT provider approval or verification.
+SOCIAL_MANAGED_PROVIDERS=
+SOCIAL_OAUTH_APPROVED_PROVIDERS=
+# Request additional reviewed analytics scopes only after user opt-in.
+SOCIAL_OAUTH_ANALYTICS_PROVIDERS=
+# Only tiktok,youtube: configure only AFTER their public-posting audit is approved.
+SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS=
+FACEBOOK_OAUTH_CLIENT_ID=
+FACEBOOK_OAUTH_CLIENT_SECRET=
+INSTAGRAM_OAUTH_CLIENT_ID=
+INSTAGRAM_OAUTH_CLIENT_SECRET=
+LINKEDIN_OAUTH_CLIENT_ID=
+LINKEDIN_OAUTH_CLIENT_SECRET=
+# Required YYYYMM when managed LinkedIn is enabled; use an actually supported version.
+LINKEDIN_API_VERSION=
+# LinkedIn organizations additionally require approved Community Management access.
+LINKEDIN_ORGANIZATIONS_ENABLED=false
+META_GRAPH_API_VERSION=v27.0
+X_OAUTH_CLIENT_ID=
+X_OAUTH_CLIENT_SECRET=
+# TikTok calls its OAuth client ID the client key.
+TIKTOK_OAUTH_CLIENT_ID=
+TIKTOK_OAUTH_CLIENT_SECRET=
+PINTEREST_OAUTH_CLIENT_ID=
+PINTEREST_OAUTH_CLIENT_SECRET=
+YOUTUBE_OAUTH_CLIENT_ID=
+YOUTUBE_OAUTH_CLIENT_SECRET=
+THREADS_OAUTH_CLIENT_ID=
+THREADS_OAUTH_CLIENT_SECRET=
+# No customer access/refresh tokens belong here. Advanced workspace credentials remain
+# encrypted in MongoDB; social OAuth BYO applications are independent of AI BYOK plans.
+# See docs/SOCIAL_MANAGED_OAUTH_MIGRATION.md for setup and exact callback URLs.
 # Platform administrator access is a users.systemRole value, not an environment credential.
 # Run npm run admin:create for an account-only operator; no workspace or branding is created.

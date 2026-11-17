@@ -10,6 +10,7 @@ import { useToast } from "./ToastProvider";
 import { PulseStatusDot, SPRING_SNAPPY } from "./MotionPrimitives";
 import { useAppLanguage } from "@/i18n/provider";
 import { LanguageSelector } from "./LanguageSelector";
+import { SidebarModeToggle, useSidebarMode } from "./SidebarModeToggle";
 import {
   LayoutDashboard,
   Wand2,
@@ -103,6 +104,7 @@ export function AppShell({
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const { t, formatNumber } = useAppLanguage();
+  const { collapsed: sidebarCollapsed, toggleSidebar } = useSidebarMode();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -146,8 +148,10 @@ export function AppShell({
     router.refresh();
   };
 
-  const renderSidebarLinks = (onNavigate?: () => void, isMobile = false) => (
-    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label={t("common.sidebar")}>
+  const renderSidebarLinks = (onNavigate?: () => void, isMobile = false) => {
+    const compact = sidebarCollapsed && !isMobile;
+    return (
+    <nav id={isMobile ? undefined : "customer-sidebar-navigation"} className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label={t("common.sidebar")}>
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active =
@@ -158,7 +162,9 @@ export function AppShell({
             key={item.href}
             href={item.href}
             onClick={onNavigate}
-            className={`relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors ${
+            aria-current={active ? "page" : undefined}
+            title={compact ? t(`common.nav.${item.label}`) : undefined}
+            className={`relative flex items-center rounded-xl py-2.5 text-xs font-semibold transition-colors ${compact ? "justify-center px-2" : "justify-between px-3"} ${
               active
                 ? "text-white"
                 : "text-[var(--text-secondary)] hover:bg-violet-500/10 hover:text-[var(--text-primary)]"
@@ -175,11 +181,11 @@ export function AppShell({
               <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/90 to-indigo-600/90 shadow-lg shadow-violet-600/20" />
             )}
             <span className="relative z-10 flex items-center gap-2.5">
-              <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : ""}`} />
-              <span>{t(`common.nav.${item.label}`)}</span>
+              <Icon className={`h-4 w-4 shrink-0 ${active ? "text-cyan-300" : ""}`} aria-hidden="true" />
+              <span className={compact ? "sr-only" : undefined}>{t(`common.nav.${item.label}`)}</span>
             </span>
             {item.badgeKey === "approvals" && pendingApprovalsCount > 0 && (
-              <span className="relative z-10 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+              <span className={`z-10 rounded-full bg-amber-500/20 py-0.5 font-bold text-amber-300 ${compact ? "absolute right-0.5 top-0.5 px-1 text-[8px]" : "relative px-2 text-[10px]"}`}>
                 {pendingApprovalsCount}
               </span>
             )}
@@ -189,32 +195,38 @@ export function AppShell({
 
       {user.systemRole === "operator" && (
         <div className="pt-3">
-          <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+          <div className={compact ? "sr-only" : "px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]"}>
             {t("common.operator")}
           </div>
           <Link
             href="/app/admin"
             onClick={onNavigate}
-            className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+            title={compact ? t("common.adminConsole") : undefined}
+            aria-current={pathname.startsWith("/app/admin") ? "page" : undefined}
+            className={`flex items-center gap-2.5 rounded-xl py-2.5 text-xs font-semibold transition-all ${compact ? "justify-center px-2" : "px-3"} ${
               pathname.startsWith("/app/admin")
                 ? "bg-rose-600 text-white"
                 : "text-rose-400 hover:bg-rose-500/10"
             }`}
           >
-            <ShieldAlert className="h-4 w-4" />
-            <span>{t("common.adminConsole")}</span>
+            <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className={compact ? "sr-only" : undefined}>{t("common.adminConsole")}</span>
           </Link>
         </div>
       )}
     </nav>
-  );
+    );
+  };
 
   return (
     <div className="flex min-h-screen">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:flex">
-        <div className="flex h-16 items-center justify-between border-b border-[var(--border-subtle)] px-4">
-          <BrandLogo href="/app" showByline />
+      <aside className={`relative hidden shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:flex ${sidebarCollapsed ? "w-20" : "w-64"}`}>
+        <div className={`flex h-16 items-center border-b border-[var(--border-subtle)] ${sidebarCollapsed ? "justify-center px-2" : "justify-between px-4"}`}>
+          <BrandLogo href="/app" compact={sidebarCollapsed} showByline />
+        </div>
+        <div className="absolute -right-4 top-4 z-40">
+          <SidebarModeToggle collapsed={sidebarCollapsed} onToggle={toggleSidebar} controls="customer-sidebar-navigation" />
         </div>
 
         {/* Workspace Switcher */}
@@ -222,8 +234,13 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setWsOpen((v) => !v)}
-            className="elevated-card flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors hover:border-violet-500/40"
+            aria-expanded={wsOpen}
+            aria-controls="workspace-switcher-options"
+            aria-label={sidebarCollapsed ? `${t("common.switchWorkspace")}: ${workspace.name}` : undefined}
+            title={sidebarCollapsed ? `${t("common.switchWorkspace")}: ${workspace.name}` : undefined}
+            className={`elevated-card flex w-full items-center rounded-xl py-2.5 text-left transition-colors hover:border-violet-500/40 ${sidebarCollapsed ? "justify-center px-2" : "justify-between px-3"}`}
           >
+            {sidebarCollapsed ? <Building2 className="h-5 w-5" aria-hidden="true" /> : <>
             <div className="min-w-0">
               <div className="truncate text-xs font-extrabold">{workspace.name}</div>
               <div className="truncate text-[11px] text-[var(--text-muted)]">
@@ -231,16 +248,18 @@ export function AppShell({
               </div>
             </div>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+            </>}
           </button>
 
           <AnimatePresence>
             {wsOpen && (
               <motion.div
+                id="workspace-switcher-options"
                 initial={{ opacity: 0, y: 6, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.96 }}
                 transition={SPRING_SNAPPY}
-                className="surface-card absolute left-3 right-3 top-full z-30 mt-1 rounded-2xl p-2 shadow-2xl"
+                className={`surface-card absolute left-3 top-full z-30 mt-1 rounded-2xl p-2 shadow-2xl ${sidebarCollapsed ? "w-64" : "right-3"}`}
               >
                 <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   {t("common.switchWorkspace")}
@@ -278,8 +297,8 @@ export function AppShell({
 
         {/* User Footer */}
         <div className="border-t border-[var(--border-subtle)] p-3">
-          <div className="elevated-card flex items-center justify-between rounded-xl px-3 py-2.5">
-            <div className="min-w-0">
+          <div className={`elevated-card flex items-center rounded-xl py-2.5 ${sidebarCollapsed ? "justify-center px-1" : "justify-between px-3"}`}>
+            <div className={sidebarCollapsed ? "sr-only" : "min-w-0"}>
               <div className="truncate text-xs font-bold">{user.name}</div>
               <div className="truncate text-[10px] text-[var(--text-muted)]">{user.email}</div>
             </div>

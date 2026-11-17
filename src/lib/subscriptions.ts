@@ -3,14 +3,14 @@ import { workspaces } from "@/db/schema";
 import { billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals, type BillingIntent, type BillingPayment } from "@/db/billing-schema";
 import { allowanceWindow, paidTransactionWindow } from "./billing-policy";
 import { getPurchasablePlan } from "./billing-catalog";
-import { BillingError, DEFAULT_PAYPAL_PAYMENT_POLICY, billingReturnUrl, catalogAmount, getBillingReadiness, getPayPalDispute, getPayPalEnvironment, getPayPalPaymentPolicy, getPayPalPlan, moneyCents, paypalRequest, providerId, requireBilling, trustedPayPalUrl, verifyPayPalPlan, type BillingInterval, type PayPalEvent, type PayPalSubscription, type PayPalTransaction } from "./paypal";
+import { BillingBusyError, BillingError, DEFAULT_PAYPAL_PAYMENT_POLICY, billingReturnUrl, catalogAmount, getBillingReadiness, getPayPalDispute, getPayPalEnvironment, getPayPalPaymentPolicy, getPayPalPlan, moneyCents, paypalRequest, providerId, requireBilling, trustedPayPalUrl, verifyPayPalPlan, type BillingInterval, type PayPalEvent, type PayPalSubscription, type PayPalTransaction } from "./paypal";
 
 type Connection = typeof db;
 const approved = new Set(["APPROVED", "ACTIVE", "SUSPENDED", "CANCELLED", "EXPIRED"]);
 const canceled = new Set(["CANCELLED", "EXPIRED"]);
 async function locked<T>(workspaceId: number, operation: () => Promise<T>) {
   const result = await db.withLease(`billing:${workspaceId}`, async () => ({ value: await operation() }), null);
-  if (!result) throw new BillingError("Another billing operation is in progress. Retry the original action.", 409);
+  if (!result) throw new BillingBusyError();
   return result.value;
 }
 export async function getCreditEpoch(workspaceId: number, connection: Connection = db) {
@@ -204,7 +204,10 @@ export async function createBillingPortal(workspaceId: number) {
 export async function confirmBillingCheckout(workspaceId: number) {
   const id = await locked(workspaceId, async () => {
     const [record] = await db.find(billingSubscriptions, { workspaceId });
-    const [intent] = record?.pendingIntentId ? await db.find(billingIntents, { id: record.pendingIntentId, workspaceId }) : [];
+    const [intent] = record?.pendingIntentId ? await db.find(billingIntents, { id: record.pendingIntentId, workspaceId }) :
+      record?.paypalSubscriptionId ? await db.find(billingIntents, {
+        paypalSubscriptionId: record.paypalSubscriptionId, workspaceId, environment: getPayPalEnvironment(),
+      }) : [];
     if (!intent?.paypalSubscriptionId || intent.environment !== getPayPalEnvironment() || intent.state === "abandoned") throw new BillingError("No authorized PayPal purchase is pending.", 409);
     const remote = await subscription(intent.paypalSubscriptionId);
     checkBinding(intent, remote);
@@ -419,7 +422,7 @@ export async function processBillingEvent(event: PayPalEvent) {
       return true;
     } catch (error) { await db.update(billingEvents, { eventKey }, { status: "failed" }); throw error; }
   }, false);
-  if (!handled) throw new BillingError("PayPal webhook processing is in progress. Retry delivery.", 503);
+  if (!handled) throw new BillingBusyError("PayPal webhook processing is in progress. Retry delivery.", 503);
 }
 
 export async function getPaidSubscriptionMrr() {

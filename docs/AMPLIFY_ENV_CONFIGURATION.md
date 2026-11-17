@@ -46,6 +46,37 @@ Classification: **S** required at startup; **F** required when the relevant feat
 | `PAYPAL_CLIENT_SECRET` | F, K | REST application secret; obtains temporary OAuth access tokens server-side. |
 | `PAYPAL_WEBHOOK_ID` | F | Actual registered app webhook ID, used in server-side signature verification; required for enabled billing. |
 
+### Optional managed social OAuth
+
+The explicit runtime allowlist also includes the variables below. None is
+`NEXT_PUBLIC_`. Provider secrets are copied only through the existing protected
+Amplify environment preparation; treat build artifacts containing the generated
+runtime environment as secret-bearing, just as for PayPal/AI credentials.
+
+| Variables | Requirement |
+| --- | --- |
+| `SOCIAL_MANAGED_PROVIDERS` | Explicit comma-separated enablement: `facebook,instagram,linkedin,x,tiktok,pinterest,youtube,threads`; empty disables new managed authorization without deleting legacy connections. |
+| `SOCIAL_OAUTH_APPROVED_PROVIDERS` | Operator attestation that the listed applications have the required production access; not a substitute for provider review. |
+| `SOCIAL_OAUTH_ANALYTICS_PROVIDERS` | Providers whose additional reporting scopes are approved; requested only after user opt-in. |
+| `SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS` | Only `tiktok,youtube`; leave empty until each required posting audit and product-compliance review is complete. Default is private-only for those managed connections. |
+| `FACEBOOK_OAUTH_CLIENT_ID`, `FACEBOOK_OAUTH_CLIENT_SECRET` | Required only when managed Facebook is enabled. |
+| `INSTAGRAM_OAUTH_CLIENT_ID`, `INSTAGRAM_OAUTH_CLIENT_SECRET` | Required only when managed Instagram Login is enabled; use the Instagram-specific app credentials. |
+| `LINKEDIN_OAUTH_CLIENT_ID`, `LINKEDIN_OAUTH_CLIENT_SECRET` | Required only when managed LinkedIn is enabled. |
+| `X_OAUTH_CLIENT_ID`, `X_OAUTH_CLIENT_SECRET` | Required only when managed X is enabled; confidential web client with S256 PKCE. |
+| `TIKTOK_OAUTH_CLIENT_ID`, `TIKTOK_OAUTH_CLIENT_SECRET` | Required only when managed TikTok is enabled; client ID means TikTok's client key. |
+| `PINTEREST_OAUTH_CLIENT_ID`, `PINTEREST_OAUTH_CLIENT_SECRET` | Required only when managed Pinterest is enabled. |
+| `YOUTUBE_OAUTH_CLIENT_ID`, `YOUTUBE_OAUTH_CLIENT_SECRET` | Required only when managed YouTube is enabled; Google's web application credentials. |
+| `THREADS_OAUTH_CLIENT_ID`, `THREADS_OAUTH_CLIENT_SECRET` | Required only when managed Threads is enabled. |
+| `META_GRAPH_API_VERSION` | Optional Graph version, default `v27.0`; validate support before changing. |
+| `LINKEDIN_API_VERSION` | Supported `YYYYMM`, required when managed LinkedIn is enabled. |
+| `LINKEDIN_ORGANIZATIONS_ENABLED` | Exact `true` only after Community Management organization publishing approval; default false. |
+
+Enabling a provider without its required credentials fails runtime/production
+validation. Configure `APP_URL` as the exact public HTTPS application origin and
+register the exact callbacks in the
+[managed OAuth setup guide](SOCIAL_MANAGED_OAUTH_MIGRATION.md).
+No customer access/refresh tokens belong in environment variables.
+
 PayPal product and monthly/annual plan IDs are persisted by the operator-managed versioned catalog, not supplied through environment Price-ID mappings. Published paid versions pin USD pricing, limits and features; Free remains local BYOK with zero price/credits. Enabling billing requires the four PayPal settings and HTTPS billing origin. Provider publication is an explicit admin operation and is possible before new checkout is enabled. No real PayPal resource has been created by local validation.
 
 Principal code references:
@@ -55,7 +86,7 @@ Principal code references:
 - Storage requirements: `src\lib\media-storage-config.ts:5-20`; default-chain S3 clients: `src\lib\media-storage.ts:85-93`.
 - Managed/BYOK media credentials and models: `src\lib\media-generation.ts:17-46`; text AI: `src\lib\ai-engine.ts`.
 - SMTP/account actions: `src\lib\account-email.ts:10-45`; email and push: `src\lib\notification-service.ts`; public-key response: `src\app\api\notification-settings\route.ts`.
-- OAuth origin and customer-owned credentials: `src\lib\social-oauth-provider.ts`; encryption: `src\lib\crypto.ts`.
+- OAuth origin and customer-owned credentials: `src\lib\social-oauth-provider.ts`; managed configuration/selection: `src\lib\social-managed-config.ts`, `src\lib\social-managed-oauth.ts`; encryption: `src\lib\crypto.ts`.
 - Worker authentication/budget: `src\lib\worker-auth.ts`, `src\lib\worker-budget.ts:6-9`.
 - FFmpeg configuration and AWS detection: `src\lib\ffmpeg-path.ts:8-19`; binary tracing: `next.config.ts`.
 - PayPal configuration, OAuth and signature verification: `src\lib\paypal.ts`; subscription evidence: `src\lib\subscriptions.ts`; callback: `src\app\api\billing\webhook\route.ts`. Admin catalog: `src\lib\billing-catalog.ts`, `src\db\catalog-schema.ts`, `src\app\api\admin\catalog\route.ts`.

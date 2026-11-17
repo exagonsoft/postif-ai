@@ -31,7 +31,7 @@ const { getWorkspaceEntitlements } = await import("../src/lib/entitlements.ts");
 const { getBillingReadiness, validateBillingConfig, verifyPayPalWebhook, verifyPayPalPlan, moneyCents, trustedPayPalUrl, createPayPalPlan, renamePayPalPlan, paypalRequest, checkPayPalCatalogConnection } = await import("../src/lib/paypal.ts");
 const { listPayPalCatalog, readPayPalCatalogPlan } = await import("../src/lib/paypal-catalog.ts");
 const { withWorkerDeadline } = await import("../src/lib/worker-network.ts");
-const { createBillingCheckout, changeBillingSubscription, reconcilePayPalSubscription, refreshSubscriptionAllowances, processBillingEvent, invalidatePayPalPayment, getPaidSubscriptionMrr } = await import("../src/lib/subscriptions.ts");
+const { createBillingCheckout, changeBillingSubscription, confirmBillingCheckout, reconcilePayPalSubscription, refreshSubscriptionAllowances, processBillingEvent, invalidatePayPalPayment, getPaidSubscriptionMrr } = await import("../src/lib/subscriptions.ts");
 const checkoutRoute = await import("../src/app/api/billing/checkout/route.ts");
 const billingRoute = await import("../src/app/api/billing/route.ts");
 const webhookRoute = await import("../src/app/api/billing/webhook/route.ts");
@@ -810,6 +810,106 @@ test("different-product revision is rejected without replacing or cancelling the
   await assert.rejects(changeBillingSubscription(7, "agency", "month", 9), /between products/);
   assert.equal(state.remote.status, "ACTIVE");
   assert.equal(calls.some(item => item.path.endsWith("/revise") || item.path.endsWith("/cancel")), false);
+});
+for (const status of ["ACTIVE", "CANCELLED"]) {
+  test(`refresh remains idempotent for a settled ${status} subscription after its pending checkout clears`, async t => {
+    const { rows, state, paid, calls } = fixture(t);
+    await paid();
+    state.remote.status = status;
+    assert.equal(rows(billingSubscriptions)[0].pendingIntentId, null);
+    const balance = rows(workspaces)[0].aiCreditsBalance;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await billingRoute.POST(new Request("https://app.example.test/api/billing", {
+        method: "POST", body: JSON.stringify({ action: "refresh_subscription" }),
+      }));
+      assert.equal(response.status, 200);
+    }
+    assert.equal(rows(billingSubscriptions)[0].status, status);
+    assert.equal(rows(billingPayments).length, 1);
+    assert.equal(rows(billingGrants).length, 1);
+    assert.equal(rows(workspaces)[0].aiCreditsBalance, balance);
+    assert.equal(calls.filter(call => call.method === "POST" && call.path.startsWith("/v1/billing/subscriptions")).length, 1);
+  });
+}
+test("refresh still rejects unapproved and abandoned purchases without granting paid access", async t => {
+  const { rows } = fixture(t);
+  await createBillingCheckout(7, "starter_ai", "month", 7);
+  await assert.rejects(confirmBillingCheckout(7), /approval or payment is still pending/);
+  rows(billingSubscriptions)[0].paypalSubscriptionId = "I-SUB001";
+  rows(billingSubscriptions)[0].pendingIntentId = null;
+  rows(billingIntents)[0].state = "abandoned";
+  await assert.rejects(confirmBillingCheckout(7), /No authorized PayPal purchase/);
+  assert.equal(rows(billingPayments).length, 0);
+  assert.equal(rows(billingGrants).length, 0);
+  assert.equal((await getWorkspaceEntitlements(7)).paid, false);
+});
+test("refresh cannot use another workspace's authorization when no checkout is pending", async t => {
+  const { rows, paid, calls } = fixture(t);
+  await paid();
+  rows(billingIntents)[0].workspaceId = 8;
+  const count = calls.length;
+  await assert.rejects(confirmBillingCheckout(7), /No authorized PayPal purchase/);
+  assert.equal(calls.length, count);
+});
+test("billing reports retryable contention under the actual action without logging request secrets", async t => {
+  const { paid } = fixture(t);
+  await paid();
+  const logs = [];
+  t.mock.method(console, "warn", (...args) => logs.push(args));
+  let release;
+  const held = db.withLease("billing:7", () => new Promise(resolve => { release = resolve; }), null);
+  try {
+    const response = await billingRoute.POST(new Request("https://app.example.test/api/billing", {
+      method: "POST", body: JSON.stringify({ action: "refresh_subscription", apiKey: "private-request-marker" }),
+    }));
+    assert.equal(response.status, 409);
+    assert.equal(response.headers.get("Retry-After"), "2");
+    assert.equal((await response.json()).code, "BILLING_BUSY");
+    assert.equal(logs[0][0], "Billing operation deferred");
+    assert.equal(logs[0][1].action, "refresh_subscription");
+    assert.match(logs[0][1].reason, /Another billing operation/);
+    assert.doesNotMatch(JSON.stringify(logs), /private-request-marker|offline-secret/);
+  } finally { release(); await held; }
+});
+for (const leaseKey of ["billing:7", "billing-event:sandbox:WH-BUSY"]) {
+  test(`webhook contention on ${leaseKey} returns retryable 503 and later processes exactly once`, async t => {
+    const { rows, paid } = fixture(t);
+    await paid();
+    t.mock.method(console, "warn", () => {});
+    const headers = Object.fromEntries(["auth-algo", "cert-url", "transmission-id", "transmission-sig", "transmission-time"].map(key => [`paypal-${key}`, "offline"]));
+    const event = { id: "WH-BUSY", event_type: "BILLING.SUBSCRIPTION.ACTIVATED", resource: { id: "I-SUB001" } };
+    const request = () => new Request("https://app.example.test/api/billing/webhook", { method: "POST", headers, body: JSON.stringify(event) });
+    let release;
+    const held = db.withLease(leaseKey, () => new Promise(resolve => { release = resolve; }), null);
+    try {
+      const response = await webhookRoute.POST(request());
+      assert.equal(response.status, 503);
+      assert.equal(response.headers.get("Retry-After"), "2");
+      assert.equal((await response.json()).code, "BILLING_BUSY");
+      assert.notEqual(rows(billingEvents)[0].status, "processed");
+    } finally { release(); await held; }
+    assert.equal((await webhookRoute.POST(request())).status, 200);
+    assert.equal((await webhookRoute.POST(request())).status, 200);
+    assert.equal(rows(billingEvents)[0].status, "processed");
+    assert.equal(rows(billingPayments).length, 1);
+    assert.equal(rows(billingGrants).length, 1);
+  });
+}
+test("webhook binding conflicts are not disguised as retryable lock contention", async t => {
+  const { state, paid } = fixture(t);
+  await paid();
+  state.getOverrides = { quantity: "2" };
+  const logs = [];
+  t.mock.method(console, "error", (...args) => logs.push(args));
+  const headers = Object.fromEntries(["auth-algo", "cert-url", "transmission-id", "transmission-sig", "transmission-time"].map(key => [`paypal-${key}`, "offline"]));
+  const response = await webhookRoute.POST(new Request("https://app.example.test/api/billing/webhook", {
+    method: "POST", headers,
+    body: JSON.stringify({ id: "WH-MISMATCH", event_type: "BILLING.SUBSCRIPTION.ACTIVATED", resource: { id: "I-SUB001" } }),
+  }));
+  assert.equal(response.status, 409);
+  assert.equal(response.headers.get("Retry-After"), null);
+  assert.equal((await response.json()).code, undefined);
+  assert.match(logs[0][1].reason, /does not match its workspace purchase authorization/);
 });
 test("durable webhook inbox retries failures and deduplicates successfully reconciled events", async t => {
   const { rows, state, paid, calls } = fixture(t);

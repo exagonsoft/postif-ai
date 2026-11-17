@@ -4,7 +4,7 @@ import { socialAccounts, socialCredentials, workspaces, type SocialAccountsDocum
 import { socialEngagementSnapshots, socialLifecycleStatuses } from "@/db/social-lifecycle-schema";
 import { decryptSecret, encryptSecret } from "./crypto";
 import { customerCredentials, SocialProviderError, type CustomerCredentials } from "./social-provider";
-import { exchangeSocialToken, providerJson } from "./social-oauth-provider";
+import { exchangeSocialToken, providerJson, resolveSocialOAuthClient } from "./social-oauth-provider";
 import { assertBrandEntitlement, getWorkspaceEntitlements } from "./entitlements";
 import { WorkflowError } from "./post-policy";
 import type { SocialPlatform } from "./social-adapters";
@@ -36,6 +36,7 @@ async function renew(account: SocialAccountsDocument, deadline: number) {
   });
   if (account.status === "connected" && !(await eligible(account))) throw new SocialProviderError("This channel is outside your plan's oldest connected-channel allowance.", 403);
   const { stored, credentials } = await credentialsFor(account);
+  if (credentials.oauthMode === "managed") resolveSocialOAuthClient(account.platform as SocialPlatform, credentials);
   let updated: CustomerCredentials;
   if (account.platform === "instagram" || account.platform === "threads") {
     if (credentials.tokenKind !== "long_lived" || !credentials.expiresAt || Date.parse(credentials.expiresAt) <= Date.now()) throw new SocialProviderError("Only unexpired, explicitly declared long-lived tokens can renew. Replace or exchange this token with your own provider app.", 422);
@@ -103,6 +104,10 @@ async function run(kind: "renew" | "analytics", options: Options): Promise<Resul
           }
           await assertBrandEntitlement(account.workspaceId, account.brandId);
           const { stored, credentials } = await credentialsFor(account);
+          if (credentials.analyticsEnabled === false) {
+            await saveStatus(account, { analyticsStatus: "paused", analyticsMessage: "Analytics was not authorized for this connection.", syncAfter: new Date(Date.now() + 3600000) });
+            result.skipped++; return true;
+          }
           const data = await readSocialAnalytics(account.platform as SocialPlatform, credentials, deadline);
           const day = new Date().toISOString().slice(0, 10);
           const snapshotKey = `${account.workspaceId}:${account.id}:${day}`;

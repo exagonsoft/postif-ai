@@ -2,6 +2,7 @@
 import { useAppLanguage } from "@/i18n/provider";
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import { ConfirmDialog } from "./ConfirmDialog";
 export interface PostMedia { id: number; title: string; assetType: string; url: string; generationStatus: string; generationError?: string | null }
 
 export function MediaPreview({ asset }: { asset: PostMedia }) {
@@ -29,6 +30,7 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
   const [ratio, setRatio] = useState("16:9");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<PostMedia | null>(null);
   const refresh = useCallback(async () => {
     const response = await fetch("/api/media");
     if (!response.ok) throw new Error(t("customer.text.534"));
@@ -87,7 +89,6 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
     finally { setBusy(false); }
   }
   async function deleteAsset(asset: PostMedia) {
-    if (!window.confirm(t("customer.deleteMedia", { title: asset.title }))) return;
     setBusy(true); setMessage("");
     try {
       const response = await fetch("/api/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", assetId: asset.id }) });
@@ -99,6 +100,15 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
     finally { setBusy(false); }
   }
   return <section className="surface-card space-y-4 rounded-3xl p-6">
+    <ConfirmDialog open={pendingDelete !== null} title={t("dialog.deleteMediaTitle")}
+      description={pendingDelete ? t("customer.deleteMedia", { title: pendingDelete.title }) : ""}
+      confirmLabel={t("dialog.delete")} cancelLabel={t("dialog.cancel")} destructive
+      onCancel={() => setPendingDelete(null)} onConfirm={() => {
+        if (!pendingDelete) return;
+        const asset = pendingDelete;
+        setPendingDelete(null);
+        void deleteAsset(asset);
+      }} />
     <h3 className="font-bold">{t("customer.text.548")}</h3>
     <label className="block text-sm">{t("customer.text.549")}
       <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" disabled={busy || selected.length >= 10} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} className="mt-2 block w-full text-xs" />
@@ -114,7 +124,7 @@ export function PostMediaPicker({ topic = "", selected, onChange, onAssets, libr
     <div className="grid max-h-96 gap-3 overflow-y-auto sm:grid-cols-2">{assets.map(asset => <div key={asset.id} className={`rounded-xl border p-3 ${selected.includes(asset.id) ? "border-violet-500" : "border-[var(--border-subtle)]"}`}>
       <MediaPreview asset={asset} />
       <label className="mt-2 block text-xs">{!libraryOnly && <input type="checkbox" className="mr-2" disabled={asset.generationStatus !== "ready" || (!selected.includes(asset.id) && selected.length >= 10)} checked={selected.includes(asset.id)} onChange={() => onChange(selected.includes(asset.id) ? selected.filter(id => id !== asset.id) : [...selected, asset.id])} />}{asset.title}</label>
-      {libraryOnly && canDelete && <button type="button" disabled={busy || ["queued", "processing"].includes(asset.generationStatus)} onClick={() => void deleteAsset(asset)} className="mt-2 text-xs font-bold text-rose-400 disabled:opacity-50">{asset.generationStatus === "deleting" ? t("customer.text.560") : t("customer.text.561")}</button>}
+      {libraryOnly && canDelete && <button type="button" disabled={busy || ["queued", "processing"].includes(asset.generationStatus)} onClick={() => setPendingDelete(asset)} className="mt-2 text-xs font-bold text-rose-400 disabled:opacity-50">{asset.generationStatus === "deleting" ? t("customer.text.560") : t("customer.text.561")}</button>}
     </div>)}</div>
   </section>;
 }

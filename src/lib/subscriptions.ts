@@ -1,17 +1,25 @@
 import { db } from "@/db";
 import { workspaces } from "@/db/schema";
-import { billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals, type BillingIntent, type BillingPayment } from "@/db/billing-schema";
-import { allowanceWindow, paidTransactionWindow } from "./billing-policy";
+import { billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals, billingCreditLots, type BillingIntent, type BillingPayment } from "@/db/billing-schema";
+import { allowanceWindow, paidTransactionWindow, replacementCreditAmount } from "./billing-policy";
+import { permanentCredits } from "./ai-credit-wallet";
 import { getPurchasablePlan } from "./billing-catalog";
 import { BillingBusyError, BillingError, DEFAULT_PAYPAL_PAYMENT_POLICY, billingReturnUrl, catalogAmount, getBillingReadiness, getPayPalDispute, getPayPalEnvironment, getPayPalPaymentPolicy, getPayPalPlan, moneyCents, paypalRequest, providerId, requireBilling, trustedPayPalUrl, verifyPayPalPlan, type BillingInterval, type PayPalEvent, type PayPalSubscription, type PayPalTransaction } from "./paypal";
 
 type Connection = typeof db;
 const approved = new Set(["APPROVED", "ACTIVE", "SUSPENDED", "CANCELLED", "EXPIRED"]);
 const canceled = new Set(["CANCELLED", "EXPIRED"]);
-async function locked<T>(workspaceId: number, operation: () => Promise<T>) {
-  const result = await db.withLease(`billing:${workspaceId}`, async () => ({ value: await operation() }), null);
-  if (!result) throw new BillingBusyError();
-  return result.value;
+async function leaseWithRetry<T>(key: string, operation: () => Promise<T>, lockDeadline = Date.now()) {
+  for (;;) {
+    const result = await db.withLease(key, async () => ({ value: await operation() }), null);
+    if (result) return result.value;
+    const remaining = lockDeadline - Date.now();
+    if (remaining <= 0) throw new BillingBusyError();
+    await new Promise(resolve => setTimeout(resolve, Math.min(250, remaining)));
+  }
+}
+async function locked<T>(workspaceId: number, operation: () => Promise<T>, lockDeadline?: number) {
+  return leaseWithRetry(`billing:${workspaceId}`, operation, lockDeadline);
 }
 export async function getCreditEpoch(workspaceId: number, connection: Connection = db) {
   const [record] = await connection.find(billingSubscriptions, { workspaceId }, connection === db ? {} : { lock: true });
@@ -38,7 +46,7 @@ async function stopRenewal(id: string, deadline?: number) {
   if (!canceled.has(stopped.status)) throw new BillingError("PayPal cancellation is awaiting reconciliation.", 409);
   return stopped;
 }
-async function checkoutLocked(workspaceId: number, planSlug: string, interval: BillingInterval, expectedVersionId?: number) {
+async function checkoutLocked(workspaceId: number, planSlug: string, interval: BillingInterval, expectedVersionId?: number, replacePaid = false) {
   const environment = getPayPalEnvironment();
   let [record] = await db.upsert(billingSubscriptions, "workspaceId", { workspaceId, environment }, {});
   if (record.environment !== environment && record.paypalSubscriptionId) throw new BillingError("Cancel the subscription in its original PayPal environment before changing environments.", 409);
@@ -53,7 +61,25 @@ async function checkoutLocked(workspaceId: number, planSlug: string, interval: B
   verifyPayPalPlan(providerPlan, mapping.definition, interval, mapping.paypalProductId, false, mapping.paymentPolicy);
   const paymentPolicy = getPayPalPaymentPolicy(providerPlan);
   const paid = record.environment === environment && record.paidThrough && record.paidThrough > new Date();
-  if (paid) throw new BillingError("Use a same-product plan change, or cancel and wait for paid access to expire before purchasing another product.", 409);
+  let replacementPaymentKey: string | undefined;
+  if (paid) {
+    if (!replacePaid || record.status !== "CANCELLED" || !record.paypalSubscriptionId || !record.latestPaymentId) throw new BillingError("Existing paid access remains active. Confirm replacement of a cancelled subscription before purchasing another plan.", 409);
+    const [previousIntent] = await db.find(billingIntents, { workspaceId, paypalSubscriptionId: record.paypalSubscriptionId, environment });
+    const [payment] = await db.find(billingPayments, { workspaceId, paymentKey: record.latestPaymentId, environment });
+    const [reversal] = await db.find(billingReversals, { paymentKey: record.latestPaymentId });
+    if (!previousIntent || !payment || reversal || payment.invalidatedAt || payment.currency !== "USD" ||
+      payment.paypalSubscriptionId !== record.paypalSubscriptionId || payment.periodEnd.getTime() !== record.paidThrough!.getTime() ||
+      payment.periodStart > new Date() || payment.amountPaid !== catalogAmount(payment.planSnapshot, payment.interval)) {
+      throw new BillingError("The previous payment requires reconciliation before replacing the plan.", 409);
+    }
+    const remote = await subscription(record.paypalSubscriptionId);
+    checkBinding(previousIntent, remote);
+    if (remote.status !== "CANCELLED") throw new BillingError("The previous PayPal subscription must be cancelled before replacement.", 409);
+    if (remote.billing_info?.last_payment?.time && (!record.latestPaymentTime || new Date(remote.billing_info.last_payment.time) > record.latestPaymentTime)) {
+      throw new BillingError("The previous PayPal payment requires reconciliation before replacement.", 409);
+    }
+    replacementPaymentKey = payment.paymentKey;
+  }
   if (record.paypalSubscriptionId) {
     const stopped = await stopRenewal(record.paypalSubscriptionId);
     const lastPayment = stopped.billing_info?.last_payment?.time;
@@ -66,8 +92,11 @@ async function checkoutLocked(workspaceId: number, planSlug: string, interval: B
     const [created] = await tx.insert(billingIntents, {
       workspaceId, environment, requestKey: crypto.randomUUID(), bindingKey: crypto.randomUUID(),
       planVersionId: mapping.versionId, planSnapshot: { ...mapping.definition, catalogVersionId: mapping.versionId }, paypalPlanId: mapping.paypalPlanId,
-      paypalProductId: mapping.paypalProductId, paymentPolicy, interval, expectedStart: paid ? record.paidThrough : null,
+      paypalProductId: mapping.paypalProductId, paymentPolicy, interval, expectedStart: null, replacementPaymentKey,
       replacesSubscriptionId: record.paypalSubscriptionId,
+    });
+    if (replacementPaymentKey) await tx.insert(billingCreditLots, {
+      workspaceId, key: `carry-intent:${created.id}`, paymentKey: null, carriedEpoch: record.creditEpoch, remaining: 0, held: true,
     });
     [record] = await tx.update(billingSubscriptions, { workspaceId }, {
       environment, pendingIntentId: created.id, pendingPlanSlug: planSlug,
@@ -100,7 +129,7 @@ async function issueApproval(intent: BillingIntent) {
   await db.update(billingIntents, { id: intent.id }, { paypalSubscriptionId: remote.id, approvalUrl: url, state: "approval_pending", updatedAt: new Date() });
   return url;
 }
-export async function createBillingCheckout(workspaceId: number, planSlug: string, interval: BillingInterval, expectedVersionId?: number) {
+export async function createBillingCheckout(workspaceId: number, planSlug: string, interval: BillingInterval, expectedVersionId?: number, replacePaid = false) {
   if (planSlug === "free") throw new BillingError("Free does not require PayPal checkout. Select Free to withdraw a pending purchase or stop renewals.", 400);
   requireBilling();
   const [current] = await db.find(billingSubscriptions, { workspaceId });
@@ -108,7 +137,7 @@ export async function createBillingCheckout(workspaceId: number, planSlug: strin
     (!current.paidThrough || current.paidThrough <= new Date())) {
     await reconcilePayPalSubscription(current.paypalSubscriptionId);
   }
-  return locked(workspaceId, () => checkoutLocked(workspaceId, planSlug, interval, expectedVersionId));
+  return locked(workspaceId, () => checkoutLocked(workspaceId, planSlug, interval, expectedVersionId, replacePaid));
 }
 export async function changeBillingSubscription(workspaceId: number, planSlug: string, interval: BillingInterval, expectedVersionId?: number) {
   if (planSlug !== "free") requireBilling();
@@ -119,6 +148,7 @@ export async function changeBillingSubscription(workspaceId: number, planSlug: s
     }) : [];
     if (planSlug === "free" && record?.pendingIntentId && !pending) throw new BillingError("Subscription purchase authorization is missing.", 409);
     const paid = !!record?.paidThrough && record.paidThrough > new Date();
+    if (planSlug === "free" && pending?.replacementPaymentKey) throw new BillingError("Complete the pending replacement before changing this subscription.", 409);
     const unpaidCheckout = pending && !pending.pendingRevision && ["creating", "approval_pending"].includes(pending.state);
     if (planSlug === "free" && !paid && (unpaidCheckout || !record?.paypalSubscriptionId || ["inactive", "APPROVAL_PENDING"].includes(record.status))) {
       if (record && record.environment !== getPayPalEnvironment() && (record.paypalSubscriptionId || record.pendingIntentId)) {
@@ -143,7 +173,8 @@ export async function changeBillingSubscription(workspaceId: number, planSlug: s
           creditEpoch: `expired:${record.paidThrough?.toISOString() || "never"}`,
           pendingIntentId: null, pendingPlanSlug: null, pendingInterval: null, pendingEffectiveAt: null, updatedAt: new Date(),
         });
-        await tx.update(workspaces, { id: workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: 0, aiCreditsMonthlyAllowance: 0 });
+        const { total } = await permanentCredits(tx, workspaceId);
+        await tx.update(workspaces, { id: workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: total, aiCreditsMonthlyAllowance: 0 });
       });
       return { message: record?.pendingIntentId ? "Pending checkout withdrawn. You remain on Free BYOK; no PayPal approval is required." : "You are on Free BYOK. No PayPal subscription or approval is required." };
     }
@@ -225,11 +256,16 @@ async function grantAllowance(tx: Connection, payment: BillingPayment, now: Date
   if (!window || !record?.paidThrough || record.paidThrough <= now ||
     record.paypalSubscriptionId !== payment.paypalSubscriptionId || record.environment !== payment.environment ||
     (record.allowancePeriod && record.allowancePeriod >= window.start)) return false;
-  const grantKey = `${payment.workspaceId}:${window.start.toISOString()}`;
+  const grantKey = `${payment.workspaceId}:${window.start.toISOString()}:${payment.paymentKey}`;
   if ((await tx.find(billingGrants, { grantKey })).length) return false;
   await tx.insert(billingGrants, { grantKey, workspaceId: payment.workspaceId, paymentKey: payment.paymentKey,
     periodStart: window.start, periodEnd: window.end, credits: payment.planSnapshot.includedMonthlyCredits });
-  await tx.update(workspaces, { id: payment.workspaceId }, { aiCreditsBalance: payment.planSnapshot.includedMonthlyCredits, aiCreditsMonthlyAllowance: payment.planSnapshot.includedMonthlyCredits });
+  const { total } = await permanentCredits(tx, payment.workspaceId);
+  if (!Number.isSafeInteger(total + payment.planSnapshot.includedMonthlyCredits)) throw new BillingError("AI credit balance requires reconciliation.", 409);
+  await tx.update(workspaces, { id: payment.workspaceId }, { aiCreditsBalance: total + payment.planSnapshot.includedMonthlyCredits, aiCreditsMonthlyAllowance: payment.planSnapshot.includedMonthlyCredits });
+  if (record.pendingIntentId) await tx.update(billingCreditLots, {
+    workspaceId: payment.workspaceId, key: `carry-intent:${record.pendingIntentId}`, held: true, revokedAt: null,
+  }, { carriedEpoch: grantKey });
   await tx.update(billingSubscriptions, { workspaceId: payment.workspaceId }, { allowancePeriod: window.start, creditEpoch: grantKey, updatedAt: now });
   return true;
 }
@@ -257,13 +293,25 @@ export async function invalidatePayPalPayment(transactionId: string, reason: str
   await db.transaction(async tx => {
     const [record] = await tx.find(billingSubscriptions, { workspaceId: payment.workspaceId }, { lock: true });
     await tx.update(billingPayments, { paymentKey }, { invalidatedAt: new Date(), invalidationReason: reason });
+    const [workspace] = await tx.find(workspaces, { id: payment.workspaceId }, { lock: true });
+    if (!workspace) throw new BillingError("Workspace no longer exists.", 409);
+    const lots = await tx.find(billingCreditLots, { workspaceId: payment.workspaceId, paymentKey, revokedAt: null });
+    const revoked = lots.reduce((sum, lot) => sum + lot.remaining, 0);
+    if (!Number.isSafeInteger(revoked) || revoked < 0 || revoked > workspace.aiCreditsBalance) throw new BillingError("AI credit reversal requires reconciliation.", 409);
+    for (const lot of lots) await tx.update(billingCreditLots, { id: lot.id, revokedAt: null }, { remaining: 0, revokedAt: new Date() });
+    if (revoked) await tx.update(workspaces, { id: payment.workspaceId }, { aiCreditsBalance: workspace.aiCreditsBalance - revoked });
     if (record?.latestPaymentId === paymentKey) {
+      const [pending] = record.pendingIntentId ? await tx.find(billingIntents, { id: record.pendingIntentId, workspaceId: payment.workspaceId }) : [];
+      if (pending?.replacementPaymentKey === paymentKey) await tx.update(billingCreditLots, {
+        workspaceId: payment.workspaceId, key: `carry-intent:${pending.id}`, held: true,
+      }, { remaining: 0, revokedAt: new Date() });
       await tx.update(billingSubscriptions, { workspaceId: payment.workspaceId }, { paidThrough: null, planSnapshot: null, creditEpoch: `reversal:${paymentKey}`, updatedAt: new Date() });
-      await tx.update(workspaces, { id: payment.workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: 0, aiCreditsMonthlyAllowance: 0 });
+      const { total } = await permanentCredits(tx, payment.workspaceId);
+      await tx.update(workspaces, { id: payment.workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: total, aiCreditsMonthlyAllowance: 0 });
     }
   });
 }
-export async function reconcilePayPalSubscription(id: string, deadline?: number) {
+export async function reconcilePayPalSubscription(id: string, deadline?: number, lockDeadline?: number) {
   const initial = await subscription(id, deadline);
   if (typeof initial.custom_id !== "string") throw new BillingError("PayPal subscription has no purchase binding.");
   const [authorization] = await db.find(billingIntents, { bindingKey: initial.custom_id, environment: getPayPalEnvironment() });
@@ -271,6 +319,7 @@ export async function reconcilePayPalSubscription(id: string, deadline?: number)
   return locked(authorization.workspaceId, async () => {
     const [intent] = await db.find(billingIntents, { id: authorization.id });
     if (!intent) throw new BillingError("PayPal purchase authorization disappeared.", 409);
+    if (intent.state === "replaced") return false;
     const remote = await subscription(id, deadline);
     checkBinding(intent, remote);
     if (intent.state === "abandoned") {
@@ -332,7 +381,7 @@ export async function reconcilePayPalSubscription(id: string, deadline?: number)
       if (!record || record.environment !== intent.environment) throw new BillingError("Workspace PayPal environment does not match.", 409);
       if (record.paypalSubscriptionId && record.paypalSubscriptionId !== remote.id &&
         (!Number.isFinite(new Date(remote.start_time).getTime()) ||
-          (record.paidThrough && new Date(remote.start_time) < record.paidThrough))) throw new BillingError("Replacement cannot overlap a paid subscription.", 409);
+          (record.paidThrough && new Date(remote.start_time) < record.paidThrough && !intent.replacementPaymentKey))) throw new BillingError("Replacement cannot overlap a paid subscription.", 409);
       if (!record.paypalSubscriptionId || record.paypalSubscriptionId === remote.id) {
         await tx.update(billingSubscriptions, { workspaceId: intent.workspaceId }, { paypalSubscriptionId: remote.id,
           paypalPayerId: remote.subscriber?.payer_id || null, status: remote.status, cancelAtPeriodEnd: canceled.has(remote.status), updatedAt: new Date() });
@@ -342,6 +391,37 @@ export async function reconcilePayPalSubscription(id: string, deadline?: number)
       const latest = evidence.filter(item => item.periodStart <= now && now < item.periodEnd).sort((a, b) => b.paymentTime.getTime() - a.paymentTime.getTime())[0];
       if (!latest) return false;
       const [saved] = await tx.find(billingPayments, { paymentKey: latest.paymentKey });
+      if (intent.replacementPaymentKey && record.paypalSubscriptionId !== remote.id) {
+        const [old] = await tx.find(billingPayments, { paymentKey: intent.replacementPaymentKey, workspaceId: intent.workspaceId, environment: intent.environment });
+        const [oldReversal] = await tx.find(billingReversals, { paymentKey: intent.replacementPaymentKey });
+        const [newReversal] = await tx.find(billingReversals, { paymentKey: saved.paymentKey });
+        if (saved.invalidatedAt || newReversal) return false;
+        if (!old ||
+          old.paypalSubscriptionId !== record.paypalSubscriptionId || intent.replacesSubscriptionId !== record.paypalSubscriptionId ||
+          record.latestPaymentId !== old.paymentKey || record.status !== "CANCELLED" || old.currency !== "USD" ||
+          (!old.invalidatedAt && !oldReversal && (!record.paidThrough || old.periodEnd.getTime() !== record.paidThrough.getTime())) ||
+          saved.paymentTime < old.periodStart || saved.paymentTime > now) {
+          throw new BillingError("Replacement payment requires reconciliation before activation.", 409);
+        }
+        const [workspace] = await tx.find(workspaces, { id: intent.workspaceId }, { lock: true });
+        if (!workspace) throw new BillingError("Workspace no longer exists.", 409);
+        const { total } = await permanentCredits(tx, intent.workspaceId);
+        const carried = workspace.aiCreditsBalance - total;
+        const compensation = old.invalidatedAt || oldReversal ? 0 : replacementCreditAmount(old.amountPaid, old.periodStart, old.periodEnd, saved.paymentTime);
+        const [held] = await tx.find(billingCreditLots, { workspaceId: intent.workspaceId, key: `carry-intent:${intent.id}`, revokedAt: null });
+        const heldCredits = held?.held ? held.remaining : 0;
+        if (!Number.isSafeInteger(carried) || carried < 0 || !Number.isSafeInteger(heldCredits) || heldCredits < 0 ||
+          !Number.isSafeInteger(workspace.aiCreditsBalance + heldCredits + compensation)) throw new BillingError("AI credit balance requires reconciliation.", 409);
+        if (held) {
+          await tx.update(billingCreditLots, { id: held.id }, { held: false, remaining: heldCredits + carried });
+        } else if (!old.invalidatedAt && !oldReversal) {
+          await tx.insert(billingCreditLots, { workspaceId: intent.workspaceId, key: `carry:${saved.paymentKey}`, paymentKey: null, carriedEpoch: record.creditEpoch, remaining: carried });
+        }
+        if (compensation) await tx.insert(billingCreditLots, { workspaceId: intent.workspaceId, key: `compensation:${saved.paymentKey}`, paymentKey: old.paymentKey, remaining: compensation });
+        await tx.update(workspaces, { id: intent.workspaceId }, { aiCreditsBalance: workspace.aiCreditsBalance + heldCredits + compensation });
+        await tx.update(billingSubscriptions, { workspaceId: intent.workspaceId }, { allowancePeriod: null });
+        await tx.update(billingIntents, { workspaceId: intent.workspaceId, paypalSubscriptionId: old.paypalSubscriptionId }, { state: "replaced", updatedAt: now });
+      }
       const granted = await applyPaidPeriod(tx, saved, now);
       if (!saved.invalidatedAt && !(await tx.find(billingReversals, { paymentKey: saved.paymentKey })).length) {
         if (revision) await tx.update(billingIntents, { id: intent.id }, { planVersionId: revision.versionId, planSnapshot: revision.definition,
@@ -354,7 +434,7 @@ export async function reconcilePayPalSubscription(id: string, deadline?: number)
       }
       return granted;
     });
-  });
+  }, lockDeadline);
 }
 export async function refreshSubscriptionAllowances(options: { now?: Date; limit?: number; deadline?: number; reconcile?: boolean } = {}) {
   const now = options.now || new Date(), limit = Math.max(1, Math.min(options.limit || 100, 500));
@@ -376,7 +456,19 @@ export async function refreshSubscriptionAllowances(options: { now?: Date; limit
         paypalSubscriptionId: current?.paypalSubscriptionId, periodStart: { $lte: now }, periodEnd: { $gt: now }, invalidatedAt: null }, { limit: 1, sort: { paymentTime: -1 } });
       if (payment) return await applyPaidPeriod(tx, payment, now) ? "granted" : undefined;
       if (!current?.paidThrough || current.paidThrough <= now) {
-        await tx.update(workspaces, { id: record.workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: 0, aiCreditsMonthlyAllowance: 0 });
+        const [workspace] = await tx.find(workspaces, { id: record.workspaceId }, { lock: true });
+        if (!workspace) throw new BillingError("Workspace no longer exists.", 409);
+        const { total } = await permanentCredits(tx, record.workspaceId);
+        const [pending] = current?.pendingIntentId ? await tx.find(billingIntents, { id: current.pendingIntentId, workspaceId: record.workspaceId }) : [];
+        if (current?.paidThrough && current.creditEpoch !== `expired:${current.paidThrough.toISOString()}` && pending?.replacementPaymentKey) {
+          const [held] = await tx.find(billingCreditLots, { workspaceId: record.workspaceId, key: `carry-intent:${pending.id}`, held: true, revokedAt: null });
+          if (held) {
+            const remaining = workspace.aiCreditsBalance - total;
+            if (!Number.isSafeInteger(remaining) || remaining < 0 || !Number.isSafeInteger(held.remaining + remaining)) throw new BillingError("AI credit balance requires reconciliation.", 409);
+            await tx.update(billingCreditLots, { id: held.id }, { remaining: held.remaining + remaining, carriedEpoch: current.creditEpoch });
+          }
+        }
+        await tx.update(workspaces, { id: record.workspaceId }, { planSlug: "free", aiBillingMode: "byok", aiCreditsBalance: total, aiCreditsMonthlyAllowance: 0 });
         await tx.update(billingSubscriptions, { workspaceId: record.workspaceId }, { creditEpoch: `expired:${current?.paidThrough?.toISOString() || "never"}`, updatedAt: now });
         return current?.planSlug !== "free" ? "expired" : undefined;
       }
@@ -387,10 +479,11 @@ export async function refreshSubscriptionAllowances(options: { now?: Date; limit
   }
   return { scanned: records.length, granted, expired, failed };
 }
-export async function processBillingEvent(event: PayPalEvent) {
+export async function processBillingEvent(event: PayPalEvent, options: { lockDeadline?: number } = {}) {
   const eventKey = `${getPayPalEnvironment()}:${event.id}`;
+  const lockDeadline = options.lockDeadline ?? Date.now() + 12000;
   await db.insert(billingEvents, { eventKey, type: event.event_type }, { ignoreDuplicates: true });
-  const handled = await db.withLease(`billing-event:${eventKey}`, async () => {
+  await leaseWithRetry(`billing-event:${eventKey}`, async () => {
     const [inbox] = await db.find(billingEvents, { eventKey });
     if (inbox.status === "processed") return true;
     await db.update(billingEvents, { eventKey }, { status: "processing", attempts: inbox.attempts + 1 });
@@ -413,16 +506,15 @@ export async function processBillingEvent(event: PayPalEvent) {
             await invalidatePayPalPayment(transactionId, "dispute_lost");
           }
           const [payment] = await db.find(billingPayments, { paymentKey: `${getPayPalEnvironment()}:${providerId(transactionId)}` });
-          if (payment) await reconcilePayPalSubscription(payment.paypalSubscriptionId);
+          if (payment) await reconcilePayPalSubscription(payment.paypalSubscriptionId, undefined, lockDeadline);
         }
       }
       const id = event.event_type.startsWith("BILLING.SUBSCRIPTION.") ? resource.id : resource.billing_agreement_id;
-      if (typeof id === "string") await reconcilePayPalSubscription(id);
+      if (typeof id === "string") await reconcilePayPalSubscription(id, undefined, lockDeadline);
       await db.update(billingEvents, { eventKey }, { status: "processed", processedAt: new Date() });
       return true;
     } catch (error) { await db.update(billingEvents, { eventKey }, { status: "failed" }); throw error; }
-  }, false);
-  if (!handled) throw new BillingBusyError("PayPal webhook processing is in progress. Retry delivery.", 503);
+  }, lockDeadline);
 }
 
 export async function getPaidSubscriptionMrr() {

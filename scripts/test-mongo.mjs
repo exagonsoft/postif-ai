@@ -72,6 +72,42 @@ try {
   await assert.rejects(db.transaction(async tx=>{await tx.insert(schema.workspaces,{name:"Rolled back",slug:"rollback",ownerId:user.id});throw new Error("rollback");}), /rollback/);
   assert.equal((await db.find(schema.workspaces,{slug:"rollback"})).length,0);
   const [workspace]=await db.insert(schema.workspaces,{name:"Concurrent",slug:"concurrent",ownerId:user.id,aiCreditsBalance:100});
+  const { billingCreditLots, billingPayments } = await import("../src/db/billing-schema.ts");
+  const { reserveCredits, restoreCredits } = await import("../src/lib/ai-credit-wallet.ts");
+  const { invalidatePayPalPayment } = await import("../src/lib/subscriptions.ts");
+  const { getPlanDefinition } = await import("../src/lib/plans.ts");
+  const [wallet] = await db.insert(schema.workspaces, { name: "Credit wallet", slug: "credit-wallet", ownerId: user.id, aiCreditsBalance: 12 });
+  await db.insert(billingPayments, {
+    workspaceId: wallet.id, paymentKey: "sandbox:SALE-WALLET", paypalTransactionId: "SALE-WALLET", environment: "sandbox",
+    paypalSubscriptionId: "I-WALLET", planVersionId: 1, planSlug: "starter_ai", planSnapshot: getPlanDefinition("starter_ai"),
+    interval: "month", currency: "USD", periodStart: new Date("2026-01-01"), periodEnd: new Date("2026-02-01"),
+    paymentTime: new Date("2026-01-01"), amountPaid: 1900,
+  });
+  const [compensation] = await db.insert(billingCreditLots, { workspaceId: wallet.id, key: "wallet-compensation", paymentKey: "sandbox:SALE-WALLET", remaining: 10 });
+  await db.insert(billingCreditLots, { workspaceId: wallet.id, key: "wallet-carry", paymentKey: null, carriedEpoch: "old-epoch", remaining: 0 });
+  const allocations = await db.transaction(async tx => {
+    const [current] = await tx.find(schema.workspaces, { id: wallet.id }, { lock: true });
+    return reserveCredits(tx, current, 8);
+  });
+  assert.deepEqual(allocations, [{ lotId: compensation.id, credits: 6 }]);
+  await invalidatePayPalPayment("SALE-WALLET", "refund");
+  await invalidatePayPalPayment("SALE-WALLET", "refund");
+  await db.transaction(async tx => {
+    const [current] = await tx.find(schema.workspaces, { id: wallet.id }, { lock: true });
+    assert.equal(await restoreCredits(tx, current, 8, allocations, "old-epoch", "new-epoch"), 2);
+  });
+  assert.equal((await db.find(schema.workspaces, { id: wallet.id }))[0].aiCreditsBalance, 2);
+  assert.equal((await db.find(billingCreditLots, { id: compensation.id }))[0].remaining, 0);
+  assert.equal((await db.find(billingCreditLots, { key: "wallet-carry" }))[0].remaining, 2);
+  const [raceWallet] = await db.insert(schema.workspaces, { name: "Credit race", slug: "credit-race", ownerId: user.id, aiCreditsBalance: 12 });
+  await db.insert(billingCreditLots, { workspaceId: raceWallet.id, key: "wallet-race", paymentKey: null, remaining: 10 });
+  const attempts = await Promise.allSettled(Array.from({ length: 2 }, () => db.transaction(async tx => {
+    const [current] = await tx.find(schema.workspaces, { id: raceWallet.id }, { lock: true });
+    return reserveCredits(tx, current, 8);
+  })));
+  assert.equal(attempts.filter(result => result.status === "fulfilled").length, 1);
+  assert.equal((await db.find(schema.workspaces, { id: raceWallet.id }))[0].aiCreditsBalance, 4);
+  assert.equal((await db.find(billingCreditLots, { key: "wallet-race" }))[0].remaining, 4);
   await assert.rejects(db.update(schema.workspaces, { id: workspace.id }, { ownerId: -1 }), /reference/i);
   await assert.rejects(db.upsert(schema.workspaces, "slug", { slug: workspace.slug }, { ownerId: -1 }), /reference/i);
   assert.equal((await db.find(schema.workspaces, { id: workspace.id }))[0].ownerId, user.id);
@@ -109,6 +145,7 @@ try {
   await assert.rejects((await getMongoDatabase()).collection("posts").insertOne({title:123}),{code:121});
   console.log("MongoDB checks passed: repeatable initialization, defaults, unique indexes, atomic batches/updates, concurrent duplicate-ignore, reference validation, rollback, concurrent credit reservations, numeric IDs, cascade and set-null deletion.");
   await run("scripts/test-entitlements.mjs");
+  await run("scripts/test-billing-replacement-mongo.mjs");
   await run("scripts/test-social-managed-mongo.mjs");
   if (!process.argv.includes("--managed-social")) {
     if (!process.argv.includes("--social") && !process.argv.includes("--social-local")) await run("scripts/test-media-generation.mjs");

@@ -6,6 +6,7 @@ import { useToast } from "./ToastProvider";
 import type { PlanDefinition } from "@/lib/plans";
 import { useAppLanguage } from "@/i18n/provider";
 import { translations } from "@/i18n/config";
+import { ConfirmDialog } from "./ConfirmDialog";
 import {
   KeyRound,
   Cpu,
@@ -56,7 +57,7 @@ export function BillingClient({
   keyValidated: boolean;
   preferredModel: string;
   usageRecords: UsageRow[];
-  subscription: { status: string; paidThrough: string | null; cancelAtPeriodEnd: boolean; hasCustomer: boolean; canChange: boolean; pendingPlanSlug: string | null; pendingInterval: string | null; pendingEffectiveAt: string | null };
+  subscription: { status: string; paidThrough: string | null; cancelAtPeriodEnd: boolean; hasCustomer: boolean; canChange: boolean; pendingPlanSlug: string | null; pendingInterval: string | null; pendingEffectiveAt: string | null; pendingReplacement?: boolean };
   billingReady: boolean;
   billingMissing: string[];
   isOwner: boolean;
@@ -82,8 +83,11 @@ export function BillingClient({
   );
   const [saving, setSaving] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const canWithdrawCheckout = currentPlanSlug === "free" && !!subscription.pendingPlanSlug;
+  const [pendingReplacement, setPendingReplacement] = useState<Pick<PlanDefinition, "slug" | "catalogVersionId"> | null>(null);
+  const canWithdrawCheckout = currentPlanSlug === "free" && !!subscription.pendingPlanSlug && !subscription.pendingReplacement;
   const hasApprovedSubscription = subscription.hasCustomer && !["inactive", "APPROVAL_PENDING"].includes(subscription.status);
+  const cancelledPaid = subscription.status === "CANCELLED" && subscription.hasCustomer && !!subscription.paidThrough && new Date(subscription.paidThrough) > new Date();
+  const canReplacePaid = cancelledPaid;
 
   const handleSaveAIConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +136,7 @@ export function BillingClient({
   };
 
   const handlePlanSwitch = async (plan: Pick<PlanDefinition, "slug" | "catalogVersionId">) => {
+    const replacePaid = plan.slug !== "free" && canReplacePaid;
     const isLocalChange = plan.slug === "free" || subscription.canChange;
     setRedirecting(true);
     try {
@@ -143,6 +148,7 @@ export function BillingClient({
         planSlug: plan.slug,
         catalogVersionId: plan.catalogVersionId,
         billingCycle: cycle,
+        ...(replacePaid ? { replacePaid: true } : {}),
       }),
     });
     const data = await res.json();
@@ -194,6 +200,14 @@ export function BillingClient({
 
   return (
     <div className="space-y-8">
+      <ConfirmDialog open={pendingReplacement !== null} title={t("dialog.replacePlanTitle")} description={t("billing.confirmReplacement")}
+        confirmLabel={t("dialog.continue")} cancelLabel={t("dialog.cancel")}
+        onCancel={() => setPendingReplacement(null)} onConfirm={() => {
+          if (!pendingReplacement) return;
+          const plan = pendingReplacement;
+          setPendingReplacement(null);
+          void handlePlanSwitch(plan);
+        }} />
       <div className="surface-card rounded-3xl p-6 text-sm">
         <p>{t("billing.currentAccess")} <strong>{currentPlanSlug === "free" ? t("billing.free") : currentPlanSlug.replaceAll("_", " ")}</strong>{currentPlanSlug === "free" && t("billing.freeActive")}</p>
         <p>{t("billing.paypalStatus")} <strong>{subscription.status}</strong></p>
@@ -209,7 +223,7 @@ export function BillingClient({
         <p className="mt-2 text-xs text-[var(--text-secondary)]">{t("billing.refundPolicy")}</p>
         {hasApprovedSubscription && <p className="mt-2 text-xs text-[var(--text-secondary)]">{t("billing.revisionPolicy")}</p>}
         {!billingReady && <p className="mt-2 text-amber-400">{t("billing.billingUnavailable")} {billingMissing.length ? t("billing.configurationRequired", { fields: billingMissing.join(", ") }) : t("billing.disabled")}</p>}
-        {hasApprovedSubscription && <button type="button" disabled={!isOwner || redirecting} onClick={openPortal} className="mt-3 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold disabled:opacity-50">{t("billing.managePayments")}</button>}
+        {subscription.status === "ACTIVE" && hasApprovedSubscription && <button type="button" disabled={!isOwner || redirecting} onClick={openPortal} className="mt-3 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold disabled:opacity-50">{t("billing.managePayments")}</button>}
         {subscription.pendingPlanSlug && <button type="button" disabled={!isOwner || redirecting} onClick={refreshSubscription} className="ml-2 mt-3 rounded-xl border px-4 py-2 text-xs font-bold disabled:opacity-50">{t("billing.refresh")}</button>}
         {!isOwner && <p className="mt-2 text-xs">{t("billing.onlyOwner")}</p>}
       </div>
@@ -382,15 +396,15 @@ export function BillingClient({
                 </ul>
                 <button
                   type="button"
-                  disabled={(isCurrent && !canWithdrawFromCard) || !isOwner || redirecting || (plan.slug !== "free" && (!billingReady || !plan.purchasable || (!!subscription.paidThrough && new Date(subscription.paidThrough) > new Date() && !subscription.canChange)))}
-                  onClick={() => handlePlanSwitch(plan)}
+                  disabled={(isCurrent && !canWithdrawFromCard && !canReplacePaid) || !isOwner || redirecting || (plan.slug !== "free" && (!billingReady || !plan.purchasable || (!!subscription.paidThrough && new Date(subscription.paidThrough) > new Date() && !subscription.canChange && !canReplacePaid)))}
+                  onClick={() => plan.slug !== "free" && canReplacePaid ? setPendingReplacement(plan) : void handlePlanSwitch(plan)}
                   className={`mt-5 w-full rounded-xl py-2 text-xs font-bold ${
                     isCurrent
                       ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-violet-600 text-white hover:bg-violet-500"
                   }`}
                 >
-                  {canWithdrawFromCard ? t("billing.withdraw") : isCurrent ? t("billing.currentPlan") : plan.slug === "free" ? t("billing.stopRenewals") : !plan.purchasable ? t("billing.notPublished") : subscription.canChange ? t("billing.changePlan", { name: plan.name, cycle: t(cycle === "annual" ? "common.annual" : "common.monthly") }) : t("billing.checkoutPlan", { name: plan.name })}
+                  {canWithdrawFromCard ? t("billing.withdraw") : isCurrent && !canReplacePaid ? t("billing.currentPlan") : plan.slug === "free" ? t("billing.stopRenewals") : !plan.purchasable ? t("billing.notPublished") : subscription.canChange ? t("billing.changePlan", { name: plan.name, cycle: t(cycle === "annual" ? "common.annual" : "common.monthly") }) : t("billing.checkoutPlan", { name: plan.name })}
                 </button>
               </div>
             );

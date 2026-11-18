@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { db } from "@/db";
 import { aiConfigurations, aiUsageRecords, workspaces, type PlatformVariant } from "@/db/schema";
-import { increment } from "@/db/filters";
 import { decryptSecret } from "./crypto";
 import { AI_OPERATION_COSTS } from "./plans";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatformSpec } from "./social-adapters";
@@ -13,6 +12,7 @@ import { deadlineSignal, hasTime, type WorkerOptions } from "./worker-budget";
 import { getWorkspaceEntitlements } from "./entitlements";
 import { WorkflowError } from "./post-policy";
 import { getCreditEpoch } from "./subscriptions";
+import { reserveCredits, restoreCredits } from "./ai-credit-wallet";
 
 export interface AIExecutionMeta {
   executionSource: "openai_live" | "byok_live";
@@ -78,10 +78,8 @@ async function refundRequest(request: AIRequest, uncertain: boolean, message: st
     const [workspace] = await tx.find(workspaces, { id: current.workspaceId }, { lock: true });
     if (!workspace) return false;
     validCreditBalance(workspace.aiCreditsBalance);
-    const restored = current.creditEpoch === await getCreditEpoch(current.workspaceId, tx) ? current.credits : 0;
-    if (!Number.isSafeInteger(workspace.aiCreditsBalance + restored)) throw new Error("AI credit balance overflow.");
+    const restored = await restoreCredits(tx, workspace, current.credits, current.permanentAllocations, current.creditEpoch, await getCreditEpoch(current.workspaceId, tx));
     if (current.credits) {
-      if (restored) await tx.update(workspaces, { id: current.workspaceId }, { aiCreditsBalance: increment(restored) });
       await tx.insert(aiUsageRecords, { workspaceId: current.workspaceId, userId: current.userId, operation: `${restored ? "Refund" : "Expired reservation closed (no carryover)"}: ${current.operation}`, model: current.model, billingMode: current.billingMode, creditsUsed: -restored, tokensEstimate: 0, executionSource: !restored ? "expired_refund" : uncertain ? "uncertain_refund" : "failed_refund" });
     }
     await tx.update(aiUsageRecords, { id: current.usageRecordId }, { executionSource: uncertain ? "uncertain" : "failed" });
@@ -134,13 +132,13 @@ async function execute<T>(workspaceId: number, userId: number | undefined, opera
     if (!apiKey) throw new Error(mode === "byok" ? "Configure a valid OpenAI key in workspace settings." : "Managed OpenAI is not configured. Use your own API key.");
     const cost = mode === "byok" ? 0 : AI_OPERATION_COSTS[operation]?.credits ?? 8;
     if (workspace.aiCreditsBalance < cost) throw new Error("Insufficient AI credits.");
-    if (cost) await tx.update(workspaces, { id: workspaceId }, { aiCreditsBalance: increment(-cost) });
+    const permanentAllocations = await reserveCredits(tx, workspace, cost);
     const model = configuration?.preferredModel || "gpt-4o-mini";
     const [usage] = await tx.insert(aiUsageRecords, { workspaceId, userId: userId ?? null, operation: AI_OPERATION_COSTS[operation]?.label || operation, model, billingMode: mode, creditsUsed: cost, tokensEstimate: 0, executionSource: "reserved" });
     const [request] = await tx.insert(aiRequests, {
       key, workspaceId, userId: userId ?? null, fingerprint, operation, billingMode: mode as "managed" | "byok",
       model, credentialVersion: credentialVersion(mode, mode === "byok" ? configuration!.encryptedApiKey! : apiKey, model),
-      credits: cost, balance: workspace.aiCreditsBalance - cost, token, usageRecordId: usage.id, creditEpoch: await getCreditEpoch(workspaceId, tx),
+      credits: cost, balance: workspace.aiCreditsBalance - cost, token, usageRecordId: usage.id, creditEpoch: await getCreditEpoch(workspaceId, tx), permanentAllocations,
     });
     return { apiKey, request };
   });

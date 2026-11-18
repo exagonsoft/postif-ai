@@ -36,3 +36,18 @@ export function paidTransactionWindow(anchor: Date, paymentTime: Date, interval:
   }
   return start <= paymentTime && paymentTime < end ? { start, end } : null;
 }
+
+export function replacementCreditAmount(amountCents: number, start: Date, end: Date, replacement: Date) {
+  const from = start.getTime(), until = end.getTime(), at = replacement.getTime();
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0 ||
+    !Number.isSafeInteger(from) || !Number.isSafeInteger(until) || !Number.isSafeInteger(at) || until <= from || at < from ||
+    !Number.isSafeInteger(until - from)) {
+    throw new Error("Paid period requires reconciliation before calculating replacement credits.");
+  }
+  if (at >= until || !amountCents) return 0;
+  const numerator = BigInt(amountCents) * BigInt(30) * BigInt(until - at);
+  const denominator = BigInt(100) * BigInt(until - from);
+  const credits = (numerator + denominator - BigInt(1)) / denominator;
+  if (credits > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Replacement credit amount exceeds the supported limit.");
+  return Number(credits);
+}

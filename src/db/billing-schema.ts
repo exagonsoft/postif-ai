@@ -19,6 +19,7 @@ export interface BillingIntent {
   paymentPolicy?: PayPalPaymentPolicy;
   paypalSubscriptionId: string | null; approvalUrl: string | null;
   replacesSubscriptionId: string | null; expectedStart: Date | null;
+  replacementPaymentKey?: string;
   billingAnchor: Date | null;
   pendingRevision: {
     versionId: number; definition: PlanDefinition; paypalPlanId: string; paypalProductId: string;
@@ -44,6 +45,10 @@ export interface BillingEvent {
 }
 export interface BillingReversal {
   id: number; paymentKey: string; reason: string; createdAt: Date;
+}
+export interface BillingCreditLot {
+  id: number; workspaceId: number; key: string; paymentKey: string | null;
+  carriedEpoch: string | null; remaining: number; held?: boolean; revokedAt: Date | null; createdAt: Date;
 }
 const base = {
   primaryKey: "id", autoId: true, indexes: [],
@@ -83,4 +88,8 @@ export const billingReversals = defineCollection<BillingReversal>("paypal_paymen
   ...base, references: [], unique: ["id", "paymentKey"], defaults: () => ({ createdAt: new Date() }),
   validator: { bsonType: "object", required: ["paymentKey", "reason"] },
 });
-export const billingCollections = [billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals];
+export const billingCreditLots = defineCollection<BillingCreditLot>("paypal_credit_lots", {
+  ...base, unique: ["id", "key"], indexes: [{ workspaceId: 1 }, { paymentKey: 1 }],
+  defaults: () => ({ carriedEpoch: null, revokedAt: null, createdAt: new Date() }), validator,
+});
+export const billingCollections = [billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals, billingCreditLots];

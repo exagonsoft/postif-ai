@@ -5,7 +5,7 @@ import { aiConfigurations, aiUsageRecords } from "@/db/schema";
 import { eq } from "@/db/filters";
 import { getAuthContext } from "@/lib/auth";
 import { BillingClient } from "@/components/BillingClient";
-import { billingSubscriptions } from "@/db/billing-schema";
+import { billingSubscriptions, billingIntents } from "@/db/billing-schema";
 import { getWorkspaceEntitlements } from "@/lib/entitlements";
 import { getBillingReadiness } from "@/lib/paypal";
 import { getCatalogPlans } from "@/lib/billing-catalog";
@@ -24,6 +24,7 @@ export default async function BillingUsagePage() {
         getWorkspaceEntitlements(ctx.workspace.id),
         getCatalogPlans(),
     ]);
+    const [pendingIntent] = subscription?.pendingIntentId ? await db.find(billingIntents, { id: subscription.pendingIntentId, workspaceId: ctx.workspace.id }) : [];
     const readiness = getBillingReadiness();
     const mode = entitlements.plan.allowsConfigurableAiMode ? ctx.workspace.aiBillingMode : entitlements.plan.defaultAiMode;
     return (<div className="space-y-6">
@@ -36,8 +37,8 @@ export default async function BillingUsagePage() {
         </p>
       </div>
 
-      <BillingClient plans={plans} currentPlanSlug={entitlements.plan.slug} currentPlanVersionId={entitlements.plan.catalogVersionId || null} billingCycle={ctx.workspace.billingCycle} aiBillingMode={mode} creditsBalance={entitlements.paid ? ctx.workspace.aiCreditsBalance : 0} creditsAllowance={entitlements.plan.includedMonthlyCredits} keyLast4={aiCfg?.keyLast4 || null} keyValidated={aiCfg?.keyValidated ?? false} preferredModel={aiCfg?.preferredModel || "gpt-4o-mini"}
-        subscription={{ status: subscription?.status || "inactive", paidThrough: subscription?.paidThrough?.toISOString() || null, cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false, hasCustomer: Boolean(subscription?.paypalSubscriptionId), canChange: subscription?.status === "ACTIVE" && entitlements.paid, pendingPlanSlug: subscription?.pendingPlanSlug || null, pendingInterval: subscription?.pendingInterval || null, pendingEffectiveAt: subscription?.pendingEffectiveAt?.toISOString() || null }}
+      <BillingClient plans={plans} currentPlanSlug={entitlements.plan.slug} currentPlanVersionId={entitlements.plan.catalogVersionId || null} billingCycle={ctx.workspace.billingCycle} aiBillingMode={mode} creditsBalance={ctx.workspace.aiCreditsBalance} creditsAllowance={entitlements.plan.includedMonthlyCredits} keyLast4={aiCfg?.keyLast4 || null} keyValidated={aiCfg?.keyValidated ?? false} preferredModel={aiCfg?.preferredModel || "gpt-4o-mini"}
+        subscription={{ status: subscription?.status || "inactive", paidThrough: subscription?.paidThrough?.toISOString() || null, cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd || false, hasCustomer: Boolean(subscription?.paypalSubscriptionId), canChange: subscription?.status === "ACTIVE" && entitlements.paid, pendingPlanSlug: subscription?.pendingPlanSlug || null, pendingInterval: subscription?.pendingInterval || null, pendingEffectiveAt: subscription?.pendingEffectiveAt?.toISOString() || null, pendingReplacement: Boolean(pendingIntent?.replacementPaymentKey) }}
         billingReady={readiness.ready} billingMissing={[...readiness.missing, ...readiness.invalid]}
         isOwner={ctx.memberRole === "owner"} allowsConfigurableAiMode={entitlements.plan.allowsConfigurableAiMode} defaultAiMode={entitlements.plan.defaultAiMode}
         usageRecords={usage.map((u) => ({

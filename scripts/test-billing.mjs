@@ -24,9 +24,9 @@ registerHooks({
   },
 });
 const { db } = await import("../src/db/index.ts");
-const { billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals } = await import("../src/db/billing-schema.ts");
+const { billingSubscriptions, billingIntents, billingPayments, billingGrants, billingEvents, billingReversals, billingCreditLots } = await import("../src/db/billing-schema.ts");
 const { workspaces } = await import("../src/db/schema.ts");
-const { allowanceWindow, billingAnniversary, paidTransactionWindow } = await import("../src/lib/billing-policy.ts");
+const { allowanceWindow, billingAnniversary, paidTransactionWindow, replacementCreditAmount } = await import("../src/lib/billing-policy.ts");
 const { getWorkspaceEntitlements } = await import("../src/lib/entitlements.ts");
 const { getBillingReadiness, validateBillingConfig, verifyPayPalWebhook, verifyPayPalPlan, moneyCents, trustedPayPalUrl, createPayPalPlan, renamePayPalPlan, paypalRequest, checkPayPalCatalogConnection } = await import("../src/lib/paypal.ts");
 const { listPayPalCatalog, readPayPalCatalogPlan } = await import("../src/lib/paypal-catalog.ts");
@@ -172,6 +172,16 @@ test("monthly and annual anniversaries retain their anchor and stop at the paid 
   assert.equal(allowanceWindow(start, end, end), null);
   assert.equal(paidTransactionWindow(start, new Date("2024-03-05"), "month").start.toISOString(), "2024-02-29T12:15:00.000Z");
   assert.equal(paidTransactionWindow(start, new Date("2024-01-01"), "month"), null);
+});
+test("replacement compensation prorates verified cents over the paid period and rounds up", () => {
+  const start = new Date("2026-01-01T00:00:00Z");
+  const end = new Date("2026-01-31T00:00:00Z");
+  assert.equal(replacementCreditAmount(900, start, end, start), 270);
+  assert.equal(replacementCreditAmount(900, start, end, new Date("2026-01-16T00:00:00Z")), 135);
+  assert.equal(replacementCreditAmount(900, start, end, new Date(end.getTime() - 1)), 1);
+  assert.equal(replacementCreditAmount(900, start, end, end), 0);
+  assert.throws(() => replacementCreditAmount(900, start, end, new Date(start.getTime() - 1)), /reconciliation/);
+  assert.throws(() => replacementCreditAmount(-1, start, end, start), /reconciliation/);
 });
 test("paid plans require full USD regular cycles; archived plans may still renew existing contracts", t => {
   const { providerPlan, state } = fixture(t), plan = providerPlan("P-MONTH");
@@ -763,6 +773,92 @@ test("cancellation retains paid access until exact expiry and requires a new pur
   assert.equal(rows(billingSubscriptions)[0].paypalSubscriptionId, "I-NEW001");
   assert.equal(rows(workspaces)[0].aiCreditsBalance, state.mapping.definition.includedMonthlyCredits);
 });
+test("confirmed cancelled-plan replacement activates only after payment and credits unused time once", async t => {
+  const { rows, state, paid } = fixture(t);
+  await paid();
+  await changeBillingSubscription(7, "free", "month");
+  rows(workspaces)[0].aiCreditsBalance = 137;
+  const next = { versionId: 8, definition: structuredClone(getPlanDefinition("pro_ai")), paypalPlanId: "P-NEXT", paypalProductId: "PROD-BBBBBBBBBBBBBBBBB" };
+  globalThis.__paypalCatalog.set("pro_ai:month", next);
+  state.nextSubscriptionId = "I-NEW001";
+  state.nextStart = new Date();
+  await assert.rejects(createBillingCheckout(7, "pro_ai", "month", 8), /paid access/);
+  await createBillingCheckout(7, "pro_ai", "month", 8, true);
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "starter_ai");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137);
+  assert.equal(rows(billingCreditLots)[0].held, true);
+  assert.equal(await reconcilePayPalSubscription("I-NEW001"), false);
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "starter_ai");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137);
+  state.remote.status = "ACTIVE";
+  state.remote.billing_info = { last_payment: { amount: { currency_code: "USD", value: "49.00" }, time: state.nextStart.toISOString() },
+    next_billing_time: billingAnniversary(state.nextStart, 1, "month").toISOString() };
+  state.transactions = [{ id: "SALE_NEW", status: "COMPLETED", time: state.nextStart.toISOString(), amount_with_breakdown: { gross_amount: { currency_code: "USD", value: "49.00" } } }];
+  const compensation = replacementCreditAmount(1900, state.start, state.end, state.nextStart);
+  await reconcilePayPalSubscription("I-NEW001");
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "pro_ai");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137 + compensation + 1000);
+  assert.equal(rows(billingCreditLots).length, 2);
+  await reconcilePayPalSubscription("I-NEW001");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137 + compensation + 1000);
+  await invalidatePayPalPayment("SALE001", "refund");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 1137);
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "pro_ai");
+  await invalidatePayPalPayment("SALE_NEW", "refund");
+  await invalidatePayPalPayment("SALE_NEW", "refund");
+  assert.equal((await getWorkspaceEntitlements(7)).paid, false);
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137);
+});
+test("a verified replacement payment activates after the former period expires without losing carried credits", async t => {
+  const { rows, state, paid } = fixture(t);
+  await paid();
+  await changeBillingSubscription(7, "free", "month");
+  rows(workspaces)[0].aiCreditsBalance = 137;
+  const next = { versionId: 8, definition: structuredClone(getPlanDefinition("pro_ai")), paypalPlanId: "P-NEXT", paypalProductId: "PROD-BBBBBBBBBBBBBBBBB" };
+  globalThis.__paypalCatalog.set("pro_ai:month", next);
+  const paymentTime = new Date(state.end.getTime() - 60000);
+  t.mock.timers.enable({ apis: ["Date"], now: paymentTime.getTime() });
+  state.nextSubscriptionId = "I-NEW001";
+  state.nextStart = paymentTime;
+  await createBillingCheckout(7, "pro_ai", "month", 8, true);
+  state.remote.status = "ACTIVE";
+  state.remote.billing_info = { last_payment: { amount: { currency_code: "USD", value: "49.00" }, time: paymentTime.toISOString() },
+    next_billing_time: billingAnniversary(paymentTime, 1, "month").toISOString() };
+  state.transactions = [{ id: "SALE_NEW", status: "COMPLETED", time: paymentTime.toISOString(), amount_with_breakdown: { gross_amount: { currency_code: "USD", value: "49.00" } } }];
+  t.mock.timers.setTime(state.end.getTime() + 1000);
+  await refreshSubscriptionAllowances({ reconcile: false });
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 0);
+  assert.equal(rows(billingCreditLots)[0].remaining, 137);
+  assert.equal(rows(billingCreditLots)[0].held, true);
+  await reconcilePayPalSubscription("I-NEW001");
+  const compensation = replacementCreditAmount(1900, state.start, state.end, paymentTime);
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "pro_ai");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137 + compensation + 1000);
+  assert.equal(rows(billingCreditLots)[0].held, false);
+  await reconcilePayPalSubscription("I-NEW001");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 137 + compensation + 1000);
+});
+test("a confirmed new payment activates even when the previous payment was refunded during checkout", async t => {
+  const { rows, state, paid } = fixture(t);
+  await paid();
+  await changeBillingSubscription(7, "free", "month");
+  rows(workspaces)[0].aiCreditsBalance = 137;
+  const next = { versionId: 8, definition: structuredClone(getPlanDefinition("pro_ai")), paypalPlanId: "P-NEXT", paypalProductId: "PROD-BBBBBBBBBBBBBBBBB" };
+  globalThis.__paypalCatalog.set("pro_ai:month", next);
+  state.nextSubscriptionId = "I-NEW001";
+  state.nextStart = new Date();
+  await createBillingCheckout(7, "pro_ai", "month", 8, true);
+  await invalidatePayPalPayment("SALE001", "refund");
+  assert.equal((await getWorkspaceEntitlements(7)).paid, false);
+  state.remote.status = "ACTIVE";
+  state.remote.billing_info = { last_payment: { amount: { currency_code: "USD", value: "49.00" }, time: state.nextStart.toISOString() },
+    next_billing_time: billingAnniversary(state.nextStart, 1, "month").toISOString() };
+  state.transactions = [{ id: "SALE_NEW", status: "COMPLETED", time: state.nextStart.toISOString(), amount_with_breakdown: { gross_amount: { currency_code: "USD", value: "49.00" } } }];
+  await reconcilePayPalSubscription("I-NEW001");
+  assert.equal((await getWorkspaceEntitlements(7)).plan.slug, "pro_ai");
+  assert.equal(rows(workspaces)[0].aiCreditsBalance, 1000);
+  assert.equal(rows(billingCreditLots).filter(lot => !lot.revokedAt).length, 0);
+});
 test("a missed paid renewal is reconciled before checkout and cannot create an overlapping purchase", async t => {
   const { rows, state, paid, calls } = fixture(t);
   await paid();
@@ -872,24 +968,40 @@ test("billing reports retryable contention under the actual action without loggi
   } finally { release(); await held; }
 });
 for (const leaseKey of ["billing:7", "billing-event:sandbox:WH-BUSY"]) {
-  test(`webhook contention on ${leaseKey} returns retryable 503 and later processes exactly once`, async t => {
+  test(`webhook waits for ${leaseKey} and processes exactly once`, async t => {
     const { rows, paid } = fixture(t);
     await paid();
-    t.mock.method(console, "warn", () => {});
     const headers = Object.fromEntries(["auth-algo", "cert-url", "transmission-id", "transmission-sig", "transmission-time"].map(key => [`paypal-${key}`, "offline"]));
     const event = { id: "WH-BUSY", event_type: "BILLING.SUBSCRIPTION.ACTIVATED", resource: { id: "I-SUB001" } };
     const request = () => new Request("https://app.example.test/api/billing/webhook", { method: "POST", headers, body: JSON.stringify(event) });
     let release;
     const held = db.withLease(leaseKey, () => new Promise(resolve => { release = resolve; }), null);
+    let response;
     try {
-      const response = await webhookRoute.POST(request());
-      assert.equal(response.status, 503);
-      assert.equal(response.headers.get("Retry-After"), "2");
-      assert.equal((await response.json()).code, "BILLING_BUSY");
+      const waiting = webhookRoute.POST(request());
+      await new Promise(resolve => setTimeout(resolve, 50));
+      assert.notEqual(rows(billingEvents)[0].status, "processed");
+      release();
+      await held;
+      response = await waiting;
+    } finally { release(); await held; }
+    assert.equal(response.status, 200);
+    assert.equal((await webhookRoute.POST(request())).status, 200);
+    assert.equal(rows(billingEvents)[0].status, "processed");
+    assert.equal(rows(billingPayments).length, 1);
+    assert.equal(rows(billingGrants).length, 1);
+  });
+  test(`webhook contention on ${leaseKey} remains retryable if the wait expires`, async t => {
+    const { rows, paid } = fixture(t);
+    await paid();
+    const event = { id: "WH-BUSY", event_type: "BILLING.SUBSCRIPTION.ACTIVATED", resource: { id: "I-SUB001" } };
+    let release;
+    const held = db.withLease(leaseKey, () => new Promise(resolve => { release = resolve; }), null);
+    try {
+      await assert.rejects(processBillingEvent(event, { lockDeadline: Date.now() }), { name: "BillingBusyError" });
       assert.notEqual(rows(billingEvents)[0].status, "processed");
     } finally { release(); await held; }
-    assert.equal((await webhookRoute.POST(request())).status, 200);
-    assert.equal((await webhookRoute.POST(request())).status, 200);
+    await processBillingEvent(event);
     assert.equal(rows(billingEvents)[0].status, "processed");
     assert.equal(rows(billingPayments).length, 1);
     assert.equal(rows(billingGrants).length, 1);

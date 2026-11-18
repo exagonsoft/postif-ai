@@ -1,4 +1,5 @@
 import { defineCollection } from "./model";
+import type { CreditAllocation } from "../lib/ai-credit-wallet";
 
 const integer = { bsonType: ["int", "long", "double"], minimum: 0 };
 const text = { bsonType: "string" };
@@ -17,6 +18,7 @@ export interface AIRequest {
   id: number; key: string; workspaceId: number; userId: number | null;
   fingerprint: string; operation: string; billingMode: "managed" | "byok";
   model: string; credentialVersion: string; creditEpoch: string; credits: number; balance: number;
+  permanentAllocations?: CreditAllocation[];
   status: "reserved" | "sending" | "succeeded" | "refunded" | "uncertain";
   token: string; encryptedResult: string | null; tokens: number; usageRecordId: number;
   refundedAt: Date | null; refundedCredits: number;
@@ -36,6 +38,7 @@ aiRequests.indexes.push({ status: 1, updatedAt: 1 });
 export interface MediaReservation {
   id: number; assetId: number; workspaceId: number;
   billingMode: "managed" | "byok"; model: string; credentialVersion: string; creditEpoch: string;
+  permanentAllocations?: CreditAllocation[];
   transport: "legacy" | "openai_responses" | "openai_images" | "runway"; responseModel: string | null;
   usageRecordId: number | null;
   status: "reserved" | "succeeded" | "refunded"; credits: number; refundedCredits: number;

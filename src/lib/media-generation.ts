@@ -1,7 +1,6 @@
 import { db } from "@/db";
 import { aiConfigurations, mediaAssets, workspaces, aiUsageRecords, type MediaAssetsDocument } from "@/db/schema";
 import { mediaReservations, type MediaReservation } from "@/db/worker-schema";
-import { increment } from "@/db/filters";
 import { decryptSecret } from "./crypto";
 import { WorkflowError } from "./post-policy";
 import { storeMedia, deleteMedia, detectMedia, readLimitedResponse, checkMediaStorageCredentials, MediaStorageError } from "./media-storage";
@@ -9,6 +8,7 @@ import { assertBrandEntitlement, getWorkspaceEntitlements } from "./entitlements
 import { credentialVersion, validCreditBalance, validReservationCredits } from "./ai-request-policy";
 import { deadlineSignal, hasTime, type WorkerOptions } from "./worker-budget";
 import { getCreditEpoch } from "./subscriptions";
+import { reserveCredits, restoreCredits } from "./ai-credit-wallet";
 import { verifyGifEncoder, videoToGif } from "./gif-generation";
 import { backgroundImageModelSupported, backgroundImageResult, pollBackgroundImage, submitBackgroundImage } from "./openai-background-images";
 import { withWorkerDeadline } from "./worker-network";
@@ -131,14 +131,12 @@ async function refundAsset(tx: Transaction, asset: MediaAssetsDocument, message:
   const [workspace] = await tx.find(workspaces, { id: current.workspaceId }, { lock: true });
   if (!workspace) return;
   validCreditBalance(workspace.aiCreditsBalance);
-  const restored = reservation?.creditEpoch === await getCreditEpoch(current.workspaceId, tx) ? credits : 0;
-  if (!Number.isSafeInteger(workspace.aiCreditsBalance + restored)) throw new Error("AI credit balance overflow.");
+  const restored = reservation ? await restoreCredits(tx, workspace, credits, reservation.permanentAllocations, reservation.creditEpoch, await getCreditEpoch(current.workspaceId, tx)) : 0;
   const reason = !restored && credits ? `${message.replace(/Credits returned;?/g, "Reservation closed;")} Expired or unversioned credits are not carried into the current allowance.` : message;
   await tx.update(mediaAssets, { id: current.id, generationStatus: current.generationStatus }, { generationStatus: cancelled ? "cancelled" : "failed", generationError: reason, generationCredits: 0 });
   if (reservation) await tx.update(mediaReservations, { id: reservation.id }, { status: "refunded", refundedCredits: restored });
   if (reservation?.usageRecordId) await tx.update(aiUsageRecords, { id: reservation.usageRecordId, workspaceId: current.workspaceId }, { executionSource: cancelled ? "cancelled" : "failed" });
   if (credits) {
-    if (restored) await tx.update(workspaces, { id: current.workspaceId }, { aiCreditsBalance: increment(restored) });
     await tx.insert(aiUsageRecords, { workspaceId: current.workspaceId, operation: restored ? "Media generation credit refund" : "Expired media reservation closed (no carryover)", billingMode: reservation?.billingMode || "managed", creditsUsed: -restored, model: reservation?.model || current.assetType, executionSource: !restored ? "expired_refund" : cancelled ? "cancelled" : "failed_refund", tokensEstimate: 0 });
   }
 }
@@ -162,12 +160,12 @@ export async function queueMedia(workspaceId: number, brandId: number, userId: n
     }
     const credits = payer.billingMode === "byok" ? 0 : input.kind === "image" ? 40 : 120;
     if (workspace.aiCreditsBalance < credits) throw new WorkflowError(`This generation requires ${credits} managed credits.`, 409);
-    if (credits) await tx.update(workspaces, { id: workspaceId }, { aiCreditsBalance: increment(-credits) });
+    const permanentAllocations = await reserveCredits(tx, workspace, credits);
     const [asset] = await tx.insert(mediaAssets, { workspaceId, brandId, title: input.prompt.slice(0, 100), prompt: input.prompt, assetType: input.kind, aspectRatio: input.aspectRatio, url: "", generationStatus: "queued", generationCredits: credits, altText: input.prompt.slice(0, 500), isSampleData: false });
     const [usage] = await tx.insert(aiUsageRecords, { workspaceId, userId, operation: `Queued ${input.kind} generation`, billingMode: payer.billingMode, creditsUsed: credits, model: payer.model, executionSource: "queued", tokensEstimate: 0 });
     await tx.insert(mediaReservations, { workspaceId, assetId: asset.id, credits, billingMode: payer.billingMode, model: payer.model,
       transport: payer.transport, responseModel: payer.responseModel, usageRecordId: usage.id,
-      credentialVersion: payer.credentialVersion, creditEpoch: await getCreditEpoch(workspaceId, tx) });
+      credentialVersion: payer.credentialVersion, creditEpoch: await getCreditEpoch(workspaceId, tx), permanentAllocations });
     return asset;
   };
   return transaction ? enqueue(transaction) : db.transaction(enqueue);

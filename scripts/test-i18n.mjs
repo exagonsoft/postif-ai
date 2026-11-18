@@ -16,6 +16,7 @@ const router = { refresh() { globalThis.__i18nRefreshes++; } };
 globalThis.__i18nRouter = router;
 registerHooks({
   resolve(specifier, context, next) {
+    if (specifier === "next/image") return next("next/image.js", context);
     if (specifier === "next/navigation") return { shortCircuit: true,
       url: "data:text/javascript,export function useRouter(){return globalThis.__i18nRouter;}" };
     if (specifier === "next/headers") return { shortCircuit: true,
@@ -29,6 +30,7 @@ const { getServerI18n } = await import("../src/i18n/server.ts");
 const { AppLanguageProvider, useAppLanguage } = await import("../src/i18n/provider.tsx");
 const { LanguageSelector } = await import("../src/components/LanguageSelector.tsx");
 const { BillingClient } = await import("../src/components/BillingClient.tsx");
+const { PostMediaPicker } = await import("../src/components/PostMediaPicker.tsx");
 const { getPlanDefinition } = await import("../src/lib/plans.ts");
 
 const placeholders = text => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
@@ -110,6 +112,8 @@ function installDom(html = "") {
   const dom = new JSDOM(`<!doctype html><html><body><div id="root">${html}</div></body></html>`, {
     url: "https://app.example.test/app/billing?view=plans#subscription",
   });
+  if (!dom.window.HTMLDialogElement.prototype.showModal) dom.window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
+  if (!dom.window.HTMLDialogElement.prototype.close) dom.window.HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   const values = { window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
     HTMLElement: dom.window.HTMLElement, Event: dom.window.Event, IS_REACT_ACT_ENVIRONMENT: true };
   const previous = new Map(Object.keys(values).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -122,6 +126,95 @@ function installDom(html = "") {
     dom.window.close();
   } };
 }
+test("cancelled paid plan checkout requires confirmation and submits a replacement", async () => {
+  const { container, dom, restore } = installDom();
+  const root = createRoot(container);
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return Response.json({ error: "Offline test" }, { status: 409 });
+  };
+  const props = {
+    plans: [{ ...getPlanDefinition("pro_ai"), catalogVersionId: 8, purchasable: true }],
+    currentPlanSlug: "starter_ai", currentPlanVersionId: 7, billingCycle: "monthly",
+    aiBillingMode: "managed", creditsBalance: 137, creditsAllowance: 300,
+    keyLast4: null, keyValidated: false, preferredModel: "gpt-4o-mini", usageRecords: [],
+    subscription: { status: "CANCELLED", paidThrough: new Date(Date.now() + 86400000).toISOString(), cancelAtPeriodEnd: true,
+      hasCustomer: true, canChange: false, pendingPlanSlug: null, pendingInterval: null, pendingEffectiveAt: null },
+    billingReady: true, billingMissing: [], isOwner: true, allowsConfigurableAiMode: false, defaultAiMode: "managed",
+  };
+  try {
+    await act(async () => root.render(createElement(AppLanguageProvider, { initialLocale: "es" }, createElement(BillingClient, props))));
+    const text = translate("es", "billing.checkoutPlan", { name: props.plans[0].name });
+    const button = [...container.querySelectorAll("button")].find(item => item.textContent === text);
+    assert.ok(button && !button.disabled);
+    assert.ok(!container.textContent.includes(translate("es", "billing.managePayments")));
+    dom.window.confirm = () => { throw new Error("Native confirmation must not be used"); };
+    button.focus();
+    await act(async () => button.click());
+    assert.equal(calls.length, 0);
+    let dialog = container.querySelector("dialog");
+    assert.ok(dialog?.open);
+    assert.equal(dialog.querySelector("h2").textContent, translate("es", "dialog.replacePlanTitle"));
+    assert.equal(dialog.querySelector("p").textContent, translate("es", "billing.confirmReplacement"));
+    assert.equal(dom.window.document.activeElement.textContent, translate("es", "dialog.cancel"));
+    await act(async () => dialog.querySelector("button").click());
+    assert.equal(calls.length, 0);
+    assert.equal(container.querySelector("dialog"), null);
+    assert.equal(dom.window.document.activeElement, button);
+    await act(async () => button.click());
+    dialog = container.querySelector("dialog");
+    await act(async () => dialog.dispatchEvent(new dom.window.Event("cancel", { cancelable: true })));
+    assert.equal(calls.length, 0);
+    assert.equal(container.querySelector("dialog"), null);
+    await act(async () => button.click());
+    dialog = container.querySelector("dialog");
+    await act(async () => [...dialog.querySelectorAll("button")].find(item => item.textContent === translate("es", "dialog.continue")).click());
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "/api/billing/checkout");
+    assert.equal(calls[0].body.planSlug, "pro_ai");
+    assert.equal(calls[0].body.replacePaid, true);
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = previousFetch;
+    restore();
+  }
+});
+test("media deletion uses a custom confirmation and only deletes after consent", async () => {
+  const { container, dom, restore } = installDom();
+  const root = createRoot(container);
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  const asset = { id: 17, title: "Test media", assetType: "video", url: "/test.mp4", generationStatus: "ready" };
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, method: options.method || "GET", body: options.body && JSON.parse(options.body) });
+    return Response.json(options.method === "POST" ? { ok: true } : { assets: [asset] });
+  };
+  dom.window.confirm = () => { throw new Error("Native confirmation must not be used"); };
+  try {
+    await act(async () => root.render(createElement(AppLanguageProvider, { initialLocale: "es" }, createElement(PostMediaPicker,
+      { selected: [17], onChange: () => {}, libraryOnly: true, canDelete: true }))));
+    const deleteButton = [...container.querySelectorAll("button")].find(item => item.textContent === translate("es", "customer.text.561"));
+    assert.ok(deleteButton);
+    await act(async () => deleteButton.click());
+    let dialog = container.querySelector("dialog");
+    assert.ok(dialog?.open);
+    assert.equal(dialog.querySelector("p").textContent, translate("es", "customer.deleteMedia", { title: asset.title }));
+    await act(async () => dialog.querySelector("button").click());
+    assert.equal(calls.filter(call => call.method === "POST").length, 0);
+    await act(async () => deleteButton.click());
+    dialog = container.querySelector("dialog");
+    await act(async () => [...dialog.querySelectorAll("button")].find(item => item.textContent === translate("es", "dialog.delete")).click());
+    const deletion = calls.filter(call => call.method === "POST");
+    assert.equal(deletion.length, 1);
+    assert.deepEqual(deletion[0].body, { action: "delete", assetId: 17 });
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = previousFetch;
+    restore();
+  }
+});
 function Probe() {
   const { t } = useAppLanguage();
   return createElement("section", null, createElement(LanguageSelector),

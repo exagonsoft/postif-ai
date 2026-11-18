@@ -17,6 +17,7 @@ const { deliverNotifications } = await import("../src/lib/notification-service.t
 const { backgroundImageResult } = await import("../src/lib/openai-background-images.ts");
 const { getWorkerDeadline } = await import("../src/lib/worker-network.ts");
 const { getPlanDefinition } = await import("../src/lib/plans.ts");
+const { reserveCredits, restoreCredits } = await import("../src/lib/ai-credit-wallet.ts");
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "next/server") return next("next/server.js", context);
@@ -121,6 +122,37 @@ function fakeDatabase() {
   return { repo, rows };
 }
 const input = { workspaceId: 1, userId: 7, brandName: "Test Brand", topic: "Useful topic", prompt: "Write clearly", objective: "Educate", audience: "Readers", platforms: ["linkedin"], tone: "Professional", language: "English", contentType: "Educational Post", length: "medium", keywords: [], cta: "", requestKey: "deliberate-action-1" };
+
+test("permanent credits survive an epoch change and revoked allocations are not restored", async () => {
+  const { repo, rows } = fakeDatabase();
+  rows("workspaces")[0].aiCreditsBalance = 12;
+  rows("paypal_credit_lots").push(
+    { id: 20, workspaceId: 1, key: "compensation", paymentKey: "old", remaining: 10, revokedAt: null },
+    { id: 21, workspaceId: 1, key: "carry", paymentKey: null, remaining: 0, carriedEpoch: "initial", revokedAt: null },
+  );
+  const [workspace] = await repo.find((await import("../src/db/schema.ts")).workspaces, { id: 1 });
+  const allocations = await reserveCredits(repo, workspace, 8);
+  assert.deepEqual(allocations, [{ lotId: 20, credits: 6 }]);
+  assert.equal(rows("workspaces")[0].aiCreditsBalance, 4);
+  rows("paypal_credit_lots")[0].revokedAt = new Date();
+  rows("paypal_credit_lots")[0].remaining = 0;
+  rows("workspaces")[0].aiCreditsBalance = 0;
+  const [current] = await repo.find((await import("../src/db/schema.ts")).workspaces, { id: 1 });
+  assert.equal(await restoreCredits(repo, current, 8, allocations, "initial", "replacement"), 2);
+  assert.equal(rows("workspaces")[0].aiCreditsBalance, 2);
+  assert.equal(rows("paypal_credit_lots")[1].remaining, 2);
+});
+test("credits returned to a pending replacement stay unavailable until payment is confirmed", async () => {
+  const { repo, rows } = fakeDatabase();
+  rows("workspaces")[0].aiCreditsBalance = 0;
+  rows("paypal_credit_lots").push({ id: 21, workspaceId: 1, key: "carry-pending", paymentKey: null, remaining: 0, carriedEpoch: "old", held: true, revokedAt: null });
+  const [workspace] = await repo.find((await import("../src/db/schema.ts")).workspaces, { id: 1 });
+  assert.equal(await restoreCredits(repo, workspace, 8, [], "old", "expired"), 8);
+  assert.equal(rows("workspaces")[0].aiCreditsBalance, 0);
+  assert.equal(rows("paypal_credit_lots")[0].remaining, 8);
+  const [current] = await repo.find((await import("../src/db/schema.ts")).workspaces, { id: 1 });
+  await assert.rejects(reserveCredits(repo, current, 1), /reconciliation/);
+});
 
 test("media preflight identifies unexpected failures without exposing their details", async () => {
   const { repo } = fakeDatabase();

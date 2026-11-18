@@ -57,8 +57,7 @@ runtime environment as secret-bearing, just as for PayPal/AI credentials.
 
 | Variables | Requirement |
 | --- | --- |
-| `SOCIAL_MANAGED_PROVIDERS` | Explicit comma-separated enablement: `facebook,instagram,linkedin,x,tiktok,pinterest,youtube,threads`; empty disables new managed authorization without deleting legacy connections. |
-| `SOCIAL_OAUTH_APPROVED_PROVIDERS` | Operator attestation that the listed applications have the required production access; not a substitute for provider review. |
+| `SOCIAL_MANAGED_PROVIDERS` | Explicit comma-separated enablement: `facebook,instagram,linkedin,x,tiktok,pinterest,youtube,threads`; empty disables new managed authorization without deleting legacy connections. Enable only providers with the required access. |
 | `SOCIAL_OAUTH_ANALYTICS_PROVIDERS` | Providers whose additional reporting scopes are approved; requested only after user opt-in. |
 | `SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS` | Only `tiktok,youtube`; leave empty until each required posting audit and product-compliance review is complete. Default is private-only for those managed connections. |
 | `FACEBOOK_OAUTH_CLIENT_ID`, `FACEBOOK_OAUTH_CLIENT_SECRET` | Required only when managed Facebook is enabled. |

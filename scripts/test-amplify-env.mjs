@@ -48,6 +48,23 @@ assert.deepEqual(collectEnvironmentReferences(patternsSource.replaceAll("\n", "\
 
 const serialized = serializeAmplifyEnvironment({ ...env, FFMPEG_PATH: "", RUNWAY_API_KEY: "   " });
 const parsed = parse(serialized);
+const social = { ...env, SOCIAL_MANAGED_PROVIDERS: "facebook,instagram,threads,linkedin",
+  SOCIAL_OAUTH_APPROVED_PROVIDERS: "legacy-value", INSTAGRAM_OAUTH_CONFIG_ID: "123", LINKEDIN_API_VERSION: "202611" };
+for (const provider of ["FACEBOOK", "INSTAGRAM", "THREADS", "LINKEDIN"]) {
+  social[`${provider}_OAUTH_CLIENT_ID`] = "synthetic-client";
+  social[`${provider}_OAUTH_CLIENT_SECRET`] = "synthetic-secret";
+}
+const serializedSocial = parse(serializeAmplifyEnvironment(social));
+assert.equal(serializedSocial.SOCIAL_MANAGED_PROVIDERS, social.SOCIAL_MANAGED_PROVIDERS);
+assert.equal(serializedSocial.SOCIAL_OAUTH_APPROVED_PROVIDERS, undefined);
+for (const provider of ["FACEBOOK", "INSTAGRAM", "THREADS", "LINKEDIN"]) {
+  assert.equal(serializedSocial[`${provider}_OAUTH_CLIENT_ID`], social[`${provider}_OAUTH_CLIENT_ID`]);
+  assert.equal(serializedSocial[`${provider}_OAUTH_CLIENT_SECRET`], social[`${provider}_OAUTH_CLIENT_SECRET`]);
+}
+const { managedSocialAvailability } = await import("../src/lib/social-managed-config.ts");
+for (const platform of ["facebook", "instagram", "threads", "linkedin"]) {
+  assert.equal(managedSocialAvailability({ ...serializedSocial, NODE_ENV: "production" }).find(item => item.platform === platform).status, "available");
+}
 assert.equal(parsed.MAIL_FROM, env.MAIL_FROM);
 assert.equal(parsed.SMTP_URL, env.SMTP_URL);
 assert.equal(parsed.POSTIF_S3_ACCESS_KEY_ID, env.POSTIF_S3_ACCESS_KEY_ID);

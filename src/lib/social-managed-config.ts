@@ -11,7 +11,6 @@ function providerList(value: string | undefined, name: string): SocialPlatform[]
 
 export function managedSocialConfiguration(env: NodeJS.ProcessEnv = process.env) {
   const enabled = providerList(env.SOCIAL_MANAGED_PROVIDERS, "SOCIAL_MANAGED_PROVIDERS");
-  const approved = providerList(env.SOCIAL_OAUTH_APPROVED_PROVIDERS, "SOCIAL_OAUTH_APPROVED_PROVIDERS");
   const analytics = providerList(env.SOCIAL_OAUTH_ANALYTICS_PROVIDERS, "SOCIAL_OAUTH_ANALYTICS_PROVIDERS");
   const publicPosting = providerList(env.SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS, "SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS");
   const clients = {
@@ -24,7 +23,7 @@ export function managedSocialConfiguration(env: NodeJS.ProcessEnv = process.env)
     youtube: { clientId: env.YOUTUBE_OAUTH_CLIENT_ID, clientSecret: env.YOUTUBE_OAUTH_CLIENT_SECRET },
     threads: { clientId: env.THREADS_OAUTH_CLIENT_ID, clientSecret: env.THREADS_OAUTH_CLIENT_SECRET },
   };
-  return { enabled, approved, analytics, publicPosting, clients,
+  return { enabled, analytics, publicPosting, clients,
     facebookConfigId: env.FACEBOOK_OAUTH_CONFIG_ID?.trim() || undefined,
     instagramConfigId: env.INSTAGRAM_OAUTH_CONFIG_ID?.trim() || undefined,
     graphVersion: env.META_GRAPH_API_VERSION?.trim() || "v27.0",
@@ -71,10 +70,9 @@ export function managedSocialAvailability(env: NodeJS.ProcessEnv = process.env):
     status: !config.enabled.includes(platform) || !config.clients[platform].clientId?.trim() || !config.clients[platform].clientSecret?.trim() ||
       platform === "facebook" && !!config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)
       || platform === "instagram" && !/^\d{1,32}$/.test(config.instagramConfigId || "")
-      ? "not_configured" : config.approved.includes(platform) ? "available"
-        : env.NODE_ENV === "development" && ["facebook", "instagram", "threads", "linkedin"].includes(platform) ? "testing" : "approval_required",
-    analyticsAvailable: config.analytics.includes(platform) && (platform !== "linkedin" || config.approved.includes(platform)),
-    organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations && config.approved.includes(platform),
+      ? "not_configured" : "available",
+    analyticsAvailable: config.analytics.includes(platform),
+    organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations,
     publicPostingAvailable: config.publicPosting.includes(platform),
     facebookBusinessLogin: platform === "facebook" && !!config.facebookConfigId,
   }));

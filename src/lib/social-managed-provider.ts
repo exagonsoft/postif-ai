@@ -17,8 +17,7 @@ export interface AuthorizedSocialDestination extends ManagedSocialDestination {
 export function managedCredentials(platform: SocialPlatform, analyticsEnabled: boolean, organizations: boolean) {
   const config = managedSocialConfiguration();
   const status = managedSocialAvailability().find(item => item.platform === platform)?.status;
-  if (status !== "available" && status !== "testing") throw new ManagedSocialOAuthError(status === "approval_required" ? "APPROVAL_REQUIRED" : "NOT_CONFIGURED", 503);
-  if (platform === "linkedin" && status === "testing" && (analyticsEnabled || organizations)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
+  if (status !== "available") throw new ManagedSocialOAuthError("NOT_CONFIGURED", 503);
   if (analyticsEnabled && !config.analytics.includes(platform)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   if (organizations && (platform !== "linkedin" || !config.linkedinOrganizations)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   const clientId = config.clients[platform].clientId?.trim();

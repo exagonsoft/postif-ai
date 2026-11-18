@@ -54,9 +54,8 @@ VAPID_SUBJECT=
 # Managed social OAuth: optional until the respective provider is explicitly enabled.
 # Comma-separated identifiers: facebook,instagram,linkedin,x,tiktok,pinterest,youtube,threads.
 # Enabling requires the corresponding server client ID/secret and a public HTTPS APP_URL.
-# Approval lists are operator attestations, NOT provider approval or verification.
+# Enable only providers with the required access for the intended environment.
 SOCIAL_MANAGED_PROVIDERS=
-SOCIAL_OAUTH_APPROVED_PROVIDERS=
 # Request additional reviewed analytics scopes only after user opt-in.
 SOCIAL_OAUTH_ANALYTICS_PROVIDERS=
 # Only tiktok,youtube: configure only AFTER their public-posting audit is approved.

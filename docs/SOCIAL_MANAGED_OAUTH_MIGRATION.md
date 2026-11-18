@@ -9,18 +9,14 @@ Pages; do not use credentials from PostifAI Connect. For local `next dev` only,
 `FACEBOOK_OAUTH_CONFIG_ID=1118642664098729` for the **PostifAI Page
 Publishing** configuration, plus `SOCIAL_MANAGED_PROVIDERS=facebook`. The ID
 is not a secret. The existing `.env.local` already contains the matching ID;
-credentials were not changed. Keep Facebook out of
-`SOCIAL_OAUTH_APPROVED_PROVIDERS` and `SOCIAL_OAUTH_ANALYTICS_PROVIDERS`
-until the relevant access has actually been approved.
+credentials were not changed. Enable optional analytics only when the relevant
+access has actually been approved.
 
-The development server shows **Development testing** when Facebook is enabled
-and both credentials exist but external approval has not been attested. It
-allows an authenticated workspace owner/admin to initiate the existing flow;
-Meta still determines who can authorize and which permissions are granted.
-This status is not available in production. Other unapproved providers remain
-blocked in all environments. Missing credentials show **Not configured**;
-production runtime validation rejects any enabled provider without its complete
-client pair. Restart `next dev` after changing local environment settings.
+An enabled provider with its required credentials is available in development
+and production. Meta still determines who can authorize and which permissions
+are granted. Missing credentials show **Not configured**; production runtime
+validation rejects any enabled provider without its complete client pair.
+Restart `next dev` after changing local environment settings.
 
 Set `APP_URL` to the current publicly reachable HTTPS tunnel origin. On the local
 check the previous tunnel and local `/api/health` returned matching successful
@@ -297,8 +293,7 @@ server-side settings:
 
 | Setting | Meaning |
 | --- | --- |
-| `SOCIAL_MANAGED_PROVIDERS` | Comma-separated enabled provider identifiers; blank disables new managed authorization. |
-| `SOCIAL_OAUTH_APPROVED_PROVIDERS` | Providers whose app production access the operator has actually obtained. Configured-but-unapproved cards show approval required. |
+| `SOCIAL_MANAGED_PROVIDERS` | Comma-separated enabled provider identifiers; blank disables new managed authorization. Enable only providers with the required access for the intended environment. |
 | `SOCIAL_OAUTH_ANALYTICS_PROVIDERS` | Reviewed optional reporting integrations, requested only after user consent. |
 | `SOCIAL_OAUTH_PUBLIC_POSTING_PROVIDERS` | Only `tiktok,youtube`; blank means private-only. Never set before required provider audit AND product-compliance verification. |
 | `FACEBOOK_OAUTH_CLIENT_ID`, `FACEBOOK_OAUTH_CLIENT_SECRET` | POSTIF-AI Facebook app. |
@@ -317,8 +312,8 @@ server-side settings:
 
 Enabling any managed provider requires its complete client pair and public HTTPS
 `APP_URL`. Credentials remain optional when that provider is disabled.
-Approval flags are operator attestations, not a provider review API and not proof
-that a provider will authorize those scopes. Secrets never use `NEXT_PUBLIC_`.
+Configuration does not verify provider approval or guarantee authorization.
+Secrets never use `NEXT_PUBLIC_`.
 No customer access/refresh token belongs in environment configuration.
 
 For local LinkedIn personal testing, set the following in the local server
@@ -332,10 +327,8 @@ LINKEDIN_API_VERSION=202611
 ```
 
 Add `linkedin` to the existing comma-separated `SOCIAL_MANAGED_PROVIDERS`.
-Keep `LINKEDIN_ORGANIZATIONS_ENABLED=false` and do not add LinkedIn to the
-production approval or analytics lists merely for local testing. The development
-testing mode does not apply outside `NODE_ENV=development`; it permits only the personal
-flow and does not attest to LinkedIn approval. The callback is
+Keep `LINKEDIN_ORGANIZATIONS_ENABLED=false` until Community Management access
+is granted, and do not enable analytics without the required access. The callback is
 `${APP_URL}/api/social/oauth/linkedin/callback` and must match the registered
 URL exactly. The version is for versioned organization APIs, not the personal
 `/v2/ugcPosts` and `/v2/assets` endpoints.
@@ -350,8 +343,7 @@ automated test sends real content.
 
 For local Threads testing, include `threads` in `SOCIAL_MANAGED_PROVIDERS` in
 development and use the Threads-specific app ID and secret. The Threads profile must accept the
-tester invitation. This is not App Review approval and must not be added to
-`SOCIAL_OAUTH_APPROVED_PROVIDERS` unless genuinely approved. The local callback
+tester invitation. This is not App Review approval. The local callback
 is `${APP_URL}/api/social/oauth/threads/callback`. Threads deauthorization and
 automated deletion callbacks are not implemented; do not register invented URLs.
 Threads publication checks the provider's rolling quota before container creation
@@ -361,9 +353,8 @@ concurrent requests can still race, and Threads remains authoritative.
 For local Instagram testing, register the exact public HTTPS callback under the
 Unified Login configuration, set the Meta app ID, secret and configuration ID
 in the local server environment, and include `instagram` in
-`SOCIAL_MANAGED_PROVIDERS` without removing other enabled providers. Development
-mode permits role-holder testing without asserting approval. Do not mark the
-provider approved unless Meta has actually granted the required access.
+`SOCIAL_MANAGED_PROVIDERS` without removing other enabled providers. Meta's
+role-holder testing does not establish approval for external accounts.
 Select and share a professional Instagram account in the client business
 portfolio. Webhook setup and external-account approval are separate Meta
 requirements; neither is verified by local mocks.

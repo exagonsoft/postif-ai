@@ -1,8 +1,5 @@
 {
   "en": {
-    "social.managed.status.testing": "Development testing",
-    "social.managed.gate.testing": "Testing only: Meta approval for external users has not been confirmed. Only eligible app-role testers can authorize; Meta permissions still apply.",
-    "social.managed.gate.linkedinTesting": "Local testing only: production approval has not been confirmed. Only personal LinkedIn profiles are available in this mode.",
     "legal.contents": "On this page",
     "legal.contact": "Contact ExagonSoft",
     "legal.contactHelp": "For privacy, deletion, account or billing questions, email us directly. Send only the information needed to identify your request, not passwords, API keys, access tokens or payment credentials.",
@@ -138,9 +135,7 @@
     "social.managed.accountCount": "{count} saved accounts",
     "social.managed.status.available": "Ready to connect",
     "social.managed.status.not_configured": "Not configured",
-    "social.managed.status.approval_required": "Provider approval required",
     "social.managed.gate.not_configured": "The operator has not configured this managed integration. Use advanced credentials or contact support.",
-    "social.managed.gate.approval_required": "This integration is awaiting provider approval. Managed authorization is not available yet.",
     "social.managed.eligibility.facebook": "Requires a Facebook Page you can manage; personal profiles cannot publish through this connection.",
     "social.managed.facebookBusinessNotice": "Facebook Login for Business uses the permissions in the Meta configuration. Page discovery does not guarantee publishing access; the required publishing permissions must also be granted.",
     "social.managed.eligibility.instagram": "Requires an Instagram professional account (Business or Creator), not a personal account.",
@@ -1905,9 +1900,6 @@
     "customer.updatedCalendar": "'{title}' updated in calendar & job queue."
   },
   "es": {
-    "social.managed.status.testing": "Pruebas de desarrollo",
-    "social.managed.gate.testing": "Solo pruebas: no se ha confirmado la aprobación de Meta para usuarios externos. Solo pueden autorizar los probadores habilitados con un rol en la aplicación; se aplican los permisos de Meta.",
-    "social.managed.gate.linkedinTesting": "Solo pruebas locales: no se ha confirmado la aprobación para producción. En este modo solo están disponibles los perfiles personales de LinkedIn.",
     "legal.contents": "En esta página",
     "legal.contact": "Contactar con ExagonSoft",
     "legal.contactHelp": "Para consultas sobre privacidad, eliminación, cuentas o facturación, escríbenos directamente. Envía solo la información necesaria para identificar tu solicitud, nunca contraseñas, claves de API, tokens de acceso ni credenciales de pago.",
@@ -2043,9 +2035,7 @@
     "social.managed.accountCount": "{count} cuentas guardadas",
     "social.managed.status.available": "Disponible para conectar",
     "social.managed.status.not_configured": "Sin configurar",
-    "social.managed.status.approval_required": "Requiere aprobación del proveedor",
     "social.managed.gate.not_configured": "El operador no ha configurado esta integración gestionada. Usa credenciales avanzadas o contacta con soporte.",
-    "social.managed.gate.approval_required": "Esta integración espera la aprobación del proveedor. La autorización gestionada aún no está disponible.",
     "social.managed.eligibility.facebook": "Requiere una página de Facebook que puedas administrar; los perfiles personales no pueden publicar mediante esta conexión.",
     "social.managed.facebookBusinessNotice": "Facebook Login for Business utiliza los permisos de la configuración de Meta. Descubrir páginas no garantiza poder publicar; también deben concederse los permisos de publicación.",
     "social.managed.eligibility.instagram": "Requiere una cuenta profesional de Instagram (empresa o creador), no una cuenta personal.",
@@ -3810,9 +3800,6 @@
     "customer.updatedCalendar": "Se actualizó '{title}' en el calendario y la cola de tareas."
   },
   "de": {
-    "social.managed.status.testing": "Entwicklungstest",
-    "social.managed.gate.testing": "Nur zum Testen: Eine Meta-Freigabe für externe Nutzer ist nicht bestätigt. Nur berechtigte Tester mit App-Rolle können autorisieren; Meta-Berechtigungen gelten weiterhin.",
-    "social.managed.gate.linkedinTesting": "Nur lokale Tests: Eine Freigabe für die Produktion ist nicht bestätigt. In diesem Modus sind nur persönliche LinkedIn-Profile verfügbar.",
     "legal.contents": "Auf dieser Seite",
     "legal.contact": "ExagonSoft kontaktieren",
     "legal.contactHelp": "Schreibe uns bei Fragen zu Datenschutz, Löschung, Konten oder Abrechnung direkt per E-Mail. Sende nur die zur Zuordnung nötigen Angaben, keine Passwörter, API-Schlüssel, Zugriffstoken oder Zahlungszugangsdaten.",
@@ -3948,9 +3935,7 @@
     "social.managed.accountCount": "{count} gespeicherte Konten",
     "social.managed.status.available": "Bereit zum Verbinden",
     "social.managed.status.not_configured": "Nicht konfiguriert",
-    "social.managed.status.approval_required": "Anbietergenehmigung erforderlich",
     "social.managed.gate.not_configured": "Der Betreiber hat diese verwaltete Integration nicht konfiguriert. Nutze eigene Zugangsdaten oder kontaktiere den Support.",
-    "social.managed.gate.approval_required": "Diese Integration wartet auf die Genehmigung des Anbieters. Die verwaltete Autorisierung ist noch nicht verfügbar.",
     "social.managed.eligibility.facebook": "Erfordert eine Facebook-Seite, die du verwalten kannst; persönliche Profile können über diese Verbindung nicht veröffentlichen.",
     "social.managed.facebookBusinessNotice": "Facebook Login for Business verwendet die Berechtigungen der Meta-Konfiguration. Das Auffinden von Seiten garantiert keinen Veröffentlichungszugriff; die erforderlichen Berechtigungen müssen ebenfalls erteilt werden.",
     "social.managed.eligibility.instagram": "Erfordert ein professionelles Instagram-Konto (Business oder Creator), kein persönliches Konto.",
@@ -5715,9 +5700,6 @@
     "customer.updatedCalendar": "„{title}“ im Kalender und in der Auftragswarteschlange aktualisiert."
   },
   "pt-BR": {
-    "social.managed.status.testing": "Teste de desenvolvimento",
-    "social.managed.gate.testing": "Somente teste: a aprovação da Meta para usuários externos não foi confirmada. Apenas testadores elegíveis com função no aplicativo podem autorizar; as permissões da Meta continuam valendo.",
-    "social.managed.gate.linkedinTesting": "Somente testes locais: a aprovação para produção não foi confirmada. Neste modo, apenas perfis pessoais do LinkedIn estão disponíveis.",
     "legal.contents": "Nesta página",
     "legal.contact": "Fale com a ExagonSoft",
     "legal.contactHelp": "Para dúvidas sobre privacidade, exclusão, conta ou cobrança, envie um e-mail diretamente. Informe apenas o necessário para identificar a solicitação, nunca senhas, chaves de API, tokens de acesso ou credenciais de pagamento.",
@@ -5853,9 +5835,7 @@
     "social.managed.accountCount": "{count} contas salvas",
     "social.managed.status.available": "Disponível para conectar",
     "social.managed.status.not_configured": "Não configurado",
-    "social.managed.status.approval_required": "Requer aprovação do provedor",
     "social.managed.gate.not_configured": "O operador não configurou esta integração gerenciada. Use credenciais avançadas ou fale com o suporte.",
-    "social.managed.gate.approval_required": "Esta integração aguarda aprovação do provedor. A autorização gerenciada ainda não está disponível.",
     "social.managed.eligibility.facebook": "Requer uma Página do Facebook que você possa administrar; perfis pessoais não podem publicar por esta conexão.",
     "social.managed.facebookBusinessNotice": "O Facebook Login for Business usa as permissões da configuração da Meta. Descobrir Páginas não garante acesso para publicação; as permissões necessárias também devem ser concedidas.",
     "social.managed.eligibility.instagram": "Requer uma conta profissional do Instagram (empresa ou criador), não uma conta pessoal.",

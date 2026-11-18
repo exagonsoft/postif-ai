@@ -47,7 +47,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
   const buttonClass = "rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50";
 
   async function start() {
-    if (!active || !consent || !["available", "testing"].includes(selectedAvailability?.status ?? "") || !canManage || busy) return;
+    if (!active || !consent || selectedAvailability?.status !== "available" || !canManage || busy) return;
     setBusy(true); setError(null);
     try {
       const response = await fetch(`/api/social/oauth/${active}/start`, {
@@ -145,9 +145,9 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
           <p className="text-xs">{t("social.managed.accountCount", { count: formatNumber(connected.length) })} · {t(`social.managed.status.${status}`)}</p>
           {!!connected.length && <p className="text-xs">{t(reconnect ? "customer.status.reconnect_required" : "customer.status.connected")}</p>}
           <p className="text-xs text-[var(--text-secondary)]">{t(`social.managed.eligibility.${spec.id}`)}</p>
-          {status !== "available" && <p className="text-xs text-amber-400">{t(status === "testing" && spec.id === "linkedin" ? "social.managed.gate.linkedinTesting" : `social.managed.gate.${status}`)}</p>}
+          {status !== "available" && <p className="text-xs text-amber-400">{t(`social.managed.gate.${status}`)}</p>}
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-2">
-            {canManage && <button type="button" disabled={busy || !["available", "testing"].includes(status) || !!pending} className={buttonClass} onClick={() => { setActive(spec.id); setConsent(false); setAnalyticsEnabled(false); setOrganizations(false); setError(null); }}>
+            {canManage && <button type="button" disabled={busy || status !== "available" || !!pending} className={buttonClass} onClick={() => { setActive(spec.id); setConsent(false); setAnalyticsEnabled(false); setOrganizations(false); setError(null); }}>
               {t(reconnect ? "social.managed.reconnect" : "social.managed.connect")}
             </button>}
             {!!connected.length && <a className="text-sm underline" href={`#social-account-${connected[0].id}`}>{t("social.managed.manage")}</a>}
@@ -155,7 +155,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
         </article>;
       })}
     </div>
-    {active && selectedAvailability && ["available", "testing"].includes(selectedAvailability.status) && canManage && !pending && <section ref={permissionsRef} tabIndex={-1} className="surface-card space-y-4 rounded-3xl p-5" aria-label={t("social.managed.permissionStep")}>
+    {active && selectedAvailability?.status === "available" && canManage && !pending && <section ref={permissionsRef} tabIndex={-1} className="surface-card space-y-4 rounded-3xl p-5" aria-label={t("social.managed.permissionStep")}>
       <h2 className="font-bold">{t("social.managed.permissionStep")} · {SOCIAL_PLATFORM_SPECS[active].name}</h2>
       {!(active === "facebook" && selectedAvailability.facebookBusinessLogin) && <p className="text-sm">{t("social.managed.permissionExplain")}</p>}
       <p className="text-sm">{t(`social.managed.eligibility.${active}`)}</p>

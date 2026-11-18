@@ -122,44 +122,27 @@ test("managed strings have all four translations, matching placeholders, and ren
   }
 });
 
-test("availability gates are truthful and unmanaged members cannot authorize", () => {
-  const gated = availability.map(item => ({ ...item, status: item.platform === "facebook" ? "not_configured" : "approval_required" }));
+test("unconfigured providers are disabled and unmanaged members cannot authorize", () => {
+  const gated = availability.map(item => ({ ...item, status: "not_configured" }));
   const html = renderToString(wrap(ManagedSocialConnect, { ...defaultProps, availability: gated }));
   const document = new JSDOM(html).window.document;
   assert.equal(document.querySelectorAll("[data-managed-provider] button:disabled").length, 8);
   assert.ok(document.body.textContent.includes(text("social.managed.gate.not_configured")));
-  assert.ok(document.body.textContent.includes(text("social.managed.gate.approval_required")));
   const memberHtml = renderToString(wrap(ManagedSocialConnect, { ...defaultProps, canManage: false, selection: selection("facebook") }));
   assert.equal(new JSDOM(memberHtml).window.document.querySelectorAll("button,form").length, 0);
 });
 
-test("development Facebook testing is explicitly labeled and permits the consent flow", async () => {
-  const testing = availability.map(item => ({ ...item, status: item.platform === "facebook" ? "testing" : "approval_required" }));
-  const view = await mount({ availability: testing });
+test("configured Facebook permits the consent flow without an approval list", async () => {
+  const view = await mount({ availability });
   try {
     const card = view.container.querySelector('[data-managed-provider="facebook"]');
-    assert.ok(card.textContent.includes(text("social.managed.status.testing")));
-    assert.ok(card.textContent.includes(text("social.managed.gate.testing")));
+    assert.ok(card.textContent.includes(text("social.managed.status.available")));
     assert.equal(card.querySelector("button").disabled, false);
     await act(async () => card.querySelector("button").click());
     await act(async () => view.container.querySelector('input[type="checkbox"]').click());
     await act(async () => button(view.container, "social.managed.continue").click());
     assert.deepEqual(view.requests[0].body, { mode: "managed", analyticsEnabled: false, organizations: false });
   } finally { await view.close(); }
-});
-
-test("testing notices distinguish LinkedIn from Meta providers in every locale", () => {
-  const testing = availability.map(item => ({ ...item, status: ["facebook", "instagram", "threads", "linkedin"].includes(item.platform) ? "testing" : "approval_required" }));
-  for (const locale of ["en", "es", "de", "pt-BR"]) {
-    const document = new JSDOM(renderToString(wrap(ManagedSocialConnect, { ...defaultProps, availability: testing }, locale))).window.document;
-    for (const platform of ["facebook", "instagram", "threads"]) {
-      assert.ok(document.querySelector(`[data-managed-provider="${platform}"]`).textContent.includes(translate(locale, "social.managed.gate.testing")));
-    }
-    const linkedin = document.querySelector('[data-managed-provider="linkedin"]');
-    assert.ok(linkedin.textContent.includes(translate(locale, "social.managed.gate.linkedinTesting")));
-    assert.ok(!linkedin.textContent.includes(translate(locale, "social.managed.gate.testing")));
-    assert.equal(linkedin.querySelector("button").disabled, false);
-  }
 });
 
 test("Facebook Business Login explains that Page discovery does not grant publishing", async () => {

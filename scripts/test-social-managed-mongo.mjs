@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 if (process.env.MONGO_TEST_DATABASE !== "true") throw new Error("Run through the isolated MongoDB test runner.");
 process.env.APP_URL = "https://managed-social.example.test";
 process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
 process.env.FACEBOOK_OAUTH_CLIENT_ID = "isolated-managed-app";
 process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "isolated-server-secret";
 const { db, closeDatabase } = await import("../src/db/index.ts");

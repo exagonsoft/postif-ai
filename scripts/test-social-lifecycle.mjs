@@ -112,9 +112,8 @@ beforeEach(() => {
   globalThis.postifLifecycleAuth = { user: { id: 1, email: "owner@example.test" }, workspace: { id: 1 }, activeBrand: { id: 1 }, memberRole: "owner" };
 });
 
-async function managedFacebook({ approved = true } = {}) {
+async function managedFacebook() {
   process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-  if (approved) process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
   process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
   process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const context = { params: Promise.resolve({ platform: "facebook" }) };
@@ -149,12 +148,11 @@ async function managedFacebook({ approved = true } = {}) {
   assert.ok(ticket, target.toString());
   return { context, ticket, state };
 }
-test("Facebook development testing works without claiming external approval", async () => {
+test("Facebook development connection requires only the managed provider configuration", async () => {
   const previous = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = "development";
-    const { context, ticket } = await managedFacebook({ approved: false });
-    assert.equal(process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS, undefined);
+    const { context, ticket } = await managedFacebook();
     assert.equal((await chooseManaged(context, { ticket, destinationId: "456" })).status, 200);
   } finally {
     if (previous === undefined) delete process.env.NODE_ENV;
@@ -167,7 +165,6 @@ const chooseManaged = (context, body) => selectManaged(new Request("https://cust
 
 async function facebookBusinessAttempt(options = {}) {
   process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
   process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
   process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   process.env.FACEBOOK_OAUTH_CONFIG_ID = "123456789";
@@ -491,7 +488,6 @@ test("managed start rejects cross-origin requests and unconfigured apps without 
 
 test("managed start distinguishes workspace role, request security and brand allowance failures", async () => {
   process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
   process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
   process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const context = { params: Promise.resolve({ platform: "facebook" }) };
@@ -568,7 +564,6 @@ test("development Dev Tunnel accepts only its rewritten same-origin localhost re
 
 test("managed callback binds state to user, workspace and the initiating brand", async () => {
   process.env.SOCIAL_MANAGED_PROVIDERS = "facebook";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "facebook";
   process.env.FACEBOOK_OAUTH_CLIENT_ID = "managed-app";
   process.env.FACEBOOK_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const context = { params: Promise.resolve({ platform: "facebook" }) };
@@ -594,7 +589,7 @@ test("managed callback binds state to user, workspace and the initiating brand",
   assert.equal(calls.length, 0);
 });
 
-test("unapproved Facebook remains blocked by the production start endpoint", async () => {
+test("configured Facebook starts managed OAuth in production without a second provider list", async () => {
   const previous = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = "production";
@@ -604,10 +599,10 @@ test("unapproved Facebook remains blocked by the production start endpoint", asy
     const response = await start(new Request("https://customer-app.example.test/api/social/oauth/facebook/start", {
       method: "POST", headers: { "Content-Type": "application/json", Origin: process.env.APP_URL }, body: "{}",
     }), { params: Promise.resolve({ platform: "facebook" }) });
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).code, "APPROVAL_REQUIRED");
+    assert.equal(response.status, 200);
+    assert.equal(new URL((await response.json()).url).origin, "https://www.facebook.com");
     assert.equal(calls.length, 0);
-    assert.equal(list(socialOAuthAttempts).length, 0);
+    assert.equal(list(socialOAuthAttempts).length, 1);
   } finally {
     if (previous === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previous;
@@ -617,7 +612,6 @@ test("unapproved Facebook remains blocked by the production start endpoint", asy
 for (const platform of ["x", "linkedin", "threads", "pinterest", "youtube", "tiktok"]) {
   test(`managed ${platform} authorization discovers a real destination and preserves server-only credentials`, async () => {
     process.env.SOCIAL_MANAGED_PROVIDERS = platform;
-    process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = platform;
     process.env[`${platform.toUpperCase()}_OAUTH_CLIENT_ID`] = "managed-app";
     process.env[`${platform.toUpperCase()}_OAUTH_CLIENT_SECRET`] = "server-only-managed-secret";
     process.env.LINKEDIN_API_VERSION = "202610";
@@ -810,7 +804,6 @@ test("Threads publishing checks quota before creating or publishing containers",
 });
 async function unifiedInstagram(options = {}) {
   process.env.SOCIAL_MANAGED_PROVIDERS = "instagram";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "instagram";
   process.env.INSTAGRAM_OAUTH_CLIENT_ID = "instagram-meta-app";
   process.env.INSTAGRAM_OAUTH_CLIENT_SECRET = "instagram-meta-secret";
   process.env.INSTAGRAM_OAUTH_CONFIG_ID = "1016690207410050";
@@ -1043,37 +1036,43 @@ test("managed configuration is optional until enabled and validates the selected
     FACEBOOK_OAUTH_CLIENT_ID: "managed-app", FACEBOOK_OAUTH_CLIENT_SECRET: "server-only-managed-secret" };
   const status = (env, platform = "facebook") => managedSocialAvailability(env).find(item => item.platform === platform).status;
   const linkedin = { SOCIAL_MANAGED_PROVIDERS: "linkedin", LINKEDIN_OAUTH_CLIENT_ID: "id", LINKEDIN_OAUTH_CLIENT_SECRET: "secret", LINKEDIN_API_VERSION: "202611", APP_URL: process.env.APP_URL };
-  assert.equal(status({ ...linkedin, NODE_ENV: "development" }, "linkedin"), "testing");
+  assert.equal(status({ ...linkedin, NODE_ENV: "development" }, "linkedin"), "available");
   assert.equal(status({ ...linkedin, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "" }, "linkedin"), "not_configured");
   assert.equal(status({ ...linkedin, NODE_ENV: "development", LINKEDIN_OAUTH_CLIENT_SECRET: "" }, "linkedin"), "not_configured");
-  assert.equal(status({ ...linkedin, NODE_ENV: "production" }, "linkedin"), "approval_required");
-  assert.equal(status({ ...linkedin, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "linkedin" }, "linkedin"), "available");
-  const limited = managedSocialAvailability({ ...linkedin, NODE_ENV: "development", LINKEDIN_ORGANIZATIONS_ENABLED: "true", SOCIAL_OAUTH_ANALYTICS_PROVIDERS: "linkedin" }).find(item => item.platform === "linkedin");
+  assert.equal(status({ ...linkedin, NODE_ENV: "production" }, "linkedin"), "available");
+  const limited = managedSocialAvailability({ ...linkedin, NODE_ENV: "production" }).find(item => item.platform === "linkedin");
   assert.equal(limited.organizationsAvailable, false);
   assert.equal(limited.analyticsAvailable, false);
+  const optedIn = managedSocialAvailability({ ...linkedin, NODE_ENV: "production", LINKEDIN_ORGANIZATIONS_ENABLED: "true", SOCIAL_OAUTH_ANALYTICS_PROVIDERS: "linkedin" }).find(item => item.platform === "linkedin");
+  assert.equal(optedIn.organizationsAvailable, true);
+  assert.equal(optedIn.analyticsAvailable, true);
   assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CLIENT_SECRET: "" }), "not_configured");
   assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CLIENT_SECRET: "" }), /client ID and secret/);
-  assert.equal(status({ ...facebook, NODE_ENV: "development" }), "testing");
-  assert.equal(status({ ...facebook, NODE_ENV: "production" }), "approval_required");
-  assert.equal(status({ ...facebook }), "approval_required");
-  assert.equal(status({ ...facebook, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "facebook" }), "available");
+  assert.equal(status({ ...facebook, NODE_ENV: "development" }), "available");
+  assert.equal(status({ ...facebook, NODE_ENV: "production" }), "available");
   assert.doesNotThrow(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CONFIG_ID: "" }));
   assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), /numeric Meta configuration ID/);
   assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CONFIG_ID: "not-an-id" }), "not_configured");
-  assert.equal(status({ ...facebook, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "x", X_OAUTH_CLIENT_ID: "id", X_OAUTH_CLIENT_SECRET: "secret" }, "x"), "approval_required");
+  assert.equal(status({ ...facebook, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "x", X_OAUTH_CLIENT_ID: "id", X_OAUTH_CLIENT_SECRET: "secret" }, "x"), "available");
   const threads = { SOCIAL_MANAGED_PROVIDERS: "threads", THREADS_OAUTH_CLIENT_ID: "threads-app", THREADS_OAUTH_CLIENT_SECRET: "threads-secret", APP_URL: process.env.APP_URL };
-  assert.equal(status({ ...threads, NODE_ENV: "development" }, "threads"), "testing");
-  assert.equal(status({ ...threads, NODE_ENV: "production" }, "threads"), "approval_required");
-  assert.equal(status({ ...threads, NODE_ENV: "test" }, "threads"), "approval_required");
-  assert.equal(status({ ...threads, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "threads" }, "threads"), "available");
+  assert.equal(status({ ...threads, NODE_ENV: "development" }, "threads"), "available");
+  assert.equal(status({ ...threads, NODE_ENV: "production" }, "threads"), "available");
   assert.equal(status({ ...threads, NODE_ENV: "development", THREADS_OAUTH_CLIENT_SECRET: "" }, "threads"), "not_configured");
   assert.equal(status({ ...threads, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "" }, "threads"), "not_configured");
+  const all = { ...linkedin, ...facebook, ...threads, SOCIAL_MANAGED_PROVIDERS: "facebook,instagram,threads,linkedin",
+    INSTAGRAM_OAUTH_CLIENT_ID: "id", INSTAGRAM_OAUTH_CLIENT_SECRET: "secret", INSTAGRAM_OAUTH_CONFIG_ID: "123" };
+  for (const NODE_ENV of ["development", "production"]) {
+    for (const platform of ["facebook", "instagram", "threads", "linkedin"]) {
+      assert.equal(status({ ...all, NODE_ENV }, platform), "available", `${NODE_ENV}/${platform}`);
+    }
+    assert.equal(status({ ...all, NODE_ENV, INSTAGRAM_OAUTH_CONFIG_ID: "" }, "instagram"), "not_configured");
+  }
+  assert.equal(status({ ...linkedin, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "invalid,invalid" }, "linkedin"), "available");
 });
 
 test("LinkedIn introspection distinguishes confirmed, missing, unknown and inactive grants", async () => {
   const { discoverManagedDestinations } = await import("../src/lib/social-managed-provider.ts");
   process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
   process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
   process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const settings = { clientId: "managed-app", oauthMode: "managed", apiVersion: "202611", analyticsEnabled: false };
@@ -1151,11 +1150,11 @@ test("LinkedIn OAuth 401 identifies the failing step without claiming expiration
   }
 });
 
-test("LinkedIn local OAuth binds state to user and workspace and rejects organization testing", async () => {
+test("LinkedIn local OAuth binds state to user and workspace and rejects disabled organizations", async () => {
   const previous = process.env.NODE_ENV;
   process.env.NODE_ENV = "development";
   process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
-  process.env.LINKEDIN_ORGANIZATIONS_ENABLED = "true";
+  process.env.LINKEDIN_ORGANIZATIONS_ENABLED = "false";
   process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
   process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   process.env.LINKEDIN_API_VERSION = "202611";
@@ -1206,7 +1205,6 @@ test("LinkedIn local OAuth binds state to user and workspace and rejects organiz
 
 test("LinkedIn personal sharing uses self-serve endpoints, media readiness and duplicate safeguards", async () => {
   process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
   process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
   process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
   const credentials = { accessToken: "private-member-token", accountId: "urn:li:person:member", apiVersion: "202611", oauthMode: "managed", expiresAt: new Date(Date.now() + 60000).toISOString() };
@@ -1255,14 +1253,13 @@ test("LinkedIn personal sharing uses self-serve endpoints, media readiness and d
   await assert.rejects(() => publishToCustomerAccount("linkedin", { ...credentials, expiresAt: new Date(Date.now() - 1000).toISOString() }, post, [], checkpoint), /expired/);
   await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [image, video], checkpoint), /one attachment/);
   await assert.rejects(() => publishToCustomerAccount("linkedin", { ...credentials, accountId: "urn:li:organization:123" }, post, [], checkpoint), /Community Management approval/);
-  delete process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS;
+  process.env.SOCIAL_MANAGED_PROVIDERS = "";
   await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint,
-    { stage: "linkedin-member-video", id: "urn:li:digitalmediaAsset:asset123", createdAt: Date.now() }), /not enabled or approved/);
+    { stage: "linkedin-member-video", id: "urn:li:digitalmediaAsset:asset123", createdAt: Date.now() }), /not enabled/);
 });
 
 test("LinkedIn approved organizations retain versioned posting", async () => {
   process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
-  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
   process.env.LINKEDIN_ORGANIZATIONS_ENABLED = "true";
   process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
   process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";

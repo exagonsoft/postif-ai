@@ -2,7 +2,7 @@ import type { SocialPlatform } from "./social-adapters";
 
 export interface ManagedProviderAvailability {
   platform: SocialPlatform;
-  status: "available" | "testing" | "not_configured" | "approval_required";
+  status: "available" | "not_configured";
   analyticsAvailable: boolean;
   organizationsAvailable: boolean;
   publicPostingAvailable: boolean;

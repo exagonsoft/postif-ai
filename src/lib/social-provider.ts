@@ -269,8 +269,8 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
   if (platform === "linkedin" && credentials.oauthMode === "managed") {
     const config = managedSocialConfiguration();
     const availability = managedSocialAvailability().find(item => item.platform === "linkedin");
-    if (credentials.accountId?.startsWith("urn:li:organization:") && (!config.linkedinOrganizations || !config.approved.includes("linkedin"))) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
-    if (!availability || !["available", "testing"].includes(availability.status)) throw new SocialProviderError("Managed LinkedIn publishing is not enabled or approved.", 403);
+    if (credentials.accountId?.startsWith("urn:li:organization:") && !config.linkedinOrganizations) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
+    if (!availability || availability.status !== "available") throw new SocialProviderError("Managed LinkedIn publishing is not enabled.", 403);
   }
   if (credentials.oauthMode === "managed" && !savedState) {
     const config = managedSocialConfiguration();

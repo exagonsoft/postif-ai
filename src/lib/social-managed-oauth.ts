@@ -11,7 +11,7 @@ import { managedSocialConfiguration } from "./social-managed-config";
 import { instagramAssignedAccounts, managedCredentials, managedScopes, ManagedSocialOAuthError, type AuthorizedSocialDestination } from "./social-managed-provider";
 import type { ManagedSocialSelection } from "./social-managed-types";
 import { WorkflowError } from "./post-policy";
-import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectInstagramUnifiedToken, inspectThreadsToken } from "./social-oauth-provider";
+import { FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectInstagramUnifiedToken, inspectLinkedInToken, inspectThreadsToken, LinkedInOAuthRequestError } from "./social-oauth-provider";
 import { reportFacebookGrantCheck } from "./facebook-oauth-diagnostics";
 
 const ticketFormat = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -20,12 +20,15 @@ const selectionPayload = z.object({
   destinations: z.array(z.object({
     id: z.string().min(1).max(250), name: z.string().min(1).max(500), handle: z.string().min(1).max(500),
     accountType: z.string().max(500), permissions: z.array(z.string().max(200)).max(100),
+    requestedPermissions: z.array(z.string().max(200)).max(100).optional(),
+    unknownPermissions: z.array(z.string().max(200)).max(100).optional(),
     privacyLevels: z.array(z.string().max(100)).max(20).optional(), credentials: customerCredentials,
   })).min(1).max(500),
 });
 export function managedSocialErrorCode(error: unknown, platform?: string): string {
   if (error instanceof ManagedSocialOAuthError) return error.code;
   if (error instanceof FacebookBusinessTokenError) return error.code;
+  if (platform === "linkedin" && error instanceof SocialProviderError && error.status === 401) return "AUTHORIZATION_FAILED";
   if (error instanceof WorkflowError) return /channel/i.test(error.message) ? "CHANNEL_LIMIT" : /brand/i.test(error.message) ? "BRAND_LIMIT" : "AUTHORIZATION_FAILED";
   if (error instanceof SocialProviderError) {
     if (platform === "instagram" && error.status === 400 && /^Provider request failed \(HTTP 400\)\.$/.test(error.message)) return "INSTAGRAM_PROVIDER_REJECTED";
@@ -37,6 +40,15 @@ export function managedSocialErrorCode(error: unknown, platform?: string): strin
     if (error.status >= 429) return "PROVIDER_UNAVAILABLE";
   }
   return error instanceof z.ZodError ? "INVALID_REQUEST" : "AUTHORIZATION_FAILED";
+}
+export function reportLinkedInOAuthFailure(stage: string, error: unknown) {
+  if (process.env.NODE_ENV !== "development") return;
+  console.warn("[LinkedIn OAuth]", {
+    stage: error instanceof LinkedInOAuthRequestError ? error.stage : stage,
+    status: error instanceof SocialProviderError ? error.status : null,
+    code: managedSocialErrorCode(error, "linkedin"),
+    ...(error instanceof LinkedInOAuthRequestError ? { reason: error.reason } : {}),
+  });
 }
 export function assertSocialMutationOrigin(req: Request, detailedErrors = false) {
   const origin = req.headers.get("origin");
@@ -84,8 +96,9 @@ export async function readManagedSelection(input: { workspaceId: number; userId:
   const { payload, platform } = await selectionRecord(input);
   return { platform, ticket: input.ticket, analyticsEnabled: payload.analyticsEnabled,
     publicPostingAvailable: managedSocialConfiguration().publicPosting.includes(platform),
-    destinations: payload.destinations.map(({ id, name, handle, accountType, permissions, privacyLevels }) => ({
-      id, name, handle, accountType, permissions, ...(privacyLevels ? { privacyLevels } : {}),
+    destinations: payload.destinations.map(({ id, name, handle, accountType, permissions, requestedPermissions, unknownPermissions, privacyLevels }) => ({
+      id, name, handle, accountType, permissions, ...(requestedPermissions ? { requestedPermissions } : {}),
+      ...(unknownPermissions ? { unknownPermissions } : {}), ...(privacyLevels ? { privacyLevels } : {}),
     })) };
 }
 export const managedSelectionInput = z.object({
@@ -102,6 +115,13 @@ export async function selectManagedDestination(input: z.infer<typeof managedSele
   const current = managedCredentials(platform, payload.analyticsEnabled, payload.organizations);
   if (destination.credentials.oauthMode !== "managed" || current.clientId !== destination.credentials.clientId) throw new ManagedSocialOAuthError("MANAGED_APP_CHANGED", 422);
   const credentials = { ...destination.credentials };
+  if (platform === "linkedin") {
+    const scopes = await inspectLinkedInToken(credentials);
+    if (scopes !== undefined) {
+      if (managedScopes("linkedin", payload.analyticsEnabled, payload.organizations).some(scope => !scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+      credentials.grantedScopes = scopes;
+    }
+  }
   if (platform === "threads") {
     const token = await inspectThreadsToken(credentials, Date.now() + 20000);
     if (managedScopes("threads", payload.analyticsEnabled, false).some(scope => !token.scopes.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);

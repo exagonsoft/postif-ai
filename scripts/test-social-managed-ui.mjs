@@ -11,6 +11,14 @@ globalThis.__socialRouter = { refresh() {}, replace() {} };
 globalThis.__socialToasts = [];
 registerHooks({
   resolve(specifier, context, next) {
+    if (context.parentURL?.endsWith("/src/app/app/settings/page.tsx")) {
+      const modules = {
+        "@/lib/auth": "export async function getAuthContext(){return {user:{id:1,name:'Test',email:'test@example.test',systemRole:'user'},workspace:{id:1},memberRole:'owner'};}",
+        "@/i18n/server": "export async function getServerI18n(){return {t:key=>key};}",
+        "@/components/NotificationSettings": "export function NotificationSettings(){return null;}",
+      };
+      if (modules[specifier]) return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(modules[specifier])}` };
+    }
     if (context.parentURL?.endsWith("/src/app/app/social/page.tsx")) {
       const modules = {
         "@/db": "export const db={async find(){return [];}};",
@@ -23,6 +31,7 @@ registerHooks({
     }
     if (specifier === "next/navigation") return { shortCircuit: true,
       url: "data:text/javascript,export function useRouter(){return globalThis.__socialRouter;} export function redirect(){throw new Error('unexpected redirect');}" };
+    if (specifier === "next/link") return next("next/link.js", context);
     return next(specifier, context);
   },
   load(url, context, next) {
@@ -34,6 +43,7 @@ registerHooks({
 const { ManagedSocialConnect, managedSocialErrorKey } = await import("../src/components/ManagedSocialConnect.tsx");
 const { SocialAccountsClient } = await import("../src/components/SocialAccountsClient.tsx");
 const { default: SocialAccountsPage } = await import("../src/app/app/social/page.tsx");
+const { default: SettingsPage } = await import("../src/app/app/settings/page.tsx");
 const { AppLanguageProvider } = await import("../src/i18n/provider.tsx");
 const { translate, translations } = await import("../src/i18n/config.ts");
 const platforms = ["facebook", "instagram", "linkedin", "x", "tiktok", "pinterest", "youtube", "threads"];
@@ -72,6 +82,28 @@ async function mount(props = {}, Component = ManagedSocialConnect) {
 }
 const selection = (platform, extra = {}) => ({ platform, ticket: "one-use-opaque-ticket", analyticsEnabled: false, publicPostingAvailable: false,
   destinations: [{ id: "real-provider-destination", name: "Authorized destination", handle: "@actual", accountType: "creator", permissions: ["publish"], privacyLevels: ["SELF_ONLY"] }], ...extra });
+
+test("settings reports billing configuration readiness instead of a hardcoded status", async () => {
+  const values = { BILLING_ENABLED: "true", BILLING_APP_URL: "https://app.example.test", PAYPAL_CLIENT_ID: "test-client", PAYPAL_CLIENT_SECRET: "test-secret", PAYPAL_WEBHOOK_ID: "test-webhook", PAYPAL_ENVIRONMENT: "sandbox" };
+  const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
+  try {
+    Object.assign(process.env, values);
+    const row = async () => {
+      const html = renderToString(await SettingsPage());
+      const document = new JSDOM(html).window.document;
+      return [...document.querySelectorAll("span")].find(node => node.textContent === "customer.environment.checkout").parentElement;
+    };
+    assert.match((await row()).textContent, /customer\.text\.86/);
+    process.env.PAYPAL_WEBHOOK_ID = "";
+    assert.match((await row()).textContent, /customer\.environment\.unavailable/);
+    Object.assign(process.env, values, { BILLING_ENABLED: "false" });
+    assert.match((await row()).textContent, /customer\.environment\.unavailable/);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
 
 test("managed strings have all four translations, matching placeholders, and render eight provider cards", () => {
   const keys = Object.keys(translations.en).filter(key => key.startsWith("social.managed."));
@@ -114,6 +146,20 @@ test("development Facebook testing is explicitly labeled and permits the consent
     await act(async () => button(view.container, "social.managed.continue").click());
     assert.deepEqual(view.requests[0].body, { mode: "managed", analyticsEnabled: false, organizations: false });
   } finally { await view.close(); }
+});
+
+test("testing notices distinguish LinkedIn from Meta providers in every locale", () => {
+  const testing = availability.map(item => ({ ...item, status: ["facebook", "instagram", "threads", "linkedin"].includes(item.platform) ? "testing" : "approval_required" }));
+  for (const locale of ["en", "es", "de", "pt-BR"]) {
+    const document = new JSDOM(renderToString(wrap(ManagedSocialConnect, { ...defaultProps, availability: testing }, locale))).window.document;
+    for (const platform of ["facebook", "instagram", "threads"]) {
+      assert.ok(document.querySelector(`[data-managed-provider="${platform}"]`).textContent.includes(translate(locale, "social.managed.gate.testing")));
+    }
+    const linkedin = document.querySelector('[data-managed-provider="linkedin"]');
+    assert.ok(linkedin.textContent.includes(translate(locale, "social.managed.gate.linkedinTesting")));
+    assert.ok(!linkedin.textContent.includes(translate(locale, "social.managed.gate.testing")));
+    assert.equal(linkedin.querySelector("button").disabled, false);
+  }
 });
 
 test("Facebook Business Login explains that Page discovery does not grant publishing", async () => {

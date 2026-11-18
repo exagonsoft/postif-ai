@@ -46,6 +46,8 @@ let rejectYouTubeStatus = false;
 let transientYouTubeStatus = false;
 let youtubeUploads = 0;
 let expectedTikTokAi = false;
+let linkedinWrites = 0;
+let linkedinRecipe = "";
 const reply = (data, status = 200) => Response.json(data, { status });
 globalThis.fetch = async (input, options = {}) => {
   const url = new URL(String(input));
@@ -54,6 +56,16 @@ globalThis.fetch = async (input, options = {}) => {
   if (rejectCredentials) return reply({ error: `Do not leak ${options.headers?.Authorization}` }, 401);
   if (url.hostname === "api.openai.com") return rejectAI ? reply({ error: "provider unavailable" }, 503) : reply({ choices: [{ message: { content: JSON.stringify(body.messages[0].content.includes("weekly content plan") ? { weeklyPlan: [{ day: "Monday", platform: "x", pillar: "Customer supplied pillar", concept: "A verified product walkthrough", status: "planned" }] } : { transformedText: "Hola, mundo.", hashtags: [], cta: "" }) } }], usage: { total_tokens: 17 } });
   if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Verified LinkedIn" });
+  if (url.pathname === "/v2/ugcPosts") {
+    linkedinWrites++;
+    return new Response(null, { status: 201, headers: { "x-restli-id": `urn:li:share:confirmed${linkedinWrites}` } });
+  }
+  if (url.pathname === "/v2/assets" && options.method === "POST") {
+    linkedinRecipe = body.registerUploadRequest.recipes[0];
+    return reply({ value: { asset: "urn:li:digitalmediaAsset:asset123", uploadMechanism: { "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest": { uploadUrl: "https://www.linkedin.com/dms-uploads/isolated" } } } });
+  }
+  if (url.pathname === "/dms-uploads/isolated") return new Response(null, { status: 201 });
+  if (url.pathname === "/v2/assets/asset123") return reply({ status: "ALLOWED", recipes: [{ recipe: linkedinRecipe, status: "AVAILABLE" }] });
   if (url.pathname === "/rest/posts") return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:confirmed" } });
   if (url.pathname === "/2/users/me") return reply({ data: { id: "x-user", name: "Verified X", username: "verified-x" } });
   if (url.pathname === "/2/tweets") {
@@ -211,6 +223,22 @@ try {
   }
   assert.equal(xWrites, 1, "Concurrent workers must not create duplicate posts");
   assert.equal((await db.find(schema.workspaces, { id: workspace.id }))[0].postsPublishedThisMonth, 8);
+  for (const asset of [image, video]) {
+    const writesBefore = linkedinWrites;
+    const { post, job } = await duePost(brand.id, "linkedin", "LinkedIn media", [asset.id]);
+    await Promise.all([processDuePosts(workspace.id), processDuePosts(workspace.id)]);
+    let [persisted] = await db.find(schema.publishingJobs, { id: job.id });
+    if (persisted.status === "processing") {
+      assert.equal(linkedinWrites, writesBefore, "Video must not publish before asset processing");
+      await db.update(schema.publishingJobs, { id: job.id }, { nextCheckAt: new Date(0) });
+      await Promise.all([processDuePosts(workspace.id), processDuePosts(workspace.id)]);
+      [persisted] = await db.find(schema.publishingJobs, { id: job.id });
+    }
+    assert.equal(persisted.status, "completed", persisted.errorMessage);
+    assert.equal(linkedinWrites, writesBefore + 1, "Concurrent workers publish the LinkedIn post once");
+    const { publishingReservations } = await import("../src/db/entitlement-schema.ts");
+    assert.equal((await db.find(publishingReservations, { workspaceId: workspace.id, postId: post.id }))[0].status, "consumed");
+  }
   const postRequest = body => postsAction(new Request("https://publishing.example.test/api/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
   const jobRequest = body => jobsAction(new Request("https://publishing.example.test/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
   const immediateInput = { action: "create", title: "Immediate Facebook", baseContent: "Immediate Facebook", platforms: ["facebook"], requiresApproval: false, notifyOnPublish: false, status: "published" };

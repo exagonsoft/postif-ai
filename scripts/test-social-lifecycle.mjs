@@ -58,6 +58,7 @@ globalThis.postifLifecycleTestDb = database;
 globalThis.postifLifecycleEntitlement = { plan: { maxChannels: 10 }, features: { advancedAnalytics: true }, paid: true };
 registerHooks({
   resolve(specifier, context, next) {
+    if (specifier === "./media-storage" && context.parentURL?.includes("social-provider.ts")) return { url: "data:text/javascript,export async function readMedia(){return Buffer.from('isolated media');}", shortCircuit: true };
     const modules = {
       "@/db": "export const db=globalThis.postifLifecycleTestDb;",
       "@/lib/auth": "export async function getAuthContext(){return globalThis.postifLifecycleAuth;}",
@@ -635,6 +636,7 @@ for (const platform of ["x", "linkedin", "threads", "pinterest", "youtube", "tik
       }
       if (url.pathname === "/2/users/me") return reply({ data: { id: "managed-x-id", name: "Managed X", username: "managed-x" } });
       if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Member" });
+      if (url.pathname === "/oauth/v2/introspectToken") return reply({ active: true, client_id: "managed-app", auth_type: "3L", scope: "openid,profile,w_member_social" });
       if (url.hostname === "graph.instagram.com") return reply({ user_id: "123", username: "professional", account_type: "BUSINESS" });
       if (url.hostname === "graph.threads.com") return reply({ id: "123", username: "threads-user" });
       if (url.pathname === "/v5/user_account") return reply({ username: "owner", account_type: "BUSINESS" });
@@ -1040,6 +1042,15 @@ test("managed configuration is optional until enabled and validates the selected
   const facebook = { SOCIAL_MANAGED_PROVIDERS: "facebook", APP_URL: process.env.APP_URL,
     FACEBOOK_OAUTH_CLIENT_ID: "managed-app", FACEBOOK_OAUTH_CLIENT_SECRET: "server-only-managed-secret" };
   const status = (env, platform = "facebook") => managedSocialAvailability(env).find(item => item.platform === platform).status;
+  const linkedin = { SOCIAL_MANAGED_PROVIDERS: "linkedin", LINKEDIN_OAUTH_CLIENT_ID: "id", LINKEDIN_OAUTH_CLIENT_SECRET: "secret", LINKEDIN_API_VERSION: "202611", APP_URL: process.env.APP_URL };
+  assert.equal(status({ ...linkedin, NODE_ENV: "development" }, "linkedin"), "testing");
+  assert.equal(status({ ...linkedin, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "" }, "linkedin"), "not_configured");
+  assert.equal(status({ ...linkedin, NODE_ENV: "development", LINKEDIN_OAUTH_CLIENT_SECRET: "" }, "linkedin"), "not_configured");
+  assert.equal(status({ ...linkedin, NODE_ENV: "production" }, "linkedin"), "approval_required");
+  assert.equal(status({ ...linkedin, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "linkedin" }, "linkedin"), "available");
+  const limited = managedSocialAvailability({ ...linkedin, NODE_ENV: "development", LINKEDIN_ORGANIZATIONS_ENABLED: "true", SOCIAL_OAUTH_ANALYTICS_PROVIDERS: "linkedin" }).find(item => item.platform === "linkedin");
+  assert.equal(limited.organizationsAvailable, false);
+  assert.equal(limited.analyticsAvailable, false);
   assert.equal(status({ ...facebook, NODE_ENV: "development", FACEBOOK_OAUTH_CLIENT_SECRET: "" }), "not_configured");
   assert.throws(() => validateManagedSocialConfiguration({ ...facebook, FACEBOOK_OAUTH_CLIENT_SECRET: "" }), /client ID and secret/);
   assert.equal(status({ ...facebook, NODE_ENV: "development" }), "testing");
@@ -1057,6 +1068,214 @@ test("managed configuration is optional until enabled and validates the selected
   assert.equal(status({ ...threads, NODE_ENV: "production", SOCIAL_OAUTH_APPROVED_PROVIDERS: "threads" }, "threads"), "available");
   assert.equal(status({ ...threads, NODE_ENV: "development", THREADS_OAUTH_CLIENT_SECRET: "" }, "threads"), "not_configured");
   assert.equal(status({ ...threads, NODE_ENV: "development", SOCIAL_MANAGED_PROVIDERS: "" }, "threads"), "not_configured");
+});
+
+test("LinkedIn introspection distinguishes confirmed, missing, unknown and inactive grants", async () => {
+  const { discoverManagedDestinations } = await import("../src/lib/social-managed-provider.ts");
+  process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
+  process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
+  process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const settings = { clientId: "managed-app", oauthMode: "managed", apiVersion: "202611", analyticsEnabled: false };
+  let inspection = { active: true, client_id: "managed-app", auth_type: "3L", scope: "openid,profile,w_member_social" };
+  transport = async (url, init) => {
+    if (url.pathname === "/oauth/v2/accessToken") return reply({ access_token: "private-managed-access", expires_in: 7200 });
+    if (url.pathname === "/oauth/v2/introspectToken") {
+      assert.equal(init.body.get("client_secret"), "server-only-managed-secret");
+      assert.equal(url.search, "");
+      return reply(inspection);
+    }
+    if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Member" });
+    throw new Error("Unmocked LinkedIn request");
+  };
+  const discover = () => discoverManagedDestinations("linkedin", settings, { code: "code", verifier: "verifier" }, false);
+  let [destination] = await discover();
+  assert.equal(destination.id, "urn:li:person:member");
+  assert.deepEqual(destination.permissions, ["openid", "profile", "w_member_social"]);
+  assert.deepEqual(destination.unknownPermissions, []);
+  inspection = { active: true, scope: "openid,profile" };
+  await assert.rejects(discover, /PERMISSION_MISSING/);
+  inspection = { active: true };
+  [destination] = await discover();
+  assert.deepEqual(destination.permissions, []);
+  assert.deepEqual(destination.unknownPermissions, ["openid", "profile", "w_member_social"]);
+  assert.equal(destination.credentials.grantedScopes, undefined);
+  inspection = { active: false };
+  await assert.rejects(discover, /could not verify/);
+  inspection = { active: true, client_id: "different-app" };
+  await assert.rejects(discover, /could not verify/);
+  inspection = { active: true, scope: "" };
+  await assert.rejects(discover, /PERMISSION_MISSING/);
+});
+
+test("LinkedIn OAuth 401 identifies the failing step without claiming expiration or logging credentials", async () => {
+  const { inspectLinkedInToken } = await import("../src/lib/social-oauth-provider.ts");
+  const { managedSocialErrorCode, reportLinkedInOAuthFailure } = await import("../src/lib/social-managed-oauth.ts");
+  process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
+  process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const credentials = { accessToken: "private-managed-access", clientId: "managed-app", oauthMode: "managed" };
+  transport = async () => Response.json({ error: "private-managed-access server-only-managed-secret" }, { status: 401 });
+  const previous = process.env.NODE_ENV;
+  const warn = console.warn;
+  const logs = [];
+  try {
+    process.env.NODE_ENV = "development";
+    console.warn = (...args) => logs.push(args);
+    for (const [operation, stage] of [
+      [() => exchangeSocialToken("linkedin", credentials, { code: "private-code", verifier: "unused" }), "token_exchange"],
+      [() => inspectLinkedInToken(credentials), "token_introspection"],
+    ]) {
+      await assert.rejects(operation, error => {
+        assert.equal(managedSocialErrorCode(error, "linkedin"), "AUTHORIZATION_FAILED");
+        reportLinkedInOAuthFailure("callback_discovery", error);
+        assert.equal(logs.at(-1)[1].stage, stage);
+        assert.equal(logs.at(-1)[1].status, 401);
+        assert.equal(logs.at(-1)[1].reason, "provider_response");
+        return true;
+      });
+    }
+    transport = async () => reply({ active: false });
+    await assert.rejects(() => inspectLinkedInToken(credentials), error => {
+      reportLinkedInOAuthFailure("callback_discovery", error);
+      assert.equal(logs.at(-1)[1].reason, "inactive");
+      return true;
+    });
+    assert.doesNotMatch(JSON.stringify(logs), /private-managed-access|server-only-managed-secret|private-code/);
+    process.env.NODE_ENV = "production";
+    reportLinkedInOAuthFailure("callback", new Error("secret"));
+    assert.equal(logs.length, 3);
+  } finally {
+    console.warn = warn;
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
+});
+
+test("LinkedIn local OAuth binds state to user and workspace and rejects organization testing", async () => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+  process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
+  process.env.LINKEDIN_ORGANIZATIONS_ENABLED = "true";
+  process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
+  process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  process.env.LINKEDIN_API_VERSION = "202611";
+  const context = { params: Promise.resolve({ platform: "linkedin" }) };
+  const startRequest = body => new Request(`${process.env.APP_URL}/api/social/oauth/linkedin/start`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  try {
+    assert.equal((await start(startRequest({ mode: "managed", organizations: true }), context)).status, 403);
+    transport = async url => {
+      if (url.pathname === "/oauth/v2/accessToken") return reply({ access_token: "private-managed-access", expires_in: 7200 });
+      if (url.pathname === "/oauth/v2/introspectToken") return reply({ active: true });
+      if (url.pathname === "/v2/userinfo") return reply({ sub: "member", name: "Member" });
+      throw new Error("Unmocked LinkedIn request");
+    };
+    const started = await start(startRequest({ mode: "managed" }), context);
+    assert.equal(started.status, 200);
+    const authorization = new URL((await started.json()).url);
+    assert.equal(authorization.searchParams.get("scope"), "openid profile w_member_social");
+    const state = authorization.searchParams.get("state");
+    globalThis.postifLifecycleAuth.user.id = 2;
+    const wrongUser = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/linkedin/callback?state=${state}&code=provider-code`), context);
+    assert.equal(new URL(wrongUser.headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+    globalThis.postifLifecycleAuth.user.id = 1;
+    const completed = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/linkedin/callback?state=${state}&code=provider-code`), context);
+    const ticket = new URL(completed.headers.get("location")).searchParams.get("social_selection");
+    assert.ok(ticket);
+    const selected = await listManaged(new Request(`${process.env.APP_URL}/api/social/oauth/linkedin/select?ticket=${ticket}`), context);
+    const dto = await selected.json();
+    assert.deepEqual(dto.destinations[0].permissions, []);
+    assert.deepEqual(dto.destinations[0].unknownPermissions, ["openid", "profile", "w_member_social"]);
+    assert.doesNotMatch(JSON.stringify(dto), /private-managed-access|server-only-managed-secret/);
+    rows.set(socialAccounts.name, [...list(socialAccounts), { id: 2, workspaceId: 1, brandId: 1, platform: "linkedin", handle: "urn:li:person:member", status: "connected", permissions: ["w_member_social"] }]);
+    const saved = await chooseManaged(context, { ticket, destinationId: dto.destinations[0].id });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(list(socialAccounts).find(item => item.id === 2).permissions, [], "Unknown new grant must not retain old confirmed permissions");
+    const stored = JSON.parse(decryptSecret(list(socialCredentials).find(item => item.socialAccountId === 2).encryptedCredentials));
+    assert.equal(stored.grantedScopes, undefined);
+    assert.equal(stored.clientSecret, undefined);
+    const replay = await callback(new Request(`${process.env.APP_URL}/api/social/oauth/linkedin/callback?state=${state}&code=provider-code`), context);
+    assert.equal(new URL(replay.headers.get("location")).searchParams.get("social_error"), "STATE_INVALID");
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+    delete process.env.LINKEDIN_ORGANIZATIONS_ENABLED;
+  }
+});
+
+test("LinkedIn personal sharing uses self-serve endpoints, media readiness and duplicate safeguards", async () => {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
+  process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
+  process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const credentials = { accessToken: "private-member-token", accountId: "urn:li:person:member", apiVersion: "202611", oauthMode: "managed", expiresAt: new Date(Date.now() + 60000).toISOString() };
+  const post = { title: "Test", baseContent: "Test content", variants: {}, workspaceId: 1 };
+  const image = { id: 11, workspaceId: 1, assetType: "image", mimeType: "image/png", storageKey: "stored", generationStatus: "ready" };
+  const video = { ...image, id: 12, assetType: "video", mimeType: "video/mp4" };
+  let state, recipeStatus = "PROCESSING", posts = 0, assetKind;
+  transport = async (url, init) => {
+    assert.equal(new Headers(init.headers).get("Linkedin-Version"), null);
+    if (url.pathname === "/v2/assets" && init.method === "POST") {
+      const body = JSON.parse(init.body).registerUploadRequest;
+      assetKind = body.recipes[0].endsWith("video") ? "video" : "image";
+      assert.equal(body.owner, credentials.accountId);
+      assert.deepEqual(body.supportedUploadMechanism, [assetKind === "image" ? "SYNCHRONOUS_UPLOAD" : "SINGLE_REQUEST_UPLOAD"]);
+      return reply({ value: { asset: "urn:li:digitalmediaAsset:asset123", uploadMechanism: { "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest": { uploadUrl: "https://www.linkedin.com/dms-uploads/test" } } } });
+    }
+    if (url.pathname === "/dms-uploads/test") {
+      assert.equal(init.method, "PUT");
+      assert.equal(new Headers(init.headers).has("Authorization"), assetKind === "image");
+      return new Response(null, { status: 201 });
+    }
+    if (url.pathname === "/v2/assets/asset123") return reply({ status: "ALLOWED", recipes: [{ recipe: "urn:li:digitalmediaRecipe:feedshare-video", status: recipeStatus }] });
+    if (url.pathname === "/v2/ugcPosts") {
+      posts++;
+      const body = JSON.parse(init.body);
+      assert.equal(body.author, credentials.accountId);
+      assert.equal(body.specificContent["com.linkedin.ugc.ShareContent"].shareMediaCategory, assetKind?.toUpperCase() || "NONE");
+      return new Response(null, { status: 201, headers: { "x-restli-id": `urn:li:share:${posts}` } });
+    }
+    throw new Error("Unexpected LinkedIn endpoint");
+  };
+  const checkpoint = async next => { state = structuredClone(next); };
+  assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [], checkpoint)).status, "completed");
+  await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [], checkpoint, state), /may have been accepted/);
+  assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [image], checkpoint)).status, "completed");
+  assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint)).status, "processing");
+  assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint, state)).status, "processing");
+  assert.equal(posts, 2);
+  recipeStatus = "AVAILABLE";
+  assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint, state)).status, "completed");
+  assert.equal(posts, 3);
+  recipeStatus = "CLIENT_ERROR";
+  await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint,
+    { stage: "linkedin-member-video", id: "urn:li:digitalmediaAsset:asset123", createdAt: Date.now() }), /could not process/);
+  assert.equal(posts, 3);
+  await assert.rejects(() => publishToCustomerAccount("linkedin", { ...credentials, expiresAt: new Date(Date.now() - 1000).toISOString() }, post, [], checkpoint), /expired/);
+  await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [image, video], checkpoint), /one attachment/);
+  await assert.rejects(() => publishToCustomerAccount("linkedin", { ...credentials, accountId: "urn:li:organization:123" }, post, [], checkpoint), /Community Management approval/);
+  delete process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS;
+  await assert.rejects(() => publishToCustomerAccount("linkedin", credentials, post, [video], checkpoint,
+    { stage: "linkedin-member-video", id: "urn:li:digitalmediaAsset:asset123", createdAt: Date.now() }), /not enabled or approved/);
+});
+
+test("LinkedIn approved organizations retain versioned posting", async () => {
+  process.env.SOCIAL_MANAGED_PROVIDERS = "linkedin";
+  process.env.SOCIAL_OAUTH_APPROVED_PROVIDERS = "linkedin";
+  process.env.LINKEDIN_ORGANIZATIONS_ENABLED = "true";
+  process.env.LINKEDIN_OAUTH_CLIENT_ID = "managed-app";
+  process.env.LINKEDIN_OAUTH_CLIENT_SECRET = "server-only-managed-secret";
+  const credentials = { accessToken: "private-token", accountId: "urn:li:organization:123", apiVersion: "202611", oauthMode: "managed" };
+  const post = { title: "Test", baseContent: "Test content", variants: {}, workspaceId: 1 };
+  try {
+    transport = async (url, init) => {
+      assert.equal(url.pathname, "/rest/posts");
+      assert.equal(new Headers(init.headers).get("Linkedin-Version"), "202611");
+      return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:org" } });
+    };
+    assert.equal((await publishToCustomerAccount("linkedin", credentials, post, [], async () => {})).id, "urn:li:share:org");
+  } finally { delete process.env.LINKEDIN_ORGANIZATIONS_ENABLED; }
 });
 test("managed analytics opt-out performs no provider calls and does not prevent token renewal", async () => {
   rows.get(socialCredentials.name)[0].encryptedCredentials = encryptSecret(JSON.stringify({ ...secret, analyticsEnabled: false }));

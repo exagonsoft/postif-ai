@@ -15,6 +15,8 @@ export interface ManagedSocialDestination {
   handle: string;
   accountType: string;
   permissions: string[];
+  requestedPermissions?: string[];
+  unknownPermissions?: string[];
   privacyLevels?: string[];
 }
 

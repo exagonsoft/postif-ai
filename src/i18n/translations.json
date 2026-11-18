@@ -2,6 +2,7 @@
   "en": {
     "social.managed.status.testing": "Development testing",
     "social.managed.gate.testing": "Testing only: Meta approval for external users has not been confirmed. Only eligible app-role testers can authorize; Meta permissions still apply.",
+    "social.managed.gate.linkedinTesting": "Local testing only: production approval has not been confirmed. Only personal LinkedIn profiles are available in this mode.",
     "legal.contents": "On this page",
     "legal.contact": "Contact ExagonSoft",
     "legal.contactHelp": "For privacy, deletion, account or billing questions, email us directly. Send only the information needed to identify your request, not passwords, API keys, access tokens or payment credentials.",
@@ -161,6 +162,7 @@
     "social.managed.selectionIntro": "Authorization is not a connection yet. Review the accounts returned by the provider and confirm one destination.",
     "social.managed.permissions": "Authorized permissions",
     "social.managed.noPermissions": "No permissions reported",
+    "social.managed.unknownPermissions": "Requested permissions not confirmed by LinkedIn",
     "social.managed.privateOnly": "Public posting is not approved for this application. Only provider-approved private visibility is available.",
     "social.managed.confirm": "Confirm connection",
     "social.managed.success": "The provider-confirmed account is now connected.",
@@ -1905,6 +1907,7 @@
   "es": {
     "social.managed.status.testing": "Pruebas de desarrollo",
     "social.managed.gate.testing": "Solo pruebas: no se ha confirmado la aprobación de Meta para usuarios externos. Solo pueden autorizar los probadores habilitados con un rol en la aplicación; se aplican los permisos de Meta.",
+    "social.managed.gate.linkedinTesting": "Solo pruebas locales: no se ha confirmado la aprobación para producción. En este modo solo están disponibles los perfiles personales de LinkedIn.",
     "legal.contents": "En esta página",
     "legal.contact": "Contactar con ExagonSoft",
     "legal.contactHelp": "Para consultas sobre privacidad, eliminación, cuentas o facturación, escríbenos directamente. Envía solo la información necesaria para identificar tu solicitud, nunca contraseñas, claves de API, tokens de acceso ni credenciales de pago.",
@@ -2064,6 +2067,7 @@
     "social.managed.selectionIntro": "La autorización aún no es una conexión. Revisa las cuentas devueltas por el proveedor y confirma un destino.",
     "social.managed.permissions": "Permisos autorizados",
     "social.managed.noPermissions": "No se informaron permisos",
+    "social.managed.unknownPermissions": "Permisos solicitados no confirmados por LinkedIn",
     "social.managed.privateOnly": "La publicación pública no está aprobada para esta aplicación. Solo está disponible la visibilidad privada aprobada por el proveedor.",
     "social.managed.confirm": "Confirmar conexión",
     "social.managed.success": "La cuenta confirmada por el proveedor ya está conectada.",
@@ -3808,6 +3812,7 @@
   "de": {
     "social.managed.status.testing": "Entwicklungstest",
     "social.managed.gate.testing": "Nur zum Testen: Eine Meta-Freigabe für externe Nutzer ist nicht bestätigt. Nur berechtigte Tester mit App-Rolle können autorisieren; Meta-Berechtigungen gelten weiterhin.",
+    "social.managed.gate.linkedinTesting": "Nur lokale Tests: Eine Freigabe für die Produktion ist nicht bestätigt. In diesem Modus sind nur persönliche LinkedIn-Profile verfügbar.",
     "legal.contents": "Auf dieser Seite",
     "legal.contact": "ExagonSoft kontaktieren",
     "legal.contactHelp": "Schreibe uns bei Fragen zu Datenschutz, Löschung, Konten oder Abrechnung direkt per E-Mail. Sende nur die zur Zuordnung nötigen Angaben, keine Passwörter, API-Schlüssel, Zugriffstoken oder Zahlungszugangsdaten.",
@@ -3967,6 +3972,7 @@
     "social.managed.selectionIntro": "Die Autorisierung ist noch keine Verbindung. Prüfe die vom Anbieter zurückgegebenen Konten und bestätige ein Ziel.",
     "social.managed.permissions": "Autorisierte Berechtigungen",
     "social.managed.noPermissions": "Keine Berechtigungen gemeldet",
+    "social.managed.unknownPermissions": "Von LinkedIn nicht bestätigte angeforderte Berechtigungen",
     "social.managed.privateOnly": "Öffentliche Beiträge sind für diese Anwendung nicht genehmigt. Nur vom Anbieter genehmigte private Sichtbarkeit ist verfügbar.",
     "social.managed.confirm": "Verbindung bestätigen",
     "social.managed.success": "Das vom Anbieter bestätigte Konto ist jetzt verbunden.",
@@ -5711,6 +5717,7 @@
   "pt-BR": {
     "social.managed.status.testing": "Teste de desenvolvimento",
     "social.managed.gate.testing": "Somente teste: a aprovação da Meta para usuários externos não foi confirmada. Apenas testadores elegíveis com função no aplicativo podem autorizar; as permissões da Meta continuam valendo.",
+    "social.managed.gate.linkedinTesting": "Somente testes locais: a aprovação para produção não foi confirmada. Neste modo, apenas perfis pessoais do LinkedIn estão disponíveis.",
     "legal.contents": "Nesta página",
     "legal.contact": "Fale com a ExagonSoft",
     "legal.contactHelp": "Para dúvidas sobre privacidade, exclusão, conta ou cobrança, envie um e-mail diretamente. Informe apenas o necessário para identificar a solicitação, nunca senhas, chaves de API, tokens de acesso ou credenciais de pagamento.",
@@ -5870,6 +5877,7 @@
     "social.managed.selectionIntro": "A autorização ainda não é uma conexão. Revise as contas retornadas pelo provedor e confirme um destino.",
     "social.managed.permissions": "Permissões autorizadas",
     "social.managed.noPermissions": "Nenhuma permissão informada",
+    "social.managed.unknownPermissions": "Permissões solicitadas não confirmadas pelo LinkedIn",
     "social.managed.privateOnly": "A publicação pública não foi aprovada para este aplicativo. Somente a visibilidade privada aprovada pelo provedor está disponível.",
     "social.managed.confirm": "Confirmar conexão",
     "social.managed.success": "A conta confirmada pelo provedor agora está conectada.",

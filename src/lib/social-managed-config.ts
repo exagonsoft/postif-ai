@@ -72,9 +72,9 @@ export function managedSocialAvailability(env: NodeJS.ProcessEnv = process.env):
       platform === "facebook" && !!config.facebookConfigId && !/^\d{1,32}$/.test(config.facebookConfigId)
       || platform === "instagram" && !/^\d{1,32}$/.test(config.instagramConfigId || "")
       ? "not_configured" : config.approved.includes(platform) ? "available"
-        : env.NODE_ENV === "development" && ["facebook", "instagram", "threads"].includes(platform) ? "testing" : "approval_required",
-    analyticsAvailable: config.analytics.includes(platform),
-    organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations,
+        : env.NODE_ENV === "development" && ["facebook", "instagram", "threads", "linkedin"].includes(platform) ? "testing" : "approval_required",
+    analyticsAvailable: config.analytics.includes(platform) && (platform !== "linkedin" || config.approved.includes(platform)),
+    organizationsAvailable: platform === "linkedin" && config.linkedinOrganizations && config.approved.includes(platform),
     publicPostingAvailable: config.publicPosting.includes(platform),
     facebookBusinessLogin: platform === "facebook" && !!config.facebookConfigId,
   }));

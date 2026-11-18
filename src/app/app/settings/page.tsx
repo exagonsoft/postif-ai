@@ -4,6 +4,7 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
+import { getBillingReadiness } from "@/lib/paypal";
 import { ShieldCheck, KeyRound, Server, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
+  const billingReady = getBillingReadiness().ready;
   const envChecks = [
     {
       name: t("customer.environment.mongo"),
@@ -30,8 +32,8 @@ export default async function SettingsPage() {
     },
     {
       name: t("customer.environment.checkout"),
-      status: t("customer.environment.unavailable"),
-      active: false,
+      status: t(billingReady ? "customer.text.86" : "customer.environment.unavailable"),
+      active: billingReady,
     },
     {
       name: t("customer.environment.social"),

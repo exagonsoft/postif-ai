@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { managedSocialAvailability, managedSocialConfiguration } from "./social-managed-config";
 import { customerCredentials, SocialProviderError, verifyCustomerConnection, type CustomerCredentials } from "./social-provider";
-import { exchangeFacebookUserToken, exchangeInstagramUnifiedToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectThreadsToken, metaVersion, providerJson } from "./social-oauth-provider";
+import { exchangeFacebookUserToken, exchangeInstagramUnifiedToken, exchangeSocialToken, FacebookBusinessTokenError, facebookScopeForPage, inspectFacebookToken, inspectLinkedInToken, inspectThreadsToken, metaVersion, providerJson } from "./social-oauth-provider";
 import type { SocialPlatform } from "./social-adapters";
 import type { ManagedSocialDestination } from "./social-managed-types";
 import { facebookDiagnosticRequest, facebookDiagnosticsEnabled, reportFacebookAuthorization, reportFacebookGrantCheck, reportFacebookPageDiscovery, reportFacebookPageRestrictions, reportFacebookPageTasks, reportFacebookPermissions } from "./facebook-oauth-diagnostics";
@@ -18,6 +18,7 @@ export function managedCredentials(platform: SocialPlatform, analyticsEnabled: b
   const config = managedSocialConfiguration();
   const status = managedSocialAvailability().find(item => item.platform === platform)?.status;
   if (status !== "available" && status !== "testing") throw new ManagedSocialOAuthError(status === "approval_required" ? "APPROVAL_REQUIRED" : "NOT_CONFIGURED", 503);
+  if (platform === "linkedin" && status === "testing" && (analyticsEnabled || organizations)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   if (analyticsEnabled && !config.analytics.includes(platform)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   if (organizations && (platform !== "linkedin" || !config.linkedinOrganizations)) throw new ManagedSocialOAuthError("APPROVAL_REQUIRED", 403);
   const clientId = config.clients[platform].clientId?.trim();
@@ -166,13 +167,17 @@ export async function instagramAssignedAccounts(credentials: CustomerCredentials
 async function discoverOtherDestinations(platform: Exclude<SocialPlatform, "facebook">, settings: Omit<CustomerCredentials, "accessToken">,
   grant: { code: string; verifier: string }, organizations: boolean, deadline: number): Promise<AuthorizedSocialDestination[]> {
   const credentials = await exchangeSocialToken(platform, { ...settings, accessToken: "pending-authorization" }, grant, deadline);
-  const permissions = platform === "threads"
+  const requested = managedScopes(platform, !!settings.analyticsEnabled, organizations);
+  const linkedInScopes = platform === "linkedin" ? await inspectLinkedInToken(credentials, deadline) : undefined;
+  const permissions = platform === "linkedin" ? linkedInScopes ?? credentials.grantedScopes ?? [] : platform === "threads"
     ? (await inspectThreadsToken(credentials, deadline)).scopes
-    : credentials.grantedScopes || managedScopes(platform, !!settings.analyticsEnabled, organizations);
-  if (managedScopes(platform, !!settings.analyticsEnabled, organizations).some(scope => !permissions.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
+    : credentials.grantedScopes || requested;
+  const unknown = platform === "linkedin" && linkedInScopes === undefined && credentials.grantedScopes === undefined;
+  if (!unknown && requested.some(scope => !permissions.includes(scope))) throw new ManagedSocialOAuthError("PERMISSION_MISSING", 403);
   const withIdentity = (id: string, name: string, handle: string, accountType: string, extra: Partial<CustomerCredentials> = {}): AuthorizedSocialDestination => ({
     id, name, handle, accountType, permissions,
-    credentials: customerCredentials.parse({ ...credentials, ...extra, grantedScopes: permissions }),
+    ...(platform === "linkedin" ? { requestedPermissions: requested, unknownPermissions: unknown ? requested : [] } : {}),
+    credentials: customerCredentials.parse({ ...credentials, ...extra, grantedScopes: unknown ? undefined : permissions }),
   });
   const headers = { Authorization: `Bearer ${credentials.accessToken}` };
   if (platform === "pinterest") {

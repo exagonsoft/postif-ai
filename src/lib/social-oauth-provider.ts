@@ -217,6 +217,35 @@ export async function exchangeSocialToken(platform: SocialPlatform, credentials:
   const result = await exchangeWithClient(platform, resolveSocialOAuthClient(platform, credentials), grant, deadline);
   return credentials.oauthMode === "managed" ? customerCredentials.parse({ ...result, clientSecret: undefined }) : result;
 }
+export class LinkedInOAuthRequestError extends SocialProviderError {
+  constructor(public stage: "token_exchange" | "token_introspection", status: number,
+    public reason: "provider_response" | "inactive" | "client_mismatch" | "token_type" | "expired" = "provider_response") {
+    super("LinkedIn could not verify the authorization. Check the application configuration and try again.", status);
+  }
+}
+async function linkedInOAuthRequest(stage: LinkedInOAuthRequestError["stage"], url: string, init: RequestInit, deadline: number) {
+  try { return await providerJson(url, init, deadline); }
+  catch (error) {
+    if (error instanceof SocialProviderError) throw new LinkedInOAuthRequestError(stage, error.status);
+    throw error;
+  }
+}
+export async function inspectLinkedInToken(input: CustomerCredentials, deadline = Date.now() + 20000): Promise<string[] | undefined> {
+  const credentials = resolveSocialOAuthClient("linkedin", input);
+  if (!credentials.clientId || !credentials.clientSecret) throw new SocialProviderError("LinkedIn client credentials are required for token verification.", 422);
+  const result = z.object({
+    active: z.boolean(), client_id: z.string().optional(), auth_type: z.string().optional(),
+    expires_at: z.number().optional(), scope: z.string().max(20000).optional(),
+  }).parse(await linkedInOAuthRequest("token_introspection", "https://www.linkedin.com/oauth/v2/introspectToken", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: credentials.clientId, client_secret: credentials.clientSecret, token: credentials.accessToken }),
+  }, deadline));
+  if (!result.active) throw new LinkedInOAuthRequestError("token_introspection", 401, "inactive");
+  if (result.client_id && result.client_id !== credentials.clientId) throw new LinkedInOAuthRequestError("token_introspection", 401, "client_mismatch");
+  if (result.auth_type && result.auth_type !== "3L") throw new LinkedInOAuthRequestError("token_introspection", 401, "token_type");
+  if (result.expires_at !== undefined && result.expires_at * 1000 <= Date.now()) throw new LinkedInOAuthRequestError("token_introspection", 401, "expired");
+  return result.scope === undefined ? undefined : result.scope.split(/[,\s]+/).filter(Boolean);
+}
 async function exchangeWithClient(platform: SocialPlatform, credentials: CustomerCredentials, grant: { code: string; verifier: string } | { refresh: true }, deadline: number) {
   const config = oauthConfig(platform);
   if (!credentials.clientId || (platform !== "x" && !credentials.clientSecret)) throw new SocialProviderError("Configure your own OAuth client ID and required client secret before authorizing or renewing.", 422);
@@ -237,14 +266,17 @@ async function exchangeWithClient(platform: SocialPlatform, credentials: Custome
   const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
   if ((platform === "x" && credentials.clientSecret) || platform === "pinterest") headers.Authorization = `Basic ${Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString("base64")}`;
   else { fields.set(platform === "tiktok" ? "client_key" : "client_id", credentials.clientId); if (credentials.clientSecret) fields.set("client_secret", credentials.clientSecret); }
-  const data = tokenResponse.parse(await providerJson(config.token, { method: "POST", headers, body: fields }, deadline));
+  const init = { method: "POST", headers, body: fields };
+  const data = tokenResponse.parse(await (platform === "linkedin"
+    ? linkedInOAuthRequest("token_exchange", config.token, init, deadline)
+    : providerJson(config.token, init, deadline)));
   if (data.token_type && data.token_type.toLowerCase() !== "bearer") throw new SocialProviderError("Provider returned an unsupported token type.", 502);
   if (platform === "tiktok" && (!data.open_id || !data.refresh_token)) throw new SocialProviderError("TikTok omitted its required account identity or rotating refresh token.", 502);
   if (platform === "tiktok" && credentials.accountId && data.open_id && data.open_id !== credentials.accountId) throw new SocialProviderError("Renewed token identity did not match.", 422);
   const refreshSeconds = data.refresh_expires_in ?? data.refresh_token_expires_in;
   return customerCredentials.parse({ ...credentials, tokenKind: "oauth", accessToken: data.access_token, refreshToken: data.refresh_token || credentials.refreshToken,
     ...(platform === "tiktok" && data.open_id ? { accountId: data.open_id } : {}),
-    ...(data.scope && credentials.oauthMode === "managed" ? { grantedScopes: data.scope.split(/[,\s]+/).filter(Boolean) } : {}),
+    ...(data.scope !== undefined && credentials.oauthMode === "managed" && (platform === "linkedin" || !!data.scope) ? { grantedScopes: data.scope.split(/[,\s]+/).filter(Boolean) } : {}),
     expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(), ...(refreshSeconds !== undefined
       ? { refreshExpiresAt: new Date(Date.now() + refreshSeconds * 1000).toISOString() }
       : data.refresh_token_expires_at !== undefined ? { refreshExpiresAt: new Date(data.refresh_token_expires_at * 1000).toISOString() } : {}) });

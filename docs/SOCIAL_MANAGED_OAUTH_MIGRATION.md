@@ -321,6 +321,33 @@ Approval flags are operator attestations, not a provider review API and not proo
 that a provider will authorize those scopes. Secrets never use `NEXT_PUBLIC_`.
 No customer access/refresh token belongs in environment configuration.
 
+For local LinkedIn personal testing, set the following in the local server
+environment without replacing existing providers or secrets:
+
+```env
+APP_URL=https://sd2vxlp8-3000.brs.devtunnels.ms
+LINKEDIN_OAUTH_CLIENT_ID=779ygoazul11ja
+LINKEDIN_OAUTH_CLIENT_SECRET=<LinkedIn application secret>
+LINKEDIN_API_VERSION=202611
+```
+
+Add `linkedin` to the existing comma-separated `SOCIAL_MANAGED_PROVIDERS`.
+Keep `LINKEDIN_ORGANIZATIONS_ENABLED=false` and do not add LinkedIn to the
+production approval or analytics lists merely for local testing. The development
+testing mode does not apply outside `NODE_ENV=development`; it permits only the personal
+flow and does not attest to LinkedIn approval. The callback is
+`${APP_URL}/api/social/oauth/linkedin/callback` and must match the registered
+URL exactly. The version is for versioned organization APIs, not the personal
+`/v2/ugcPosts` and `/v2/assets` endpoints.
+
+LinkedIn token introspection checks active status and reported scopes. If both
+the token response and introspection omit scopes, the selection screen shows
+the requested permissions as unconfirmed rather than granted. Introspection
+failures stop the connection. Personal publishing uses LinkedIn's documented
+Share on LinkedIn flow; video readiness polling depends on access to asset
+status and must be validated with the actual application entitlement. No
+automated test sends real content.
+
 For local Threads testing, include `threads` in `SOCIAL_MANAGED_PROVIDERS` in
 development and use the Threads-specific app ID and secret. The Threads profile must accept the
 tester invitation. This is not App Review approval and must not be added to

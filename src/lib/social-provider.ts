@@ -4,7 +4,7 @@ import { readMedia } from "./media-storage";
 import { publishingMediaUrl } from "./publishing-media";
 import { SOCIAL_PLATFORM_SPECS, type SocialPlatform } from "./social-adapters";
 import { workerFetch as fetch } from "./worker-network";
-import { managedSocialConfiguration } from "./social-managed-config";
+import { managedSocialAvailability, managedSocialConfiguration } from "./social-managed-config";
 
 const identifier = z.string().regex(/^[A-Za-z0-9:_-]{1,250}$/);
 export const customerCredentials = z.object({
@@ -30,7 +30,7 @@ export const customerCredentials = z.object({
 }).strict();
 export type CustomerCredentials = z.infer<typeof customerCredentials>;
 export const providerState = z.object({
-  stage: z.enum(["sending", "container", "instagram-carousel", "x-media", "linkedin-video", "tiktok-upload", "youtube-upload", "youtube-processing"]),
+  stage: z.enum(["sending", "container", "instagram-carousel", "x-media", "linkedin-video", "linkedin-member-video", "tiktok-upload", "youtube-upload", "youtube-processing"]),
   id: z.string().optional(),
   children: z.array(z.string().min(1)).max(10).optional(),
   mediaIds: z.array(z.number().int().positive()).max(10).optional(),
@@ -246,14 +246,36 @@ async function sendLinkedIn(post: PostsDocument, text: string, credentials: Cust
   if (!id) throw new SocialProviderError("LinkedIn accepted the request without a post reference. Verify the account before retrying.", 502, true);
   return completed(id);
 }
+async function sendLinkedInMember(post: PostsDocument, text: string, credentials: CustomerCredentials, checkpoint: Checkpoint, media?: { id: string; category: "IMAGE" | "VIDEO" }) {
+  await checkpoint({ stage: "sending", createdAt: Date.now() });
+  const response = await request("https://api.linkedin.com/v2/ugcPosts", credentials, {
+    method: "POST", headers: { "X-Restli-Protocol-Version": "2.0.0", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      author: credentials.accountId, lifecycleState: "PUBLISHED",
+      specificContent: { "com.linkedin.ugc.ShareContent": {
+        shareCommentary: { text }, shareMediaCategory: media?.category || "NONE",
+        ...(media ? { media: [{ status: "READY", media: media.id, title: { text: post.title } }] } : {}),
+      } },
+      visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+    }),
+  });
+  const id = response.headers.get("x-restli-id");
+  if (!id) throw new SocialProviderError("LinkedIn accepted the request without a post reference. Verify the account before retrying.", 502, true);
+  return completed(id);
+}
 
 export async function publishToCustomerAccount(platform: SocialPlatform, credentials: CustomerCredentials, post: PostsDocument, media: MediaAssetsDocument[], checkpoint: Checkpoint, savedState?: ProviderState): Promise<ProviderResult> {
   if (credentials.expiresAt && new Date(credentials.expiresAt).getTime() <= Date.now()) throw new SocialProviderError("Reconnect this account: its access token has expired.", 401);
+  if (platform === "linkedin" && credentials.oauthMode === "managed") {
+    const config = managedSocialConfiguration();
+    const availability = managedSocialAvailability().find(item => item.platform === "linkedin");
+    if (credentials.accountId?.startsWith("urn:li:organization:") && (!config.linkedinOrganizations || !config.approved.includes("linkedin"))) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
+    if (!availability || !["available", "testing"].includes(availability.status)) throw new SocialProviderError("Managed LinkedIn publishing is not enabled or approved.", 403);
+  }
   if (credentials.oauthMode === "managed" && !savedState) {
     const config = managedSocialConfiguration();
     if (platform === "tiktok" && credentials.privacyLevel !== "SELF_ONLY" && !config.publicPosting.includes("tiktok")) throw new SocialProviderError("TikTok public posting requires provider audit approval.", 403);
     if (platform === "youtube" && credentials.privacyLevel !== "private" && !config.publicPosting.includes("youtube")) throw new SocialProviderError("YouTube non-private posting requires provider audit approval.", 403);
-    if (platform === "linkedin" && credentials.accountId?.startsWith("urn:li:organization:") && !config.linkedinOrganizations) throw new SocialProviderError("LinkedIn organization publishing requires Community Management approval.", 403);
   }
   const text = textFor(post, platform);
   if (media.some(asset => asset.workspaceId !== post.workspaceId)) throw new SocialProviderError("Media does not belong to this workspace.", 403);
@@ -285,6 +307,29 @@ export async function publishToCustomerAccount(platform: SocialPlatform, credent
     return sendX(text, ids, credentials, checkpoint);
   }
   if (platform === "linkedin") {
+    if (credentials.accountId?.startsWith("urn:li:person:")) {
+      if (!asset) return sendLinkedInMember(post, text, credentials, checkpoint);
+      const video = asset.assetType === "video";
+      if (video ? asset.mimeType !== "video/mp4" : !["image/jpeg", "image/png"].includes(asset.mimeType || "")) {
+        throw new SocialProviderError("LinkedIn personal sharing requires a JPEG or PNG image, or an MP4 video.");
+      }
+      const bytes = await mediaBytes(asset);
+      if (video && bytes.length >= 200 * 1024 * 1024) throw new SocialProviderError("LinkedIn personal video uploads must be smaller than 200 MB.");
+      const registered = await json("https://api.linkedin.com/v2/assets?action=registerUpload", credentials, z.object({
+        value: z.object({ asset: z.string().regex(/^urn:li:digitalmediaAsset:[A-Za-z0-9_-]+$/),
+          uploadMechanism: z.object({ "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest": z.object({ uploadUrl: z.string().url() }) }) }),
+      }), { registerUploadRequest: {
+        owner: credentials.accountId, recipes: [`urn:li:digitalmediaRecipe:feedshare-${video ? "video" : "image"}`],
+        serviceRelationships: [{ relationshipType: "OWNER", identifier: "urn:li:userGeneratedContent" }],
+        supportedUploadMechanism: [video ? "SINGLE_REQUEST_UPLOAD" : "SYNCHRONOUS_UPLOAD"],
+      } }, { "X-Restli-Protocol-Version": "2.0.0" });
+      await upload(registered.value.uploadMechanism["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"].uploadUrl, bytes,
+        asset.mimeType!, ["linkedin.com", "licdn.com"], video ? {} : { Authorization: `Bearer ${credentials.accessToken}` });
+      if (!video) return sendLinkedInMember(post, text, credentials, checkpoint, { id: registered.value.asset, category: "IMAGE" });
+      const state: ProviderState = { stage: "linkedin-member-video", id: registered.value.asset, createdAt: Date.now() };
+      await checkpoint(state);
+      return processing(state);
+    }
     if (!asset) return sendLinkedIn(post, text, credentials, checkpoint);
     const bytes = await mediaBytes(asset);
     if (asset.assetType === "video") {
@@ -380,6 +425,16 @@ async function resume(platform: SocialPlatform, credentials: CustomerCredentials
     const result = await json(`https://api.linkedin.com/rest/videos/${encodeURIComponent(state.id)}`, credentials, z.object({ status: z.string() }), undefined, linkedInHeaders(credentials));
     if (result.status === "PROCESSING_FAILED") throw new SocialProviderError("LinkedIn could not process the uploaded video.");
     return result.status === "AVAILABLE" ? sendLinkedIn(post, text, credentials, checkpoint, state.id) : processing(state);
+  }
+  if (platform === "linkedin" && state.stage === "linkedin-member-video" && state.id) {
+    if (!credentials.accountId?.startsWith("urn:li:person:") || !/^urn:li:digitalmediaAsset:[A-Za-z0-9_-]+$/.test(state.id)) throw new SocialProviderError("Invalid LinkedIn video state.", 409, true);
+    const assetId = state.id.split(":").at(-1)!;
+    const result = await json(`https://api.linkedin.com/v2/assets/${encodeURIComponent(assetId)}`, credentials,
+      z.object({ status: z.string(), recipes: z.array(z.object({ recipe: z.string(), status: z.string() })) }),
+      undefined, { "X-Restli-Protocol-Version": "2.0.0" });
+    const recipe = result.recipes.find(item => item.recipe === "urn:li:digitalmediaRecipe:feedshare-video");
+    if (result.status !== "ALLOWED" || !recipe || ["CLIENT_ERROR", "SERVER_ERROR", "INCOMPLETE"].includes(recipe.status)) throw new SocialProviderError("LinkedIn could not process the uploaded video.");
+    return recipe.status === "AVAILABLE" ? sendLinkedInMember(post, text, credentials, checkpoint, { id: state.id, category: "VIDEO" }) : processing(state);
   }
   if ((platform === "instagram" || platform === "threads") && state.stage === "container" && state.id) {
     const base = platform === "instagram" ? instagramBase(credentials) : "https://graph.threads.com/v1.0";

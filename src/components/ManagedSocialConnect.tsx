@@ -109,6 +109,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
             <span className="min-w-0 text-sm"><strong className="block break-words">{item.name}</strong>
               <span className="block break-words">{item.handle} · {item.accountType}</span>
               <span className="mt-1 block break-words text-xs text-[var(--text-secondary)]">{t("social.managed.permissions")}: {item.permissions.join(", ") || t("social.managed.noPermissions")}</span>
+              {!!item.unknownPermissions?.length && <span className="mt-1 block break-words text-xs text-amber-400">{t("social.managed.unknownPermissions")}: {item.unknownPermissions.join(", ")}</span>}
             </span>
           </label>;
         })}
@@ -144,7 +145,7 @@ export function ManagedSocialConnect({ availability, accounts, canManage, select
           <p className="text-xs">{t("social.managed.accountCount", { count: formatNumber(connected.length) })} · {t(`social.managed.status.${status}`)}</p>
           {!!connected.length && <p className="text-xs">{t(reconnect ? "customer.status.reconnect_required" : "customer.status.connected")}</p>}
           <p className="text-xs text-[var(--text-secondary)]">{t(`social.managed.eligibility.${spec.id}`)}</p>
-          {status !== "available" && <p className="text-xs text-amber-400">{t(`social.managed.gate.${status}`)}</p>}
+          {status !== "available" && <p className="text-xs text-amber-400">{t(status === "testing" && spec.id === "linkedin" ? "social.managed.gate.linkedinTesting" : `social.managed.gate.${status}`)}</p>}
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-2">
             {canManage && <button type="button" disabled={busy || !["available", "testing"].includes(status) || !!pending} className={buttonClass} onClick={() => { setActive(spec.id); setConsent(false); setAnalyticsEnabled(false); setOrganizations(false); setError(null); }}>
               {t(reconnect ? "social.managed.reconnect" : "social.managed.connect")}

@@ -31,7 +31,8 @@ export async function persistSocialConnection(input: { workspaceId: number; bran
     const managed = verified.credentials.oauthMode === "managed";
     const fields = { accountName: verified.name, handle: verified.handle, status: "connected", integrationMode: managed ? "managed_oauth" : "customer_credentials",
       ...(input.accountType ? { accountType: input.accountType } : {}),
-      ...(verified.credentials.grantedScopes ? { permissions: verified.credentials.grantedScopes } : {}), lastSyncAt: new Date(), lastError: null };
+      ...(platform === "linkedin" && managed ? { permissions: verified.credentials.grantedScopes || [] }
+        : verified.credentials.grantedScopes ? { permissions: verified.credentials.grantedScopes } : {}), lastSyncAt: new Date(), lastError: null };
     const [account] = existing ? await tx.update(socialAccounts, { id: existing.id, workspaceId }, fields) : await tx.insert(socialAccounts, { workspaceId, brandId, platform, ...fields });
     const credentialFields = { workspaceId, encryptedCredentials, verifiedAt: new Date(), expiresAt: verified.credentials.expiresAt ? new Date(verified.credentials.expiresAt) : null };
     await tx.upsert(socialCredentials, "socialAccountId", { socialAccountId: account.id, ...credentialFields }, credentialFields);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
-import { assertSocialMutationOrigin, managedSelectionInput, managedSocialErrorCode, readManagedSelection, selectManagedDestination } from "@/lib/social-managed-oauth";
+import { assertSocialMutationOrigin, managedSelectionInput, managedSocialErrorCode, readManagedSelection, reportLinkedInOAuthFailure, selectManagedDestination } from "@/lib/social-managed-oauth";
 import { SocialProviderError } from "@/lib/social-provider";
 import { WorkflowError } from "@/lib/post-policy";
 import { withWorkerDeadline } from "@/lib/worker-network";
@@ -16,6 +16,7 @@ export async function GET(req: Request, context: { params: Promise<{ platform: s
     return NextResponse.json(await readManagedSelection({ workspaceId: ctx.workspace.id, userId: ctx.user.id, platform,
       ticket: new URL(req.url).searchParams.get("ticket") || "" }), { headers });
   } catch (error) {
+    if (platform === "linkedin") reportLinkedInOAuthFailure("selection", error);
     if (platform === "facebook") reportFacebookRejection("selection_read", managedSocialErrorCode(error));
     if (platform === "instagram") reportInstagramRejection("selection_read", managedSocialErrorCode(error, platform));
     return NextResponse.json({ code: managedSocialErrorCode(error, platform) }, { status: error instanceof SocialProviderError || error instanceof WorkflowError ? error.status : 400, headers });

@@ -13,7 +13,7 @@ import { WorkflowError } from "@/lib/post-policy";
 import { assertBrandEntitlement } from "@/lib/entitlements";
 import { withWorkerDeadline } from "@/lib/worker-network";
 import { discoverManagedDestinations, ManagedSocialOAuthError } from "@/lib/social-managed-provider";
-import { createManagedSelection, managedSocialErrorCode } from "@/lib/social-managed-oauth";
+import { createManagedSelection, managedSocialErrorCode, reportLinkedInOAuthFailure } from "@/lib/social-managed-oauth";
 import { SOCIAL_PLATFORM_SPECS } from "@/lib/social-adapters";
 import { managedSocialConfiguration } from "@/lib/social-managed-config";
 import { facebookDiagnosticsEnabled, reportFacebookEntry, reportFacebookRejection } from "@/lib/facebook-oauth-diagnostics";
@@ -81,6 +81,7 @@ async function completeAuthorization(req: Request, context: { params: Promise<{ 
     await persistSocialConnection({ workspaceId: ctx.workspace.id, brandId: attempt.brandId, platform: platform as SocialPlatform, actorEmail: ctx.user.email, verified });
     return NextResponse.redirect(new URL("/app/social", oauthCallbackUrl(platform)), { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
+    if (platform === "linkedin") reportLinkedInOAuthFailure(stage, error);
     if (platform === "facebook") reportFacebookRejection(stage, managedSocialErrorCode(error));
     if (platform === "instagram") reportInstagramRejection(stage, managedSocialErrorCode(error, platform));
     if (platform === "threads") reportThreadsRejection(stage, managedSocialErrorCode(error, platform));
